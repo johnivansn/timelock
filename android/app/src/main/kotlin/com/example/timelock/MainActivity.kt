@@ -238,6 +238,29 @@ class MainActivity : FlutterActivity() {
           prefs.saveAll(settings)
           result.success(null)
         }
+        "exportConfig" -> {
+          scope.launch {
+            try {
+              val config = exportConfig()
+              withContext(Dispatchers.Main) { result.success(config) }
+            } catch (e: Exception) {
+              Log.e("MainActivity", "Error exporting config", e)
+              withContext(Dispatchers.Main) { result.error("EXPORT_ERROR", e.message, null) }
+            }
+          }
+        }
+        "importConfig" -> {
+          val json = call.arguments as String
+          scope.launch {
+            try {
+              val importResult = importConfig(json)
+              withContext(Dispatchers.Main) { result.success(importResult) }
+            } catch (e: Exception) {
+              Log.e("MainActivity", "Error importing config", e)
+              withContext(Dispatchers.Main) { result.error("IMPORT_ERROR", e.message, null) }
+            }
+          }
+        }
         else -> result.notImplemented()
       }
     }
@@ -246,6 +269,83 @@ class MainActivity : FlutterActivity() {
   override fun onDestroy() {
     super.onDestroy()
     scope.cancel()
+  }
+  
+  private suspend fun exportConfig(): String {
+    val restrictions = database.appRestrictionDao().getAll()
+    val adminSettings = database.adminSettingsDao().get()
+
+    val restrictionsData =
+            restrictions.map { r ->
+              mapOf(
+                      "packageName" to r.packageName,
+                      "appName" to r.appName,
+                      "dailyQuotaMinutes" to r.dailyQuotaMinutes,
+                      "isEnabled" to r.isEnabled,
+                      "blockedWifiSSIDs" to r.getBlockedWifiList()
+              )
+            }
+
+    val exportMap =
+            mutableMapOf<String, Any>(
+                    "version" to 1,
+                    "exportedAt" to System.currentTimeMillis(),
+                    "restrictions" to restrictionsData
+            )
+
+    if (adminSettings != null && adminSettings.isEnabled) {
+      exportMap["adminMode"] = mapOf("enabled" to true)
+    }
+
+    return com.google.gson.Gson().toJson(exportMap)
+  }
+
+  private suspend fun importConfig(json: String): Map<String, Any> {
+    val gson = com.google.gson.Gson()
+    val data =
+            gson.fromJson(json, Map<String, Any>::class.java)
+                    ?: return mapOf("success" to false, "error" to "JSON inválido")
+
+    val version = (data["version"] as? Number)?.toInt() ?: 0
+    if (version != 1) {
+      return mapOf("success" to false, "error" to "Versión no soportada: $version")
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    val restrictions =
+            data["restrictions"] as? List<Map<String, Any>>
+                    ?: return mapOf("success" to false, "error" to "Sin restricciones en archivo")
+
+    var imported = 0
+    var skipped = 0
+
+    for (item in restrictions) {
+      val pkg = item["packageName"] as? String ?: continue
+      val existing = database.appRestrictionDao().getByPackage(pkg)
+      if (existing != null) {
+        skipped++
+        continue
+      }
+
+      @Suppress("UNCHECKED_CAST")
+      val wifiList = (item["blockedWifiSSIDs"] as? List<String>) ?: emptyList()
+
+      val restriction =
+              AppRestriction(
+                      id = java.util.UUID.randomUUID().toString(),
+                      packageName = pkg,
+                      appName = item["appName"] as? String ?: pkg,
+                      dailyQuotaMinutes = (item["dailyQuotaMinutes"] as? Number)?.toInt() ?: 60,
+                      isEnabled = item["isEnabled"] as? Boolean ?: true,
+                      blockedWifiSSIDs = wifiList.joinToString(","),
+                      createdAt = System.currentTimeMillis()
+              )
+      database.appRestrictionDao().insert(restriction)
+      imported++
+    }
+
+    Log.i("MainActivity", "Import: $imported imported, $skipped skipped")
+    return mapOf("success" to true, "imported" to imported, "skipped" to skipped)
   }
 
   private fun hasUsageStatsPermission(): Boolean {

@@ -6,6 +6,7 @@ import 'package:timelock/screens/notification_settings_screen.dart';
 import 'package:timelock/widgets/app_picker_dialog.dart';
 import 'package:timelock/widgets/time_picker_dialog.dart';
 import 'package:timelock/widgets/wifi_picker_dialog.dart';
+import 'package:timelock/screens/export_import_screen.dart';
 
 class AppListScreen extends StatefulWidget {
   const AppListScreen({super.key});
@@ -257,6 +258,12 @@ class _AppListScreenState extends State<AppListScreen> {
                 MaterialPageRoute(
                     builder: (_) => const NotificationSettingsScreen()),
               );
+            } else if (value == 'export_import') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const ExportImportScreen()),
+              ).then((_) => _loadRestrictions());
             }
           },
           itemBuilder: (context) => [
@@ -279,6 +286,17 @@ class _AppListScreenState extends State<AppListScreen> {
                       color: Colors.white70, size: 20),
                   SizedBox(width: 12),
                   Text('Notificaciones', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'export_import',
+              child: Row(
+                children: [
+                  Icon(Icons.sync_outlined, color: Colors.white70, size: 20),
+                  SizedBox(width: 12),
+                  Text('Export / Import',
+                      style: TextStyle(color: Colors.white)),
                 ],
               ),
             ),
