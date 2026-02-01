@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:timelock/screens/pin_setup_screen.dart';
 import 'package:timelock/screens/pin_verify_screen.dart';
+import 'package:timelock/theme/app_theme.dart';
 
 class PermissionsScreen extends StatefulWidget {
   const PermissionsScreen({super.key});
@@ -81,138 +82,143 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
+          const SliverAppBar(
             pinned: true,
-            backgroundColor: const Color(0xFF0F0F1A),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new,
-                  color: Colors.white70, size: 20),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: const Text(
-              'Permisos',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white),
-            ),
+            title: Text('Permisos'),
           ),
           if (_loading)
             const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 3)),
             )
           else ...[
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                ),
                 child: _statusCard(),
               ),
             ),
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _permissionItem(
-                  icon: Icons.bar_chart_outlined,
-                  title: 'Estadísticas de Uso',
-                  description:
-                      'Necesario para medir el tiempo de uso de cada aplicación.',
-                  granted: _usage,
-                  critical: true,
-                  onRequest: _requestUsage,
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.xl,
+                  AppSpacing.lg,
+                  AppSpacing.xs,
+                ),
+                child: Text(
+                  'PERMISOS CRÍTICOS',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textTertiary,
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _permissionItem(
-                  icon: Icons.accessibility_new_outlined,
-                  title: 'Accesibilidad',
-                  description:
-                      'Permite mostrar el overlay de bloqueo sobre las aplicaciones.',
-                  granted: _accessibility,
-                  critical: true,
-                  onRequest: _requestAccessibility,
-                ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _permissionCard(
+                    icon: Icons.bar_chart_rounded,
+                    title: 'Estadísticas de Uso',
+                    description: 'Mide el tiempo de uso de cada aplicación',
+                    granted: _usage,
+                    critical: true,
+                    onRequest: _requestUsage,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _permissionCard(
+                    icon: Icons.accessibility_new_rounded,
+                    title: 'Accesibilidad',
+                    description: 'Muestra el overlay de bloqueo sobre apps',
+                    granted: _accessibility,
+                    critical: true,
+                    onRequest: _requestAccessibility,
+                  ),
+                ]),
               ),
             ),
             if (!_allOk)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   child: SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
+                    height: 52,
+                    child: FilledButton.icon(
                       onPressed: _configureAll,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6C5CE7),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                        elevation: 0,
-                      ),
-                      child: const Text('Configurar Todo',
-                          style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w600)),
+                      icon: const Icon(Icons.settings_rounded),
+                      label: const Text('Configurar Todo'),
                     ),
                   ),
                 ),
               ),
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 24, 16, 4),
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.xl,
+                  AppSpacing.lg,
+                  AppSpacing.xs,
+                ),
                 child: Text(
                   'MODO ADMINISTRADOR',
                   style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white38,
-                      letterSpacing: 1.0),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textTertiary,
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: _adminCard(),
               ),
-
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 24, 16, 4),
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.xl,
+                  AppSpacing.lg,
+                  AppSpacing.xs,
+                ),
                 child: Text(
                   'PROTECCIÓN ADICIONAL',
                   style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white38,
-                      letterSpacing: 1.0),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textTertiary,
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _permissionItem(
-                  icon: Icons.security_outlined,
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: _permissionCard(
+                  icon: Icons.security_rounded,
                   title: 'Protección contra desinstalación',
-                  description:
-                      'Evita que la app sea desinstalada accidentalmente.',
+                  description: 'Evita desinstalación accidental de la app',
                   granted: _deviceAdmin,
                   critical: false,
                   onRequest: _requestDeviceAdmin,
                 ),
               ),
             ),
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
           ],
         ],
       ),
@@ -222,24 +228,25 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   Widget _statusCard() {
     if (_allOk) {
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
-          color: const Color(0x1A27AE60),
-          border: Border.all(color: const Color(0xFF27AE60), width: 1),
-          borderRadius: BorderRadius.circular(16),
+          color: AppColors.success.withValues(alpha: 0.1),
+          border: Border.all(color: AppColors.success, width: 1),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         child: const Row(
           children: [
-            Icon(Icons.check_circle_outline,
-                color: Color(0xFF27AE60), size: 24),
-            SizedBox(width: 12),
+            Icon(Icons.check_circle_rounded,
+                color: AppColors.success, size: 24),
+            SizedBox(width: AppSpacing.md),
             Expanded(
               child: Text(
                 '¡Todo configurado correctamente!',
                 style: TextStyle(
-                    color: Color(0xFF27AE60),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500),
+                  color: AppColors.success,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -248,21 +255,23 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: const Color(0x1AF39C12),
-        border: Border.all(color: const Color(0xFFF39C12), width: 1),
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.warning.withValues(alpha: 0.1),
+        border: Border.all(color: AppColors.warning, width: 1),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: const Row(
         children: [
-          Icon(Icons.warning_amber_outlined,
-              color: Color(0xFFF39C12), size: 24),
-          SizedBox(width: 12),
+          Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 24),
+          SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
-              'La app no funcionará correctamente sin los permisos requeridos.',
-              style: TextStyle(color: Color(0xFFF39C12), fontSize: 13),
+              'La app requiere estos permisos para funcionar',
+              style: TextStyle(
+                color: AppColors.warning,
+                fontSize: 14,
+              ),
             ),
           ),
         ],
@@ -270,7 +279,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     );
   }
 
-  Widget _permissionItem({
+  Widget _permissionCard({
     required IconData icon,
     required String title,
     required String description,
@@ -278,148 +287,146 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     required bool critical,
     required VoidCallback onRequest,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color:
-                  granted ? const Color(0x1A27AE60) : const Color(0x1AE74C3C),
-              borderRadius: BorderRadius.circular(12),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: granted
+                    ? AppColors.success.withValues(alpha: 0.15)
+                    : AppColors.error.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Icon(
+                icon,
+                size: 24,
+                color: granted ? AppColors.success : AppColors.error,
+              ),
             ),
-            child: Center(
-              child: Icon(icon,
-                  size: 22,
-                  color: granted
-                      ? const Color(0xFF27AE60)
-                      : const Color(0xFFE74C3C)),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white),
-                    ),
-                    if (critical)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0x33E74C3C),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'CRÍTICO',
-                          style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFFE74C3C),
-                              letterSpacing: 0.5),
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: const TextStyle(
-                      fontSize: 12, color: Colors.white38, height: 1.4),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          if (granted)
-            const Icon(Icons.check_circle, color: Color(0xFF27AE60), size: 24)
-          else
-            TextButton(
-              onPressed: onRequest,
-              style: TextButton.styleFrom(padding: EdgeInsets.zero),
-              child: const Text('Habilitar',
-                  style: TextStyle(
-                      color: Color(0xFF6C5CE7),
+                      if (critical) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'REQUERIDO',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.error,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    description,
+                    style: const TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w600)),
+                      color: AppColors.textTertiary,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
             ),
-        ],
+            const SizedBox(width: AppSpacing.md),
+            if (granted)
+              const Icon(Icons.check_circle_rounded,
+                  color: AppColors.success, size: 24)
+            else
+              TextButton(
+                onPressed: onRequest,
+                child: const Text('Habilitar'),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _adminCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: _adminEnabled
-                  ? const Color(0x1A27AE60)
-                  : const Color(0x1A6C5CE7),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: Icon(
-                _adminEnabled ? Icons.lock : Icons.lock_open_outlined,
-                size: 22,
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
                 color: _adminEnabled
-                    ? const Color(0xFF27AE60)
-                    : const Color(0xFF6C5CE7),
+                    ? AppColors.success.withValues(alpha: 0.15)
+                    : AppColors.primary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Icon(
+                _adminEnabled ? Icons.lock_rounded : Icons.lock_open_rounded,
+                size: 24,
+                color: _adminEnabled ? AppColors.success : AppColors.primary,
               ),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Protección con PIN',
-                  style: TextStyle(
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Protección con PIN',
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _adminEnabled
-                      ? 'Activo — Se requiere PIN para modificar restricciones'
-                      : 'Protege la configuración contra cambios accidentales',
-                  style: const TextStyle(
-                      fontSize: 12, color: Colors.white38, height: 1.4),
-                ),
-              ],
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    _adminEnabled
+                        ? 'Se requiere PIN para modificar restricciones'
+                        : 'Protege contra cambios accidentales',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textTertiary,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          _adminEnabled ? _disableAdminButton() : _enableAdminButton(),
-        ],
+            const SizedBox(width: AppSpacing.md),
+            _adminEnabled ? _disableAdminButton() : _enableAdminButton(),
+          ],
+        ),
       ),
     );
   }
@@ -434,12 +441,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
           if (result == true) _refresh();
         });
       },
-      style: TextButton.styleFrom(padding: EdgeInsets.zero),
-      child: const Text('Activar',
-          style: TextStyle(
-              color: Color(0xFF6C5CE7),
-              fontSize: 13,
-              fontWeight: FontWeight.w600)),
+      child: const Text('Activar'),
     );
   }
 
@@ -449,9 +451,10 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
         Navigator.push<bool>(
           context,
           MaterialPageRoute(
-              builder: (_) => const PinVerifyScreen(
-                  reason:
-                      'Ingresa tu PIN para desactivar el modo administrador')),
+            builder: (_) => const PinVerifyScreen(
+              reason: 'Ingresa tu PIN para desactivar el modo administrador',
+            ),
+          ),
         ).then((result) async {
           if (result == true) {
             await _ch.invokeMethod('disableAdmin');
@@ -459,12 +462,8 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
           }
         });
       },
-      style: TextButton.styleFrom(padding: EdgeInsets.zero),
-      child: const Text('Desactivar',
-          style: TextStyle(
-              color: Color(0xFFE74C3C),
-              fontSize: 13,
-              fontWeight: FontWeight.w600)),
+      style: TextButton.styleFrom(foregroundColor: AppColors.error),
+      child: const Text('Desactivar'),
     );
   }
 }
