@@ -3,10 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:timelock/screens/permissions_screen.dart';
 import 'package:timelock/screens/pin_verify_screen.dart';
 import 'package:timelock/screens/notification_settings_screen.dart';
+import 'package:timelock/screens/export_import_screen.dart';
 import 'package:timelock/widgets/app_picker_dialog.dart';
 import 'package:timelock/widgets/time_picker_dialog.dart';
 import 'package:timelock/widgets/wifi_picker_dialog.dart';
-import 'package:timelock/screens/export_import_screen.dart';
+import 'package:timelock/theme/app_theme.dart';
 
 class AppListScreen extends StatefulWidget {
   const AppListScreen({super.key});
@@ -151,11 +152,9 @@ class _AppListScreenState extends State<AppListScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor:
-            isError ? const Color(0xFFE74C3C) : const Color(0xFF27AE60),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
+        margin: const EdgeInsets.all(AppSpacing.md),
       ),
     );
   }
@@ -200,133 +199,153 @@ class _AppListScreenState extends State<AppListScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          _buildSliver(),
-          if (!_permissionsOk) SliverToBoxAdapter(child: _permissionsBanner()),
+          _buildAppBar(),
+          if (!_permissionsOk)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xs),
+                child: _permissionsBanner(),
+              ),
+            ),
           if (_loading)
             const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              child: Center(
+                child: CircularProgressIndicator(strokeWidth: 3),
+              ),
             )
           else if (_restrictions.isEmpty)
             SliverFillRemaining(child: _emptyState())
           else
-            SliverList.separated(
-              itemCount: _restrictions.length,
-              itemBuilder: (_, i) => _restrictionCard(_restrictions[i]),
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+            SliverPadding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              sliver: SliverList.separated(
+                itemCount: _restrictions.length,
+                itemBuilder: (_, i) => _restrictionCard(_restrictions[i]),
+                separatorBuilder: (_, __) =>
+                    const SizedBox(height: AppSpacing.md),
+              ),
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _openAddFlow,
-        backgroundColor: const Color(0xFF6C5CE7),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        child: const Icon(Icons.add, size: 24),
+        icon: const Icon(Icons.add_rounded, size: 24),
+        label: const Text('Agregar'),
       ),
     );
   }
 
-  SliverAppBar _buildSliver() {
+  SliverAppBar _buildAppBar() {
     return SliverAppBar(
-      expandedHeight: 100,
+      expandedHeight: 120,
       pinned: true,
-      backgroundColor: const Color(0xFF0F0F1A),
       flexibleSpace: const FlexibleSpaceBar(
-        titlePadding: EdgeInsets.only(left: 20, bottom: 16),
-        title: Text(
-          'AppTimeControl',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-        ),
+        titlePadding:
+            EdgeInsets.only(left: AppSpacing.lg, bottom: AppSpacing.md),
+        title: Text('AppTimeControl'),
       ),
       actions: [
-        PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, color: Colors.white70, size: 22),
-          color: const Color(0xFF1A1A2E),
-          onSelected: (value) {
-            if (value == 'permissions') {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PermissionsScreen()),
-              ).then((_) => _checkPermissions());
-            } else if (value == 'notifications') {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const NotificationSettingsScreen()),
-              );
-            } else if (value == 'export_import') {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const ExportImportScreen()),
-              ).then((_) => _loadRestrictions());
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'permissions',
-              child: Row(
-                children: [
-                  Icon(Icons.security_outlined,
-                      color: Colors.white70, size: 20),
-                  SizedBox(width: 12),
-                  Text('Permisos', style: TextStyle(color: Colors.white)),
-                ],
+        IconButton(
+          icon: const Icon(Icons.settings_outlined, size: 24),
+          onPressed: () => _showSettingsMenu(),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+      ],
+    );
+  }
+
+  void _showSettingsMenu() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const PopupMenuItem(
-              value: 'notifications',
-              child: Row(
-                children: [
-                  Icon(Icons.notifications_outlined,
-                      color: Colors.white70, size: 20),
-                  SizedBox(width: 12),
-                  Text('Notificaciones', style: TextStyle(color: Colors.white)),
-                ],
-              ),
+            const SizedBox(height: AppSpacing.lg),
+            _menuItem(
+              icon: Icons.security_outlined,
+              title: 'Permisos',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const PermissionsScreen()),
+                ).then((_) => _checkPermissions());
+              },
             ),
-            const PopupMenuItem(
-              value: 'export_import',
-              child: Row(
-                children: [
-                  Icon(Icons.sync_outlined, color: Colors.white70, size: 20),
-                  SizedBox(width: 12),
-                  Text('Export / Import',
-                      style: TextStyle(color: Colors.white)),
-                ],
-              ),
+            _menuItem(
+              icon: Icons.notifications_outlined,
+              title: 'Notificaciones',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const NotificationSettingsScreen()),
+                );
+              },
             ),
+            _menuItem(
+              icon: Icons.sync_outlined,
+              title: 'Export / Import',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ExportImportScreen()),
+                ).then((_) => _loadRestrictions());
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
           ],
         ),
-        const SizedBox(width: 8),
-      ],
+      ),
+    );
+  }
+
+  Widget _menuItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: AppColors.textSecondary),
+      title: Text(title, style: const TextStyle(color: AppColors.textPrimary)),
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
     );
   }
 
   Widget _permissionsBanner() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: const Color(0xFF2D1B00),
-        border: Border.all(color: const Color(0xFFF39C12), width: 1),
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.warning.withValues(alpha: 0.1),
+        border: Border.all(color: AppColors.warning, width: 1),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber, color: Color(0xFFF39C12), size: 20),
-          const SizedBox(width: 12),
+          const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 24),
+          const SizedBox(width: AppSpacing.md),
           const Expanded(
             child: Text(
               'Faltan permisos necesarios',
               style: TextStyle(
-                  color: Color(0xFFF39C12),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500),
+                color: AppColors.warning,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           TextButton(
@@ -334,9 +353,7 @@ class _AppListScreenState extends State<AppListScreen> {
               context,
               MaterialPageRoute(builder: (_) => const PermissionsScreen()),
             ).then((_) => _checkPermissions()),
-            style: TextButton.styleFrom(padding: EdgeInsets.zero),
-            child: const Text('Configurar',
-                style: TextStyle(color: Color(0xFFF39C12), fontSize: 13)),
+            child: const Text('Configurar'),
           ),
         ],
       ),
@@ -344,26 +361,42 @@ class _AppListScreenState extends State<AppListScreen> {
   }
 
   Widget _emptyState() {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(40),
+        padding: const EdgeInsets.all(AppSpacing.xxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.shield_outlined, size: 64, color: Color(0xFF6C5CE7)),
-            SizedBox(height: 24),
-            Text(
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.shield_outlined,
+                size: 40,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            const Text(
               'Sin restricciones',
               style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white),
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
             ),
-            SizedBox(height: 8),
-            Text(
-              'Toca el botón + para agregar\nuna aplicación con límite de tiempo',
-              style:
-                  TextStyle(fontSize: 14, color: Colors.white38, height: 1.5),
+            const SizedBox(height: AppSpacing.sm),
+            const Text(
+              'Toca "Agregar" para comenzar a\nmonitorear el tiempo de tus apps',
+              style: TextStyle(
+                fontSize: 15,
+                color: AppColors.textTertiary,
+                height: 1.5,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -380,10 +413,10 @@ class _AppListScreenState extends State<AppListScreen> {
     final remaining = (quota - used).clamp(0, quota);
 
     final progressColor = blocked
-        ? const Color(0xFFE74C3C)
+        ? AppColors.error
         : progress > 0.75
-            ? const Color(0xFFF39C12)
-            : const Color(0xFF27AE60);
+            ? AppColors.warning
+            : AppColors.success;
 
     return Dismissible(
       key: ValueKey(r['packageName']),
@@ -391,101 +424,121 @@ class _AppListScreenState extends State<AppListScreen> {
       confirmDismiss: (_) =>
           _requireAdmin('Ingresa tu PIN para eliminar esta restricción'),
       background: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFFE74C3C),
-          borderRadius: BorderRadius.circular(16),
+          color: AppColors.error,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         child: const Align(
           alignment: Alignment.centerRight,
           child: Padding(
-            padding: EdgeInsets.only(right: 20),
-            child: Icon(Icons.delete_outline, color: Colors.white, size: 24),
+            padding: EdgeInsets.only(right: AppSpacing.lg),
+            child: Icon(Icons.delete_outline_rounded,
+                color: Colors.white, size: 28),
           ),
         ),
       ),
       onDismissed: (_) => _deleteRestriction(r),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1A2E),
-          borderRadius: BorderRadius.circular(16),
-          border: blocked
-              ? Border.all(color: const Color(0xFFE74C3C), width: 1)
-              : null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Card(
+        child: InkWell(
+          onTap: () {},
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: blocked
+                ? BoxDecoration(
+                    border: Border.all(color: AppColors.error, width: 2),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                  )
+                : null,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(
-                    r['appName'],
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (blocked)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0x33E74C3C),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      'BLOQUEADA',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFE74C3C),
-                        letterSpacing: 0.5,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        r['appName'],
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    if (blocked)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.xs,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.error.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.lock_rounded,
+                                color: AppColors.error, size: 14),
+                            SizedBox(width: AppSpacing.xs),
+                            Text(
+                              'BLOQUEADA',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.error,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    color: progressColor,
+                    backgroundColor: AppColors.surfaceVariant,
                   ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '${_timeLabel(used)} usados',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                    Text(
+                      blocked
+                          ? 'Se abre a medianoche'
+                          : '${_timeLabel(remaining)} restantes',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color:
+                            blocked ? AppColors.error : AppColors.textTertiary,
+                        fontWeight:
+                            blocked ? FontWeight.w500 : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+                const Divider(height: 1),
+                const SizedBox(height: AppSpacing.md),
+                _wifiRow(r),
               ],
             ),
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: progress,
-                backgroundColor: const Color(0xFF2A2A3E),
-                valueColor: AlwaysStoppedAnimation<Color>(progressColor),
-                minHeight: 5,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${_timeLabel(used)} usados',
-                  style: const TextStyle(fontSize: 12, color: Colors.white38),
-                ),
-                Text(
-                  blocked
-                      ? 'Se abre a medianoche'
-                      : '${_timeLabel(remaining)} restantes',
-                  style: TextStyle(
-                      fontSize: 12,
-                      color:
-                          blocked ? const Color(0xFFE74C3C) : Colors.white38),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const Divider(color: Color(0xFF2A2A3E), height: 1),
-            const SizedBox(height: 10),
-            _wifiRow(r),
-          ],
+          ),
         ),
       ),
     );
@@ -499,31 +552,34 @@ class _AppListScreenState extends State<AppListScreen> {
 
     return Row(
       children: [
-        const Icon(Icons.wifi_outlined, color: Colors.white24, size: 18),
-        const SizedBox(width: 8),
+        const Icon(Icons.wifi_outlined, color: AppColors.textTertiary, size: 20),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: ssids.isEmpty
               ? const Text(
                   'Sin redes bloqueadas',
-                  style: TextStyle(fontSize: 12, color: Colors.white24),
+                  style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
                 )
               : Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
                   children: ssids
                       .map((ssid) => Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
+                              horizontal: AppSpacing.sm,
+                              vertical: AppSpacing.xs,
+                            ),
                             decoration: BoxDecoration(
-                              color: const Color(0x1A6C5CE7),
+                              color: AppColors.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               ssid,
                               style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Color(0xFF6C5CE7),
-                                  fontWeight: FontWeight.w500),
+                                fontSize: 12,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                             ),
@@ -531,17 +587,13 @@ class _AppListScreenState extends State<AppListScreen> {
                       .toList(),
                 ),
         ),
-        const SizedBox(width: 8),
-        GestureDetector(
-          onTap: () => _openWifiPicker(r),
-          child: Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2A2A3E),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.settings_outlined,
-                color: Colors.white38, size: 16),
+        const SizedBox(width: AppSpacing.sm),
+        IconButton(
+          onPressed: () => _openWifiPicker(r),
+          icon: const Icon(Icons.settings_outlined, size: 20),
+          style: IconButton.styleFrom(
+            backgroundColor: AppColors.surfaceVariant,
+            padding: const EdgeInsets.all(AppSpacing.sm),
           ),
         ),
       ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:timelock/theme/app_theme.dart';
 
 class QuotaTimePicker extends StatefulWidget {
   const QuotaTimePicker({super.key});
@@ -43,92 +44,80 @@ class _QuotaTimePickerState extends State<QuotaTimePicker> {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      child: Container(
-        color: const Color(0xFF1A1A2E),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2A2A3E),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Tiempo diario',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          const Text(
+            'Tiempo diario',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Selecciona el límite máximo',
-              style: TextStyle(fontSize: 13, color: Colors.white38),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          const Text(
+            'Selecciona el límite máximo de uso',
+            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: _presets.map((p) => _presetChip(p)).toList(),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _customRow(),
+          const SizedBox(height: AppSpacing.xl),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton(
+              onPressed: _valid ? () => Navigator.pop(context, _value) : null,
+              child: Text('Confirmar — ${_label(_value)}'),
             ),
-            const SizedBox(height: 20),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _presets.map((p) => _presetChip(p)).toList(),
-            ),
-            const SizedBox(height: 16),
-            _customRow(),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: _valid ? () => Navigator.pop(context, _value) : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6C5CE7),
-                  disabledBackgroundColor: const Color(0xFF2A2A3E),
-                  foregroundColor: Colors.white,
-                  disabledForegroundColor: Colors.white38,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  elevation: 0,
-                ),
-                child: Text(
-                  'Confirmar — ${_label(_value)}',
-                  style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _presetChip(int minutes) {
     final isActive = !_useCustom && _selected == minutes;
-    return GestureDetector(
-      onTap: () => _pick(minutes),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF6C5CE7) : const Color(0xFF2A2A3E),
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Text(
-          _label(minutes),
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: isActive ? Colors.white : Colors.white70,
-          ),
-        ),
+    return FilterChip(
+      label: Text(_label(minutes)),
+      selected: isActive,
+      onSelected: (_) => _pick(minutes),
+      backgroundColor: AppColors.surfaceVariant,
+      selectedColor: AppColors.primary,
+      labelStyle: TextStyle(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        color: isActive ? Colors.white : AppColors.textSecondary,
+      ),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
       ),
     );
   }
@@ -136,44 +125,37 @@ class _QuotaTimePickerState extends State<QuotaTimePicker> {
   Widget _customRow() {
     return Row(
       children: [
-        GestureDetector(
-          onTap: _pickCustom,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: _useCustom
-                  ? const Color(0xFF6C5CE7)
-                  : const Color(0xFF2A2A3E),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Personalizado',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: _useCustom ? Colors.white : Colors.white70,
-              ),
-            ),
+        FilterChip(
+          label: const Text('Personalizado'),
+          selected: _useCustom,
+          onSelected: (_) => _pickCustom(),
+          backgroundColor: AppColors.surfaceVariant,
+          selectedColor: AppColors.primary,
+          labelStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: _useCustom ? Colors.white : AppColors.textSecondary,
           ),
         ),
-        const SizedBox(width: 12),
-        if (_useCustom)
+        if (_useCustom) ...[
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Row(
               children: [
-                _iconBtn(Icons.remove, () {
-                  if (_custom > 5) {
-                    setState(() => _custom = (_custom - 5).clamp(5, 480));
-                  }
-                }),
-                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.remove_rounded),
+                  onPressed: _custom > 5
+                      ? () =>
+                          setState(() => _custom = (_custom - 5).clamp(5, 480))
+                      : null,
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.surfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: TextField(
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600),
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     controller: TextEditingController(text: _custom.toString()),
@@ -181,45 +163,29 @@ class _QuotaTimePickerState extends State<QuotaTimePicker> {
                       final n = int.tryParse(v);
                       if (n != null) setState(() => _custom = n.clamp(5, 480));
                     },
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: const Color(0xFF2A2A3E),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: const InputDecoration(
                       suffixText: 'min',
-                      suffixStyle:
-                          const TextStyle(color: Colors.white38, fontSize: 13),
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: AppSpacing.md),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                _iconBtn(Icons.add, () {
-                  if (_custom < 480) {
-                    setState(() => _custom = (_custom + 5).clamp(5, 480));
-                  }
-                }),
+                const SizedBox(width: AppSpacing.sm),
+                IconButton(
+                  icon: const Icon(Icons.add_rounded),
+                  onPressed: _custom < 480
+                      ? () =>
+                          setState(() => _custom = (_custom + 5).clamp(5, 480))
+                      : null,
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.surfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
+        ],
       ],
-    );
-  }
-
-  Widget _iconBtn(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: const Color(0xFF2A2A3E),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Center(child: Icon(icon, color: Colors.white70, size: 18)),
-      ),
     );
   }
 }
