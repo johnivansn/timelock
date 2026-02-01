@@ -9,7 +9,9 @@ import android.net.wifi.WifiManager
 import android.util.Log
 import com.example.timelock.blocking.BlockingEngine
 import com.example.timelock.database.AppDatabase
+import com.example.timelock.database.WifiHistory
 import com.example.timelock.notifications.NotificationHelper
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,6 +57,7 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
             NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build()
     connectivityManager.registerNetworkCallback(request, networkCallback)
     refreshSSID()
+    scope.launch(Dispatchers.IO) { cleanupOldWifiHistory() }
     Log.i("NetworkMonitor", "Started")
   }
 
@@ -76,7 +79,39 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
     if (ssid == currentSSID) return
     Log.i("NetworkMonitor", "SSID changed: ${currentSSID} -> $ssid")
     currentSSID = ssid
-    if (ssid != null) handleConnect(ssid) else handleDisconnect()
+    if (ssid != null) {
+      handleConnect(ssid)
+      recordWifiHistory(ssid)
+    } else {
+      handleDisconnect()
+    }
+  }
+
+  private fun recordWifiHistory(ssid: String) {
+    scope.launch(Dispatchers.IO) {
+      try {
+        val existing = database.wifiHistoryDao().getAll().find { it.ssid == ssid }
+        val now = System.currentTimeMillis()
+        if (existing != null) {
+          database.wifiHistoryDao().updateLastSeen(ssid, now)
+        } else {
+          database.wifiHistoryDao().insert(WifiHistory(ssid, now, now))
+        }
+        Log.d("NetworkMonitor", "Recorded WiFi: $ssid")
+      } catch (e: Exception) {
+        Log.e("NetworkMonitor", "Failed to record WiFi history", e)
+      }
+    }
+  }
+
+  private suspend fun cleanupOldWifiHistory() {
+    try {
+      val thirtyDaysAgo = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(30)
+      database.wifiHistoryDao().deleteOldEntries(thirtyDaysAgo)
+      Log.d("NetworkMonitor", "Cleaned old WiFi history")
+    } catch (e: Exception) {
+      Log.e("NetworkMonitor", "Failed to cleanup WiFi history", e)
+    }
   }
 
   private fun handleConnect(ssid: String) {

@@ -264,6 +264,58 @@ class MainActivity : FlutterActivity() {
         "isDeviceAdminEnabled" -> {
           result.success(isDeviceAdminEnabled())
         }
+        "getSchedules" -> {
+          val packageName = call.arguments as String
+          scope.launch {
+            try {
+              val schedules = getSchedules(packageName)
+              withContext(Dispatchers.Main) { result.success(schedules) }
+            } catch (e: Exception) {
+              Log.e("MainActivity", "Error getting schedules", e)
+              withContext(Dispatchers.Main) { result.error("GET_SCHEDULES_ERROR", e.message, null) }
+            }
+          }
+        }
+        "addSchedule" -> {
+          val args = call.arguments as Map<*, *>
+          scope.launch {
+            try {
+              addSchedule(args)
+              withContext(Dispatchers.Main) { result.success(null) }
+            } catch (e: Exception) {
+              Log.e("MainActivity", "Error adding schedule", e)
+              withContext(Dispatchers.Main) { result.error("ADD_SCHEDULE_ERROR", e.message, null) }
+            }
+          }
+        }
+        "updateSchedule" -> {
+          val args = call.arguments as Map<*, *>
+          scope.launch {
+            try {
+              updateSchedule(args)
+              withContext(Dispatchers.Main) { result.success(null) }
+            } catch (e: Exception) {
+              Log.e("MainActivity", "Error updating schedule", e)
+              withContext(Dispatchers.Main) {
+                result.error("UPDATE_SCHEDULE_ERROR", e.message, null)
+              }
+            }
+          }
+        }
+        "deleteSchedule" -> {
+          val scheduleId = call.arguments as String
+          scope.launch {
+            try {
+              deleteSchedule(scheduleId)
+              withContext(Dispatchers.Main) { result.success(null) }
+            } catch (e: Exception) {
+              Log.e("MainActivity", "Error deleting schedule", e)
+              withContext(Dispatchers.Main) {
+                result.error("DELETE_SCHEDULE_ERROR", e.message, null)
+              }
+            }
+          }
+        }
         else -> result.notImplemented()
       }
     }
@@ -272,6 +324,67 @@ class MainActivity : FlutterActivity() {
   override fun onDestroy() {
     super.onDestroy()
     scope.cancel()
+  }
+
+  private suspend fun getSchedules(packageName: String): List<Map<String, Any>> {
+    return database.appScheduleDao().getByPackage(packageName).map { schedule ->
+      mapOf(
+              "id" to schedule.id,
+              "packageName" to schedule.packageName,
+              "startHour" to schedule.startHour,
+              "startMinute" to schedule.startMinute,
+              "endHour" to schedule.endHour,
+              "endMinute" to schedule.endMinute,
+              "daysOfWeek" to schedule.getDaysOfWeekList(),
+              "isEnabled" to schedule.isEnabled
+      )
+    }
+  }
+
+  private suspend fun addSchedule(args: Map<*, *>) {
+    val daysOfWeek = (args["daysOfWeek"] as? List<*>)?.map { it.toString().toInt() } ?: emptyList()
+    val schedule =
+            com.example.timelock.database.AppSchedule(
+                    id = java.util.UUID.randomUUID().toString(),
+                    packageName = args["packageName"] as String,
+                    startHour = args["startHour"] as Int,
+                    startMinute = args["startMinute"] as Int,
+                    endHour = args["endHour"] as Int,
+                    endMinute = args["endMinute"] as Int,
+                    daysOfWeek = daysOfWeek.joinToString(","),
+                    isEnabled = args["isEnabled"] as? Boolean ?: true,
+                    createdAt = System.currentTimeMillis()
+            )
+    database.appScheduleDao().insert(schedule)
+    Log.i("MainActivity", "Schedule added for ${schedule.packageName}")
+  }
+
+  private suspend fun updateSchedule(args: Map<*, *>) {
+    val id = args["id"] as String
+    val schedules = database.appScheduleDao().getAllEnabled()
+    val existing = schedules.find { it.id == id } ?: return
+
+    val daysOfWeek =
+            (args["daysOfWeek"] as? List<*>)?.map { it.toString().toInt() }
+                    ?: existing.getDaysOfWeekList()
+    val updated =
+            existing.copy(
+                    startHour = args["startHour"] as? Int ?: existing.startHour,
+                    startMinute = args["startMinute"] as? Int ?: existing.startMinute,
+                    endHour = args["endHour"] as? Int ?: existing.endHour,
+                    endMinute = args["endMinute"] as? Int ?: existing.endMinute,
+                    daysOfWeek = daysOfWeek.joinToString(","),
+                    isEnabled = args["isEnabled"] as? Boolean ?: existing.isEnabled
+            )
+    database.appScheduleDao().update(updated)
+    Log.i("MainActivity", "Schedule updated: $id")
+  }
+
+  private suspend fun deleteSchedule(scheduleId: String) {
+    val schedules = database.appScheduleDao().getAllEnabled()
+    val schedule = schedules.find { it.id == scheduleId } ?: return
+    database.appScheduleDao().delete(schedule)
+    Log.i("MainActivity", "Schedule deleted: $scheduleId")
   }
 
   private suspend fun exportConfig(): String {
@@ -444,6 +557,9 @@ class MainActivity : FlutterActivity() {
               .filter { it.isNotEmpty() && it != "<unknown ssid>" }
               .forEach { allSSIDs.add(it) }
     }
+
+    val historySSIDs = database.wifiHistoryDao().getAll().map { it.ssid }
+    historySSIDs.forEach { allSSIDs.add(it) }
 
     val restricted = database.appRestrictionDao().getAll()
     restricted.flatMap { it.getBlockedWifiList() }.filter { it.isNotEmpty() }.forEach {

@@ -15,6 +15,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.monitoring.NetworkMonitor
+import com.example.timelock.monitoring.ScheduleMonitor
 import com.example.timelock.monitoring.UsageStatsMonitor
 import com.example.timelock.receivers.DailyResetReceiver
 import java.util.Calendar
@@ -28,6 +29,7 @@ import kotlinx.coroutines.withContext
 class UsageMonitorService : Service() {
   private lateinit var usageStatsMonitor: UsageStatsMonitor
   private lateinit var networkMonitor: NetworkMonitor
+  private lateinit var scheduleMonitor: ScheduleMonitor
   private lateinit var database: AppDatabase
   private val handler = Handler(Looper.getMainLooper())
   private val scope = CoroutineScope(Dispatchers.IO + Job())
@@ -38,6 +40,7 @@ class UsageMonitorService : Service() {
           object : Runnable {
             override fun run() {
               usageStatsMonitor.updateAllUsage()
+              scheduleMonitor.checkSchedules()
               updateNotification()
               handler.postDelayed(this, updateInterval)
             }
@@ -48,6 +51,7 @@ class UsageMonitorService : Service() {
     database = AppDatabase.getDatabase(this)
     usageStatsMonitor = UsageStatsMonitor(this)
     networkMonitor = NetworkMonitor(this, scope)
+    scheduleMonitor = ScheduleMonitor(this, scope)
     createNotificationChannel()
     startForeground(NOTIFICATION_ID, createNotification())
     scheduleDailyReset()

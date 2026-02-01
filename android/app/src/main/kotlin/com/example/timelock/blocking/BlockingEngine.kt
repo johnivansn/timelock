@@ -16,7 +16,9 @@ class BlockingEngine(private val context: Context) {
   suspend fun shouldBlock(packageName: String): Boolean {
     val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
     if (!restriction.isEnabled) return false
-    return isQuotaBlocked(packageName) || isWifiBlocked(packageName)
+    return isQuotaBlocked(packageName) ||
+            isWifiBlocked(packageName) ||
+            isScheduleBlocked(packageName)
   }
 
   suspend fun isQuotaBlocked(packageName: String): Boolean {
@@ -32,6 +34,11 @@ class BlockingEngine(private val context: Context) {
     if (blockedSSIDs.isEmpty()) return false
     val currentSSID = getCurrentSSID() ?: return false
     return currentSSID in blockedSSIDs
+  }
+
+  suspend fun isScheduleBlocked(packageName: String): Boolean {
+    val schedules = database.appScheduleDao().getByPackage(packageName)
+    return schedules.any { it.isActiveNow() }
   }
 
   private fun getCurrentSSID(): String? {

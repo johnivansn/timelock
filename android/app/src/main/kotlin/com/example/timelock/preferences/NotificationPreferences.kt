@@ -11,6 +11,7 @@ class NotificationPreferences(context: Context) {
     private const val KEY_QUOTA_25 = "notify_quota_25"
     private const val KEY_QUOTA_10 = "notify_quota_10"
     private const val KEY_BLOCKED = "notify_blocked"
+    private const val KEY_SCHEDULE = "notify_schedule"
   }
 
   var quota25Enabled: Boolean
@@ -25,11 +26,16 @@ class NotificationPreferences(context: Context) {
     get() = prefs.getBoolean(KEY_BLOCKED, true)
     set(value) = prefs.edit().putBoolean(KEY_BLOCKED, value).apply()
 
+  var scheduleEnabled: Boolean
+    get() = prefs.getBoolean(KEY_SCHEDULE, true)
+    set(value) = prefs.edit().putBoolean(KEY_SCHEDULE, value).apply()
+
   fun getAll(): Map<String, Boolean> {
     return mapOf(
             "quota25" to quota25Enabled,
             "quota10" to quota10Enabled,
-            "blocked" to blockedEnabled
+            "blocked" to blockedEnabled,
+            "schedule" to scheduleEnabled
     )
   }
 
@@ -38,6 +44,7 @@ class NotificationPreferences(context: Context) {
       settings["quota25"]?.let { putBoolean(KEY_QUOTA_25, it) }
       settings["quota10"]?.let { putBoolean(KEY_QUOTA_10, it) }
       settings["blocked"]?.let { putBoolean(KEY_BLOCKED, it) }
+      settings["schedule"]?.let { putBoolean(KEY_SCHEDULE, it) }
       apply()
     }
   }
