@@ -74,6 +74,77 @@ class _AppListScreenState extends State<AppListScreen>
     } catch (_) {}
   }
 
+  Future<Map<String, dynamic>> _canGrantException(String packageName) async {
+    try {
+      final result = await _ch.invokeMethod<Map<dynamic, dynamic>>(
+        'canGrantException',
+        packageName,
+      );
+      return Map<String, dynamic>.from(result ?? {});
+    } catch (_) {
+      return {'canGrant': false, 'reason': 'Error al verificar'};
+    }
+  }
+
+  Future<void> _grantException(Map<String, dynamic> r) async {
+    final allowed = await _requireAdmin(
+      'Ingresa tu PIN para otorgar desbloqueo temporal',
+    );
+    if (!allowed || !mounted) return;
+
+    final canGrantResult = await _canGrantException(r['packageName']);
+    if (!(canGrantResult['canGrant'] as bool? ?? false)) {
+      _showSnack(canGrantResult['reason'] as String, isError: true);
+      return;
+    }
+
+    if (!mounted) return;
+    final duration = await _showExceptionDurationDialog();
+    if (duration == null || !mounted) return;
+
+    try {
+      final result = await _ch.invokeMethod<Map<dynamic, dynamic>>(
+        'grantTemporaryException',
+        {
+          'packageName': r['packageName'],
+          'durationMinutes': duration,
+        },
+      );
+
+      final success = result?['success'] as bool? ?? false;
+      if (success && mounted) {
+        _showSnack('Desbloqueado por ${duration}m');
+        await _loadRestrictions();
+      } else if (mounted) {
+        _showSnack(result?['error'] as String? ?? 'Error', isError: true);
+      }
+    } catch (e) {
+      if (mounted) _showSnack('Error al otorgar excepción', isError: true);
+    }
+  }
+
+  Future<int?> _showExceptionDurationDialog() async {
+    return showDialog<int>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Desbloqueo temporal'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('¿Por cuánto tiempo?'),
+            const SizedBox(height: 16),
+            ...[5, 10, 15, 30].map((minutes) => ListTile(
+                  title: Text('${minutes} minutos'),
+                  onTap: () => Navigator.pop(context, minutes),
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _startMonitoring() async {
     try {
       await _ch.invokeMethod('startMonitoring');
@@ -576,7 +647,7 @@ class _AppListScreenState extends State<AppListScreen>
     );
   }
 
-  Widget _restrictionCard(Map<String, dynamic> r, ColorScheme colorScheme) {
+ Widget _restrictionCard(Map<String, dynamic> r, ColorScheme colorScheme) {
     final blocked = r['isBlocked'] as bool;
     final progress = _progressFor(r);
     final used = r['usedMinutes'] as int;
@@ -698,6 +769,22 @@ class _AppListScreenState extends State<AppListScreen>
                     ),
                   ],
                 ),
+                if (blocked) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _grantException(r),
+                      icon: const Icon(Icons.lock_open_rounded, size: 18),
+                      label: const Text('Desbloqueo temporal'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: colorScheme.primary,
+                        side: BorderSide(color: colorScheme.primary),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 Divider(height: 1, color: colorScheme.surfaceContainerHighest),
                 const SizedBox(height: 12),

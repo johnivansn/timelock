@@ -25,5 +25,7 @@ data class ActivityLog(
     const val EVENT_ADMIN_DISABLED = "admin_disabled"
     const val EVENT_BACKUP_CREATED = "backup_created"
     const val EVENT_BACKUP_RESTORED = "backup_restored"
+    const val EVENT_EXCEPTION_GRANTED = "exception_granted"
+    const val EVENT_EXCEPTION_EXPIRED = "exception_expired"
   }
 }

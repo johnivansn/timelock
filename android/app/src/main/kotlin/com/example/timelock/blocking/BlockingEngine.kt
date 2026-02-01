@@ -16,16 +16,37 @@ class BlockingEngine(private val context: Context) {
   private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
   private val notificationHelper = NotificationHelper(context)
   private val profilePrefs = ProfilePreferences(context)
-
   suspend fun shouldBlock(packageName: String): Boolean {
+    val activeException = database.temporaryExceptionDao().getActiveByPackage(packageName)
+    if (activeException != null && activeException.isActive()) {
+      return false
+    }
     val profileId = profilePrefs.activeProfileId
     val restriction =
             database.appRestrictionDao().getByPackageAndProfile(packageName, profileId)
                     ?: return false
+
     if (!restriction.isEnabled) return false
+
     return isQuotaBlocked(packageName) || isWifiBlocked(packageName)
   }
+  suspend fun hasActiveException(packageName: String): Boolean {
+    val exception = database.temporaryExceptionDao().getActiveByPackage(packageName)
+    return exception != null && exception.isActive()
+  }
+  suspend fun canGrantException(packageName: String): Pair<Boolean, String> {
+    val todayCount = database.temporaryExceptionDao().countTodayByPackage(packageName)
+    if (todayCount >= 3) {
+      return false to "Máximo 3 excepciones por día"
+    }
+    val totalMinutes = database.temporaryExceptionDao().getTotalMinutesToday() ?: 0
 
+    if (totalMinutes >= 60) {
+      return false to "Máximo 1 hora total de excepciones por día"
+    }
+
+    return true to ""
+  }
   suspend fun isQuotaBlocked(packageName: String): Boolean {
     val profileId = profilePrefs.activeProfileId
     val restriction =
@@ -35,7 +56,6 @@ class BlockingEngine(private val context: Context) {
     val usage = database.dailyUsageDao().getUsage(packageName, today) ?: return false
     return usage.usedMinutes >= restriction.dailyQuotaMinutes
   }
-
   suspend fun isWifiBlocked(packageName: String): Boolean {
     val profileId = profilePrefs.activeProfileId
     val restriction =
@@ -46,7 +66,6 @@ class BlockingEngine(private val context: Context) {
     val currentSSID = getCurrentSSID() ?: return false
     return currentSSID in blockedSSIDs
   }
-
   private fun getCurrentSSID(): String? {
     val wifiManager =
             context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
@@ -55,7 +74,6 @@ class BlockingEngine(private val context: Context) {
     if (info.networkId == -1) return null
     return info.ssid?.removeSurrounding("\"")
   }
-
   suspend fun blockApp(packageName: String, reason: NotificationHelper.BlockReason): Boolean {
     val today = dateFormat.format(Date())
     val usage = database.dailyUsageDao().getUsage(packageName, today) ?: return false
@@ -63,10 +81,10 @@ class BlockingEngine(private val context: Context) {
     val restriction =
             database.appRestrictionDao().getByPackageAndProfile(packageName, profileId)
                     ?: return false
-
     if (usage.isBlocked) return true
 
     database.dailyUsageDao().update(usage.copy(isBlocked = true))
+
     notificationHelper.notifyAppBlocked(restriction.appName, reason)
 
     val reasonText =
@@ -75,18 +93,18 @@ class BlockingEngine(private val context: Context) {
               NotificationHelper.BlockReason.WIFI_BLOCKED -> "bloqueada en esta WiFi"
               NotificationHelper.BlockReason.MANUAL -> "bloqueo manual"
             }
+
     activityLogger.logAppBlocked(packageName, restriction.appName, reasonText)
 
     Log.i("BlockingEngine", "$packageName blocked - reason: $reason")
+
     return true
   }
-
   suspend fun isBlocked(packageName: String): Boolean {
     val today = dateFormat.format(Date())
     val usage = database.dailyUsageDao().getUsage(packageName, today)
     return usage?.isBlocked ?: false
   }
-
   suspend fun unblockApp(packageName: String) {
     val today = dateFormat.format(Date())
     val usage = database.dailyUsageDao().getUsage(packageName, today) ?: return
@@ -104,7 +122,6 @@ class BlockingEngine(private val context: Context) {
       Log.i("BlockingEngine", "$packageName unblocked")
     }
   }
-
   suspend fun getBlockedApps(): List<String> {
     val today = dateFormat.format(Date())
     val profileId = profilePrefs.activeProfileId

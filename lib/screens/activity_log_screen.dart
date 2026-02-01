@@ -394,6 +394,10 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
       case 'backup_created':
       case 'backup_restored':
         return Icons.backup_rounded;
+      case 'exception_granted':
+        return Icons.timer_rounded;
+      case 'exception_expired':
+        return Icons.timer_off_rounded;
       default:
         return Icons.info_rounded;
     }
@@ -419,6 +423,10 @@ class _ActivityLogScreenState extends State<ActivityLogScreen> {
       case 'backup_created':
       case 'backup_restored':
         return colorScheme.secondary;
+      case 'exception_granted':
+        return const Color(0xFFF39C12);
+      case 'exception_expired':
+        return colorScheme.onSurfaceVariant;
       default:
         return colorScheme.onSurfaceVariant;
     }

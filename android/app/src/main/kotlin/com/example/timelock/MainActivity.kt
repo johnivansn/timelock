@@ -23,6 +23,7 @@ import com.example.timelock.database.RestrictionProfile
 import com.example.timelock.logging.ActivityLogger
 import com.example.timelock.logging.LogCleanupWorker
 import com.example.timelock.monitoring.NetworkMonitor
+import com.example.timelock.preferences.NotificationPreferences
 import com.example.timelock.preferences.ProfilePreferences
 import com.example.timelock.services.AppBlockAccessibilityService
 import com.example.timelock.services.UsageMonitorService
@@ -625,6 +626,76 @@ class MainActivity : FlutterActivity() {
             }
           }
         }
+        "grantTemporaryException" -> {
+          val args = call.arguments as Map<*, *>
+          val packageName = args["packageName"] as String
+          val durationMinutes = args["durationMinutes"] as Int
+          scope.launch {
+            try {
+              val result = grantTemporaryException(packageName, durationMinutes)
+              withContext(Dispatchers.Main) { result.success(result) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("EXCEPTION_ERROR", e.message, null) }
+            }
+          }
+        }
+        "getActiveException" -> {
+          val packageName = call.arguments as String
+          scope.launch {
+            try {
+              val exception = database.temporaryExceptionDao().getActiveByPackage(packageName)
+              val data =
+                      if (exception != null && exception.isActive()) {
+                        mapOf(
+                                "active" to true,
+                                "durationMinutes" to exception.durationMinutes,
+                                "remainingMinutes" to exception.getRemainingMinutes(),
+                                "startTime" to exception.startTime,
+                                "endTime" to exception.getEndTime()
+                        )
+                      } else {
+                        mapOf("active" to false)
+                      }
+              withContext(Dispatchers.Main) { result.success(data) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("EXCEPTION_ERROR", e.message, null) }
+            }
+          }
+        }
+        "canGrantException" -> {
+          val packageName = call.arguments as String
+          scope.launch {
+            try {
+              val blockingEngine = com.example.timelock.blocking.BlockingEngine(this@MainActivity)
+              val (canGrant, reason) = blockingEngine.canGrantException(packageName)
+              withContext(Dispatchers.Main) {
+                result.success(mapOf("canGrant" to canGrant, "reason" to reason))
+              }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("EXCEPTION_ERROR", e.message, null) }
+            }
+          }
+        }
+        "getExceptionStats" -> {
+          scope.launch {
+            try {
+              val todayCount = database.temporaryExceptionDao().countTodayByPackage("")
+              val totalMinutes = database.temporaryExceptionDao().getTotalMinutesToday() ?: 0
+              withContext(Dispatchers.Main) {
+                result.success(
+                        mapOf(
+                                "usedToday" to todayCount,
+                                "maxPerDay" to 3,
+                                "totalMinutesUsed" to totalMinutes,
+                                "maxMinutesPerDay" to 60
+                        )
+                )
+              }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("EXCEPTION_ERROR", e.message, null) }
+            }
+          }
+        }
         else -> result.notImplemented()
       }
     }
@@ -899,6 +970,38 @@ class MainActivity : FlutterActivity() {
             "usedMinutes" to (usage?.usedMinutes ?: 0),
             "isBlocked" to (usage?.isBlocked ?: false)
     )
+  }
+
+  private suspend fun grantTemporaryException(
+          packageName: String,
+          durationMinutes: Int
+  ): Map<String, Any> {
+    val blockingEngine = com.example.timelock.blocking.BlockingEngine(this)
+    val (canGrant, reason) = blockingEngine.canGrantException(packageName)
+
+    if (!canGrant) {
+      return mapOf("success" to false, "error" to reason)
+    }
+
+    val profileId = profilePrefs.activeProfileId
+    val restriction =
+            database.appRestrictionDao().getByPackageAndProfile(packageName, profileId)
+                    ?: return mapOf("success" to false, "error" to "No restriction found")
+
+    val exception =
+            com.example.timelock.database.TemporaryException(
+                    id = java.util.UUID.randomUUID().toString(),
+                    packageName = packageName,
+                    appName = restriction.appName,
+                    startTime = System.currentTimeMillis(),
+                    durationMinutes = durationMinutes,
+                    createdAt = System.currentTimeMillis()
+            )
+
+    database.temporaryExceptionDao().insert(exception)
+    activityLogger.logExceptionGranted(packageName, restriction.appName, durationMinutes)
+
+    return mapOf("success" to true)
   }
 
   private fun enableDeviceAdmin() {

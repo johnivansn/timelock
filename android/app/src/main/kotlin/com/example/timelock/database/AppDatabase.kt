@@ -90,6 +90,26 @@ class Migration4To5 : Migration(4, 5) {
   }
 }
 
+class Migration5To6 : Migration(5, 6) {
+  override fun migrate(database: SupportSQLiteDatabase) {
+    database.execSQL(
+            "CREATE TABLE IF NOT EXISTS temporary_exceptions (" +
+                    "id TEXT PRIMARY KEY NOT NULL, " +
+                    "packageName TEXT NOT NULL, " +
+                    "appName TEXT NOT NULL, " +
+                    "startTime INTEGER NOT NULL, " +
+                    "durationMinutes INTEGER NOT NULL, " +
+                    "createdAt INTEGER NOT NULL)"
+    )
+    database.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_temporary_exceptions_packageName ON temporary_exceptions(packageName)"
+    )
+    database.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_temporary_exceptions_startTime ON temporary_exceptions(startTime)"
+    )
+  }
+}
+
 @Database(
         entities =
                 [
@@ -97,8 +117,9 @@ class Migration4To5 : Migration(4, 5) {
                         DailyUsage::class,
                         AdminSettings::class,
                         ActivityLog::class,
-                        RestrictionProfile::class],
-        version = 5,
+                        RestrictionProfile::class,
+                        TemporaryException::class],
+        version = 6,
         exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -107,10 +128,9 @@ abstract class AppDatabase : RoomDatabase() {
   abstract fun adminSettingsDao(): AdminSettingsDao
   abstract fun activityLogDao(): ActivityLogDao
   abstract fun restrictionProfileDao(): RestrictionProfileDao
-
+  abstract fun temporaryExceptionDao(): TemporaryExceptionDao
   companion object {
     @Volatile private var INSTANCE: AppDatabase? = null
-
     fun getDatabase(context: Context): AppDatabase {
       return INSTANCE
               ?: synchronized(this) {
@@ -124,7 +144,8 @@ abstract class AppDatabase : RoomDatabase() {
                                         Migration1To2(),
                                         Migration2To3(),
                                         Migration3To4(),
-                                        Migration4To5()
+                                        Migration4To5(),
+                                        Migration5To6()
                                 )
                                 .build()
                 INSTANCE = instance

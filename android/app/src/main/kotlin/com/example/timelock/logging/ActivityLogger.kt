@@ -197,9 +197,40 @@ class ActivityLogger(context: Context) {
     }
   }
 
+  fun logExceptionGranted(packageName: String, appName: String, durationMinutes: Int) {
+    scope.launch {
+      val log =
+              ActivityLog(
+                      id = UUID.randomUUID().toString(),
+                      timestamp = System.currentTimeMillis(),
+                      eventType = ActivityLog.EVENT_EXCEPTION_GRANTED,
+                      packageName = packageName,
+                      appName = appName,
+                      details = "Excepción temporal: ${durationMinutes}m",
+                      metadata = gson.toJson(mapOf("duration" to durationMinutes))
+              )
+      database.activityLogDao().insert(log)
+    }
+  }
+
+  fun logExceptionExpired(packageName: String, appName: String) {
+    scope.launch {
+      val log =
+              ActivityLog(
+                      id = UUID.randomUUID().toString(),
+                      timestamp = System.currentTimeMillis(),
+                      eventType = ActivityLog.EVENT_EXCEPTION_EXPIRED,
+                      packageName = packageName,
+                      appName = appName,
+                      details = "Excepción temporal terminada",
+                      metadata = null
+              )
+      database.activityLogDao().insert(log)
+    }
+  }
+
   suspend fun purgeOldLogs(daysToKeep: Int = 30) {
     val cutoffTime = System.currentTimeMillis() - (daysToKeep * 24 * 60 * 60 * 1000L)
     database.activityLogDao().deleteOldLogs(cutoffTime)
   }
 }
-
