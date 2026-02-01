@@ -14,6 +14,7 @@ import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.AppRestriction
 import com.example.timelock.services.AppBlockAccessibilityService
 import com.example.timelock.services.UsageMonitorService
+import com.example.timelock.monitoring.NetworkMonitor
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
