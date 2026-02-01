@@ -17,6 +17,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   bool _accessibility = false;
   bool _adminEnabled = false;
   bool _loading = true;
+  bool _deviceAdmin = false;
 
   @override
   void initState() {
@@ -30,17 +31,28 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       final a =
           await _ch.invokeMethod<bool>('checkAccessibilityPermission') ?? false;
       final admin = await _ch.invokeMethod<bool>('isAdminEnabled') ?? false;
+      final deviceAdmin =
+          await _ch.invokeMethod<bool>('isDeviceAdminEnabled') ?? false;
       if (mounted) {
         setState(() {
           _usage = u;
           _accessibility = a;
           _adminEnabled = admin;
+          _deviceAdmin = deviceAdmin;
           _loading = false;
         });
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _requestDeviceAdmin() async {
+    try {
+      await _ch.invokeMethod('enableDeviceAdmin');
+      await Future.delayed(const Duration(seconds: 2));
+      await _refresh();
+    } catch (_) {}
   }
 
   Future<void> _requestUsage() async {
@@ -170,8 +182,37 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: _adminCard(),
               ),
+
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 24, 16, 4),
+                child: Text(
+                  'PROTECCIÓN ADICIONAL',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white38,
+                      letterSpacing: 1.0),
+                ),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: _permissionItem(
+                  icon: Icons.security_outlined,
+                  title: 'Protección contra desinstalación',
+                  description:
+                      'Evita que la app sea desinstalada accidentalmente.',
+                  granted: _deviceAdmin,
+                  critical: false,
+                  onRequest: _requestDeviceAdmin,
+                ),
+              ),
+            ),
           ],
         ],
       ),

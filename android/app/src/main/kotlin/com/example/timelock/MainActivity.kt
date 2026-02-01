@@ -1,9 +1,14 @@
 package com.example.timelock
 
 import android.app.AppOpsManager
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Process
@@ -12,9 +17,9 @@ import android.util.Log
 import com.example.timelock.admin.AdminManager
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.AppRestriction
+import com.example.timelock.monitoring.NetworkMonitor
 import com.example.timelock.services.AppBlockAccessibilityService
 import com.example.timelock.services.UsageMonitorService
-import com.example.timelock.monitoring.NetworkMonitor
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -32,24 +37,13 @@ class MainActivity : FlutterActivity() {
   private lateinit var database: AppDatabase
   private lateinit var adminManager: AdminManager
   private val scope = CoroutineScope(Dispatchers.Main + Job())
-
   private val systemPackages =
           setOf(
+                  "android",
                   "com.android.systemui",
                   "com.android.settings",
-                  "com.android.launcher3",
-                  "com.google.android.apps.launcher3",
-                  "com.android.providers.contacts",
-                  "com.android.providers.calendar",
-                  "com.android.providers.telephony",
-                  "com.android.providers.media",
-                  "com.android.app.mediarouter",
-                  "com.android.bluetooth",
-                  "com.android.bluetooth.a2dp.Vol",
-                  "com.android.server.bluetooth",
-                  "com.android.captiveportallogin",
-                  "com.android.coreui",
-                  "com.android.res",
+                  "com.google.android.gms",
+                  "com.google.android.gsf",
                   "com.example.timelock"
           )
 
@@ -263,6 +257,13 @@ class MainActivity : FlutterActivity() {
             }
           }
         }
+        "enableDeviceAdmin" -> {
+          enableDeviceAdmin()
+          result.success(null)
+        }
+        "isDeviceAdminEnabled" -> {
+          result.success(isDeviceAdminEnabled())
+        }
         else -> result.notImplemented()
       }
     }
@@ -398,16 +399,20 @@ class MainActivity : FlutterActivity() {
 
   private fun getInstalledApps(): List<Map<String, String>> {
     val pm = packageManager
-    val packages = pm.getInstalledPackages(PackageManager.GET_META_DATA)
+    val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+
     return packages
-            .filter { pkg ->
-              val hasLauncher = pm.getLaunchIntentForPackage(pkg.packageName) != null
-              hasLauncher && pkg.packageName !in systemPackages
+            .filter { appInfo ->
+              val packageName = appInfo.packageName
+              val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+              val isUpdatedSystem = (appInfo.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+
+              !systemPackages.any { packageName.startsWith(it) } && (!isSystem || isUpdatedSystem)
             }
-            .map { pkg ->
+            .map { appInfo ->
               mapOf(
-                      "packageName" to pkg.packageName,
-                      "appName" to pkg.applicationInfo?.loadLabel(pm).toString()
+                      "packageName" to appInfo.packageName,
+                      "appName" to appInfo.loadLabel(pm).toString()
               )
             }
             .sortedBy { it["appName"]?.lowercase() ?: "" }
@@ -417,16 +422,35 @@ class MainActivity : FlutterActivity() {
     val wifiManager =
             applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
                     ?: return emptyList()
-    val configs = wifiManager.configuredNetworks ?: return emptyList()
-    val ssids =
-            configs
-                    .mapNotNull { it.SSID?.removeSurrounding("\"") }
-                    .filter { it.isNotEmpty() }
-                    .distinct()
-                    .sorted()
+
+    val allSSIDs = mutableSetOf<String>()
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      val connectivityManager =
+              getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+      val network = connectivityManager.activeNetwork
+      val capabilities = connectivityManager.getNetworkCapabilities(network)
+
+      if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
+        val currentSSID = wifiManager.connectionInfo?.ssid?.removeSurrounding("\"")
+        if (!currentSSID.isNullOrEmpty() && currentSSID != "<unknown ssid>") {
+          allSSIDs.add(currentSSID)
+        }
+      }
+    } else {
+      @Suppress("DEPRECATION") val configs = wifiManager.configuredNetworks ?: emptyList()
+      configs
+              .mapNotNull { it.SSID?.removeSurrounding("\"") }
+              .filter { it.isNotEmpty() && it != "<unknown ssid>" }
+              .forEach { allSSIDs.add(it) }
+    }
+
     val restricted = database.appRestrictionDao().getAll()
-    val allBlockedSSIDs = restricted.flatMap { it.getBlockedWifiList() }.toSet()
-    return (ssids + allBlockedSSIDs).distinct().sorted()
+    restricted.flatMap { it.getBlockedWifiList() }.filter { it.isNotEmpty() }.forEach {
+      allSSIDs.add(it)
+    }
+
+    return allSSIDs.sorted()
   }
 
   private suspend fun updateRestrictionWifi(args: Map<*, *>) {
@@ -481,4 +505,32 @@ class MainActivity : FlutterActivity() {
             "isBlocked" to (usage?.isBlocked ?: false)
     )
   }
+  private fun enableDeviceAdmin() {
+    val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    val adminComponent =
+            ComponentName(this, com.example.timelock.admin.DeviceAdminManager::class.java)
+
+    if (!dpm.isAdminActive(adminComponent)) {
+      val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
+      intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+      intent.putExtra(
+              DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+              "Protege contra desinstalación accidental de la app"
+      )
+      startActivityForResult(intent, REQUEST_ENABLE_ADMIN)
+    }
+  }
+
+  private fun isDeviceAdminEnabled(): Boolean {
+    val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    val adminComponent =
+            ComponentName(this, com.example.timelock.admin.DeviceAdminManager::class.java)
+    return dpm.isAdminActive(adminComponent)
+  }
+}
+
+companion
+
+object {
+  private const val REQUEST_ENABLE_ADMIN = 1001
 }
