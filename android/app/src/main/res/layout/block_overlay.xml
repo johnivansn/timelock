@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#E0000000" android:gravity="center" android:orientation="vertical" android:clickable="true" android:focusable="true">
+
+  <ImageView android:layout_width="120dp" android:layout_height="120dp" android:src="@android:drawable/ic_lock_idle_lock" android:tint="#FFFFFF" android:layout_marginBottom="24dp"/>
+
+  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Cuota diaria alcanzada" android:textColor="#FFFFFF" android:textSize="24sp" android:textStyle="bold" android:layout_marginBottom="12dp"/>
+
+  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Has consumido todo el tiempo disponible para hoy" android:textColor="#CCCCCC" android:textSize="16sp" android:gravity="center" android:layout_marginHorizontal="32dp" android:layout_marginBottom="24dp"/>
+
+  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="La app se desbloqueará a medianoche" android:textColor="#999999" android:textSize="14sp" android:gravity="center"/>
+
+</LinearLayout>

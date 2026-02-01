@@ -2,6 +2,7 @@ package com.example.timelock.monitoring
 
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.util.Log
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.DailyUsage
 import java.text.SimpleDateFormat
@@ -28,6 +29,10 @@ class UsageStatsMonitor(private val context: Context) {
 
     val stats =
             usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
+                    ?: run {
+                      Log.w("UsageStatsMonitor", "queryUsageStats returned null - permission not granted?")
+                      return 0L
+                    }
 
     val appStats = stats.find { it.packageName == packageName }
     return appStats?.totalTimeInForeground ?: 0L
@@ -38,9 +43,13 @@ class UsageStatsMonitor(private val context: Context) {
       val restrictions = database.appRestrictionDao().getEnabled()
       val today = dateFormat.format(Date())
 
+      Log.d("UsageStatsMonitor", "Updating usage for ${restrictions.size} apps")
+
       for (restriction in restrictions) {
         val usageMillis = getUsageToday(restriction.packageName)
         val usageMinutes = (usageMillis / 60000).toInt()
+
+        Log.d("UsageStatsMonitor", "${restriction.packageName}: $usageMinutes min used today (quota: ${restriction.dailyQuotaMinutes} min)")
 
         var dailyUsage = database.dailyUsageDao().getUsage(restriction.packageName, today)
 
@@ -67,6 +76,7 @@ class UsageStatsMonitor(private val context: Context) {
         if (usageMinutes >= restriction.dailyQuotaMinutes && !dailyUsage.isBlocked) {
           dailyUsage = dailyUsage.copy(isBlocked = true)
           database.dailyUsageDao().update(dailyUsage)
+          Log.i("UsageStatsMonitor", "${restriction.packageName} BLOCKED - quota reached")
         }
       }
     }
