@@ -20,13 +20,17 @@ import com.example.timelock.receivers.DailyResetReceiver
 import java.util.Calendar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class UsageMonitorService : Service() {
   private lateinit var usageStatsMonitor: UsageStatsMonitor
   private lateinit var networkMonitor: NetworkMonitor
   private lateinit var database: AppDatabase
   private val handler = Handler(Looper.getMainLooper())
+  private val scope = CoroutineScope(Dispatchers.IO + Job())
   private val updateInterval = 30000L
   private var monitoredAppsCount = 0
 
@@ -41,9 +45,9 @@ class UsageMonitorService : Service() {
 
   override fun onCreate() {
     super.onCreate()
-    usageStatsMonitor = UsageStatsMonitor(this)
-    networkMonitor = NetworkMonitor(this)
     database = AppDatabase.getDatabase(this)
+    usageStatsMonitor = UsageStatsMonitor(this)
+    networkMonitor = NetworkMonitor(this, scope)
     createNotificationChannel()
     startForeground(NOTIFICATION_ID, createNotification())
     scheduleDailyReset()
@@ -61,6 +65,7 @@ class UsageMonitorService : Service() {
     super.onDestroy()
     handler.removeCallbacks(updateRunnable)
     networkMonitor.stop()
+    scope.cancel()
   }
 
   fun scheduleDailyReset() {
@@ -118,7 +123,7 @@ class UsageMonitorService : Service() {
   }
 
   private fun updateNotification() {
-    CoroutineScope(Dispatchers.IO).launch {
+    scope.launch {
       monitoredAppsCount = database.appRestrictionDao().getEnabled().size
       val notification =
               NotificationCompat.Builder(this@UsageMonitorService, CHANNEL_ID)
@@ -131,7 +136,9 @@ class UsageMonitorService : Service() {
                       .setSmallIcon(android.R.drawable.ic_menu_info_details)
                       .setPriority(NotificationCompat.PRIORITY_LOW)
                       .build()
-      getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
+      withContext(Dispatchers.Main) {
+        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
+      }
     }
   }
 

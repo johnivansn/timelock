@@ -7,25 +7,16 @@ import com.example.timelock.database.AppDatabase
 import com.example.timelock.notifications.NotificationHelper
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class BlockingEngine(private val context: Context) {
   private val database = AppDatabase.getDatabase(context)
   private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-  private val scope = CoroutineScope(Dispatchers.IO)
   private val notificationHelper = NotificationHelper(context)
 
   suspend fun shouldBlock(packageName: String): Boolean {
     val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
     if (!restriction.isEnabled) return false
-
-    if (isQuotaBlocked(packageName)) return true
-    if (isWifiBlocked(packageName)) return true
-
-    return false
+    return isQuotaBlocked(packageName) || isWifiBlocked(packageName)
   }
 
   suspend fun isQuotaBlocked(packageName: String): Boolean {
@@ -39,7 +30,6 @@ class BlockingEngine(private val context: Context) {
     val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
     val blockedSSIDs = restriction.getBlockedWifiList()
     if (blockedSSIDs.isEmpty()) return false
-
     val currentSSID = getCurrentSSID() ?: return false
     return currentSSID in blockedSSIDs
   }
@@ -53,27 +43,17 @@ class BlockingEngine(private val context: Context) {
     return info.ssid?.removeSurrounding("\"")
   }
 
-  fun blockApp(
-          packageName: String,
-          reason: NotificationHelper.BlockReason,
-          callback: (Boolean) -> Unit
-  ) {
-    scope.launch {
-      val today = dateFormat.format(Date())
-      var usage = database.dailyUsageDao().getUsage(packageName, today)
-      val restriction = database.appRestrictionDao().getByPackage(packageName)
+  suspend fun blockApp(packageName: String, reason: NotificationHelper.BlockReason): Boolean {
+    val today = dateFormat.format(Date())
+    val usage = database.dailyUsageDao().getUsage(packageName, today) ?: return false
+    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
 
-      if (usage != null && restriction != null) {
-        if (!usage.isBlocked) {
-          database.dailyUsageDao().update(usage.copy(isBlocked = true))
-          notificationHelper.notifyAppBlocked(restriction.appName, reason)
-          Log.i("BlockingEngine", "$packageName blocked - reason: $reason")
-        }
-        withContext(Dispatchers.Main) { callback(true) }
-      } else {
-        withContext(Dispatchers.Main) { callback(false) }
-      }
-    }
+    if (usage.isBlocked) return true
+
+    database.dailyUsageDao().update(usage.copy(isBlocked = true))
+    notificationHelper.notifyAppBlocked(restriction.appName, reason)
+    Log.i("BlockingEngine", "$packageName blocked - reason: $reason")
+    return true
   }
 
   suspend fun isBlocked(packageName: String): Boolean {
@@ -82,29 +62,23 @@ class BlockingEngine(private val context: Context) {
     return usage?.isBlocked ?: false
   }
 
-  fun unblockApp(packageName: String) {
-    scope.launch {
-      val today = dateFormat.format(Date())
-      val usage = database.dailyUsageDao().getUsage(packageName, today) ?: return@launch
-      if (usage.isBlocked) {
-        database.dailyUsageDao().update(usage.copy(isBlocked = false))
-        Log.i("BlockingEngine", "$packageName unblocked")
-      }
+  suspend fun unblockApp(packageName: String) {
+    val today = dateFormat.format(Date())
+    val usage = database.dailyUsageDao().getUsage(packageName, today) ?: return
+    if (usage.isBlocked) {
+      database.dailyUsageDao().update(usage.copy(isBlocked = false))
+      Log.i("BlockingEngine", "$packageName unblocked")
     }
   }
 
   suspend fun getBlockedApps(): List<String> {
     val today = dateFormat.format(Date())
     val restrictions = database.appRestrictionDao().getEnabled()
-    val blockedApps = mutableListOf<String>()
-
-    for (restriction in restrictions) {
-      val usage = database.dailyUsageDao().getUsage(restriction.packageName, today)
-      if (usage?.isBlocked == true) {
-        blockedApps.add(restriction.packageName)
-      }
-    }
-
-    return blockedApps
+    return restrictions
+            .filter { r ->
+              val usage = database.dailyUsageDao().getUsage(r.packageName, today)
+              usage?.isBlocked == true
+            }
+            .map { it.packageName }
   }
 }

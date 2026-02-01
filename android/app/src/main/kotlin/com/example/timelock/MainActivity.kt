@@ -140,7 +140,8 @@ class MainActivity : FlutterActivity() {
           }
         }
         "getCurrentWifi" -> {
-          result.success(getCurrentWifiSSID())
+          val nm = NetworkMonitor(this, CoroutineScope(Dispatchers.IO + Job()))
+          result.success(nm.getCurrentSSID())
         }
         "getSavedWifiNetworks" -> {
           scope.launch {
@@ -270,7 +271,7 @@ class MainActivity : FlutterActivity() {
     super.onDestroy()
     scope.cancel()
   }
-  
+
   private suspend fun exportConfig(): String {
     val restrictions = database.appRestrictionDao().getAll()
     val adminSettings = database.adminSettingsDao().get()
@@ -409,14 +410,6 @@ class MainActivity : FlutterActivity() {
               )
             }
             .sortedBy { it["appName"]?.lowercase() ?: "" }
-  }
-
-  private fun getCurrentWifiSSID(): String? {
-    val wifiManager =
-            applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager ?: return null
-    val info = wifiManager.connectionInfo ?: return null
-    if (info.networkId == -1) return null
-    return info.ssid?.removeSurrounding("\"")
   }
 
   private suspend fun getSavedWifiNetworks(): List<String> {

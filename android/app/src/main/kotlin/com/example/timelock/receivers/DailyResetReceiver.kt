@@ -18,14 +18,20 @@ class DailyResetReceiver : BroadcastReceiver() {
 
     val database = AppDatabase.getDatabase(context)
     val usageStatsMonitor = UsageStatsMonitor(context)
-    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val today = dateFormat.format(Date())
+    val yesterday =
+            Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, -1) }.let {
+              dateFormat.format(it.time)
+            }
     val pendingResult = goAsync()
 
     CoroutineScope(Dispatchers.IO).launch {
       try {
         database.dailyUsageDao().resetUsageForDate(today)
+        database.dailyUsageDao().deleteOldUsage(yesterday)
         usageStatsMonitor.resetNotificationFlags()
-        Log.i("DailyResetReceiver", "Reset completed for $today")
+        Log.i("DailyResetReceiver", "Reset completed for $today, purged before $yesterday")
       } catch (e: Exception) {
         Log.e("DailyResetReceiver", "Reset failed", e)
       } finally {

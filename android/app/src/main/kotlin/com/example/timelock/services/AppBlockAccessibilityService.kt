@@ -18,12 +18,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class AppBlockAccessibilityService : AccessibilityService() {
   private var overlayView: View? = null
   private var windowManager: WindowManager? = null
   private lateinit var blockingEngine: BlockingEngine
-  private val scope = CoroutineScope(Dispatchers.Main + Job())
+  private val scope = CoroutineScope(Dispatchers.IO + Job())
   private val handler = Handler(Looper.getMainLooper())
   private var currentPackage: String? = null
 
@@ -35,30 +36,27 @@ class AppBlockAccessibilityService : AccessibilityService() {
   }
 
   override fun onAccessibilityEvent(event: AccessibilityEvent) {
-    if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-      val packageName = event.packageName?.toString() ?: return
+    if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
-      if (packageName == "com.example.timelock") return
-      if (packageName == "com.android.systemui") return
+    val packageName = event.packageName?.toString() ?: return
+    if (packageName == "com.example.timelock" || packageName == "com.android.systemui") return
+    if (packageName == currentPackage) return
 
-      if (packageName != currentPackage) {
-        currentPackage = packageName
-        checkAndBlockApp(packageName)
-      }
-    }
+    currentPackage = packageName
+    checkAndBlockApp(packageName)
   }
 
   private fun checkAndBlockApp(packageName: String) {
-    scope.launch(Dispatchers.IO) {
+    scope.launch {
       val shouldBlock = blockingEngine.shouldBlock(packageName)
-
-      launch(Dispatchers.Main) {
+      withContext(Dispatchers.Main) {
         if (shouldBlock) {
           showBlockOverlay(packageName)
-          blockingEngine.blockApp(packageName) { success ->
-            if (success) {
-              Log.d("AccessibilityService", "App blocked: $packageName")
-            }
+          scope.launch(Dispatchers.IO) {
+            blockingEngine.blockApp(
+                    packageName,
+                    com.example.timelock.notifications.NotificationHelper.BlockReason.QUOTA_EXCEEDED
+            )
           }
         } else {
           hideBlockOverlay()
@@ -83,7 +81,6 @@ class AppBlockAccessibilityService : AccessibilityService() {
                             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                     PixelFormat.TRANSLUCENT
             )
-
     params.gravity = Gravity.CENTER
 
     windowManager?.addView(overlayView, params)
@@ -104,9 +101,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
     intent.addCategory(Intent.CATEGORY_HOME)
     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
     startActivity(intent)
-
     handler.postDelayed({ hideBlockOverlay() }, 500)
-
     Log.d("AccessibilityService", "Redirected to home")
   }
 

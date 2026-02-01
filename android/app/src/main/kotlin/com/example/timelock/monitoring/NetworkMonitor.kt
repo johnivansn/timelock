@@ -14,14 +14,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-class NetworkMonitor(private val context: Context) {
+class NetworkMonitor(private val context: Context, private val scope: CoroutineScope) {
   private val connectivityManager =
           context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
   private val wifiManager =
           context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
   private val database = AppDatabase.getDatabase(context)
   private val blockingEngine = BlockingEngine(context)
-  private val scope = CoroutineScope(Dispatchers.IO)
   private var currentSSID: String? = null
 
   private val networkCallback =
@@ -67,61 +66,45 @@ class NetworkMonitor(private val context: Context) {
   }
 
   fun getCurrentSSID(): String? {
-    return getCurrentSSIDDirect()
-  }
-
-  private fun getCurrentSSIDDirect(): String? {
     val info = wifiManager.connectionInfo ?: return null
     if (info.networkId == -1) return null
-    val ssid = info.ssid ?: return null
-    return ssid.removeSurrounding("\"")
+    return info.ssid?.removeSurrounding("\"")
   }
 
   private fun refreshSSID() {
-    val ssid = getCurrentSSIDDirect()
+    val ssid = getCurrentSSID()
     if (ssid == currentSSID) return
     Log.i("NetworkMonitor", "SSID changed: ${currentSSID} -> $ssid")
     currentSSID = ssid
-    if (ssid != null) {
-      handleConnect(ssid)
-    } else {
-      handleDisconnect()
-    }
+    if (ssid != null) handleConnect(ssid) else handleDisconnect()
   }
 
   private fun handleConnect(ssid: String) {
-    scope.launch {
+    scope.launch(Dispatchers.IO) {
       val restrictions = database.appRestrictionDao().getEnabled()
       for (restriction in restrictions) {
-        val blockedSSIDs = restriction.getBlockedWifiList()
-        if (ssid in blockedSSIDs) {
-          blockingEngine.blockApp(
-                  restriction.packageName,
-                  NotificationHelper.BlockReason.WIFI_BLOCKED
-          ) { success ->
-            if (success) {
-              Log.i("NetworkMonitor", "${restriction.packageName} blocked by WiFi: $ssid")
-            }
-          }
+        if (ssid in restriction.getBlockedWifiList()) {
+          val blocked =
+                  blockingEngine.blockApp(
+                          restriction.packageName,
+                          NotificationHelper.BlockReason.WIFI_BLOCKED
+                  )
+          if (blocked) Log.i("NetworkMonitor", "${restriction.packageName} blocked by WiFi: $ssid")
         }
       }
     }
   }
 
   private fun handleDisconnect() {
-    scope.launch {
+    scope.launch(Dispatchers.IO) {
       val restrictions = database.appRestrictionDao().getEnabled()
       for (restriction in restrictions) {
-        val blockedSSIDs = restriction.getBlockedWifiList()
-        if (blockedSSIDs.isNotEmpty()) {
-          val stillOnBlockedWifi = currentSSID != null && currentSSID in blockedSSIDs
-          if (!stillOnBlockedWifi) {
-            val quotaBlocked = blockingEngine.isQuotaBlocked(restriction.packageName)
-            if (!quotaBlocked) {
-              blockingEngine.unblockApp(restriction.packageName)
-              Log.i("NetworkMonitor", "${restriction.packageName} unblocked - left WiFi")
-            }
-          }
+        if (restriction.getBlockedWifiList().isEmpty()) continue
+        val stillOnBlockedWifi =
+                currentSSID != null && currentSSID in restriction.getBlockedWifiList()
+        if (!stillOnBlockedWifi && !blockingEngine.isQuotaBlocked(restriction.packageName)) {
+          blockingEngine.unblockApp(restriction.packageName)
+          Log.i("NetworkMonitor", "${restriction.packageName} unblocked - left WiFi")
         }
       }
     }
