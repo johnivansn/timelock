@@ -44,6 +44,30 @@ class Migration2To3 : Migration(2, 3) {
   }
 }
 
+class Migration3To4 : Migration(3, 4) {
+  override fun migrate(database: SupportSQLiteDatabase) {
+    database.execSQL(
+            "CREATE TABLE IF NOT EXISTS admin_settings_new (" +
+                    "id INTEGER PRIMARY KEY NOT NULL, " +
+                    "isEnabled INTEGER NOT NULL DEFAULT 0, " +
+                    "pinHash TEXT NOT NULL DEFAULT '', " +
+                    "failedAttempts INTEGER NOT NULL DEFAULT 0, " +
+                    "lockedUntil INTEGER NOT NULL DEFAULT 0, " +
+                    "recoveryMode INTEGER NOT NULL DEFAULT 0, " +
+                    "recoveryStartTime INTEGER NOT NULL DEFAULT 0, " +
+                    "securityQuestion TEXT, " +
+                    "securityAnswerHash TEXT, " +
+                    "recoveryEmail TEXT)"
+    )
+    database.execSQL(
+            "INSERT INTO admin_settings_new (id, isEnabled, pinHash, failedAttempts, lockedUntil) " +
+                    "SELECT id, isEnabled, pinHash, failedAttempts, lockedUntil FROM admin_settings"
+    )
+    database.execSQL("DROP TABLE admin_settings")
+    database.execSQL("ALTER TABLE admin_settings_new RENAME TO admin_settings")
+  }
+}
+
 @Database(
         entities =
                 [
@@ -51,7 +75,7 @@ class Migration2To3 : Migration(2, 3) {
                         DailyUsage::class,
                         AdminSettings::class,
                         ActivityLog::class],
-        version = 3,
+        version = 4,
         exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -72,7 +96,7 @@ abstract class AppDatabase : RoomDatabase() {
                                         AppDatabase::class.java,
                                         "app_time_control_db"
                                 )
-                                .addMigrations(Migration1To2(), Migration2To3())
+                                .addMigrations(Migration1To2(), Migration2To3(), Migration3To4())
                                 .build()
                 INSTANCE = instance
                 instance

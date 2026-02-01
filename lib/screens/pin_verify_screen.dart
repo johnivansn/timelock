@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:timelock/screens/pin_recovery_screen.dart';
 
 class PinVerifyScreen extends StatefulWidget {
   const PinVerifyScreen({super.key, this.reason});
@@ -17,6 +18,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
 
   final List<int?> _pin = List.filled(_pinLength, null);
   bool _verifying = false;
+  bool _canStartRecovery = false;
   String? _error;
   int _lockedSeconds = 0;
   late AnimationController _shakeController;
@@ -78,9 +80,11 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
           return;
         case 'wrong_pin':
           final remaining = res['attemptsRemaining'] as int;
+          final canRecover = res['canStartRecovery'] as bool? ?? false;
           if (mounted) {
             setState(() {
               _verifying = false;
+              _canStartRecovery = canRecover;
               _error =
                   'PIN incorrecto. $remaining intento${remaining == 1 ? '' : 's'} restante${remaining == 1 ? '' : 's'}';
               _clearPin();
@@ -111,6 +115,17 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
     for (int i = 0; i < _pin.length; i++) {
       _pin[i] = null;
     }
+  }
+
+  void _navigateToRecovery() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PinRecoveryScreen()),
+    ).then((recovered) {
+      if (recovered == true) {
+        Navigator.pop(context, true);
+      }
+    });
   }
 
   void _startCountdown() {
@@ -216,6 +231,13 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
           const Spacer(),
           _numpad(isLocked),
           const SizedBox(height: 40),
+          if (_canStartRecovery) ...[
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: _navigateToRecovery,
+              child: const Text('¿Olvidaste tu PIN?'),
+            ),
+          ],
         ],
       ),
     );

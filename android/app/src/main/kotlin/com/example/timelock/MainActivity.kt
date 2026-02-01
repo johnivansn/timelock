@@ -202,10 +202,12 @@ class MainActivity : FlutterActivity() {
                       when (verifyResult) {
                         is AdminManager.VerifyResult.SUCCESS -> mapOf("status" to "success")
                         is AdminManager.VerifyResult.NOT_ENABLED -> mapOf("status" to "not_enabled")
+                        is AdminManager.VerifyResult.IN_RECOVERY -> mapOf("status" to "in_recovery")
                         is AdminManager.VerifyResult.WrongPin ->
                                 mapOf(
                                         "status" to "wrong_pin",
-                                        "attemptsRemaining" to verifyResult.attemptsRemaining
+                                        "attemptsRemaining" to verifyResult.attemptsRemaining,
+                                        "canStartRecovery" to verifyResult.canStartRecovery
                                 )
                         is AdminManager.VerifyResult.Locked ->
                                 mapOf(
@@ -216,6 +218,78 @@ class MainActivity : FlutterActivity() {
               withContext(Dispatchers.Main) { result.success(response) }
             } catch (e: Exception) {
               withContext(Dispatchers.Main) { result.error("ADMIN_ERROR", e.message, null) }
+            }
+          }
+        }
+        "startRecoveryMode" -> {
+          scope.launch {
+            try {
+              val recoveryResult = adminManager.startRecoveryMode()
+              val response =
+                      when (recoveryResult) {
+                        is AdminManager.RecoveryResult.Started ->
+                                mapOf("success" to true, "durationMs" to recoveryResult.durationMs)
+                        is AdminManager.RecoveryResult.AlreadyInRecovery ->
+                                mapOf("success" to false, "error" to "Ya en modo recuperación")
+                        is AdminManager.RecoveryResult.Error ->
+                                mapOf("success" to false, "error" to recoveryResult.message)
+                      }
+              withContext(Dispatchers.Main) { result.success(response) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("RECOVERY_ERROR", e.message, null) }
+            }
+          }
+        }
+        "getRecoveryStatus" -> {
+          scope.launch {
+            try {
+              val status = adminManager.getRecoveryStatus()
+              val response =
+                      when (status) {
+                        is AdminManager.RecoveryStatus.NotInRecovery ->
+                                mapOf("inRecovery" to false, "ready" to false)
+                        is AdminManager.RecoveryStatus.InProgress ->
+                                mapOf(
+                                        "inRecovery" to true,
+                                        "ready" to false,
+                                        "remainingSeconds" to (status.remainingMs / 1000).toInt(),
+                                        "securityQuestion" to status.hasSecurityQuestion
+                                )
+                        is AdminManager.RecoveryStatus.Ready ->
+                                mapOf(
+                                        "inRecovery" to true,
+                                        "ready" to true,
+                                        "securityQuestion" to status.hasSecurityQuestion
+                                )
+                      }
+              withContext(Dispatchers.Main) { result.success(response) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) {
+                result.error("RECOVERY_STATUS_ERROR", e.message, null)
+              }
+            }
+          }
+        }
+        "completeRecovery" -> {
+          val args = call.arguments as Map<*, *>
+          val newPin = args["newPin"] as String
+          val answer = args["securityAnswer"] as String?
+          scope.launch {
+            try {
+              val completeResult = adminManager.completeRecovery(newPin, answer)
+              val response =
+                      when (completeResult) {
+                        is AdminManager.RecoveryCompleteResult.Success -> mapOf("success" to true)
+                        is AdminManager.RecoveryCompleteResult.WrongAnswer ->
+                                mapOf("success" to false, "error" to "Respuesta incorrecta")
+                        is AdminManager.RecoveryCompleteResult.Error ->
+                                mapOf("success" to false, "error" to completeResult.message)
+                      }
+              withContext(Dispatchers.Main) { result.success(response) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) {
+                result.error("COMPLETE_RECOVERY_ERROR", e.message, null)
+              }
             }
           }
         }
@@ -372,38 +446,6 @@ class MainActivity : FlutterActivity() {
             }
           }
         }
-        "getActivityLogs" -> {
-          scope.launch {
-            try {
-              val logs = database.activityLogDao().getRecent(200)
-              val logsData =
-                      logs.map { log ->
-                        mapOf(
-                                "id" to log.id,
-                                "timestamp" to log.timestamp,
-                                "eventType" to log.eventType,
-                                "packageName" to log.packageName,
-                                "appName" to log.appName,
-                                "details" to log.details,
-                                "metadata" to log.metadata
-                        )
-                      }
-              withContext(Dispatchers.Main) { result.success(logsData) }
-            } catch (e: Exception) {
-              withContext(Dispatchers.Main) { result.error("GET_LOGS_ERROR", e.message, null) }
-            }
-          }
-        }
-        "clearActivityLogs" -> {
-          scope.launch {
-            try {
-              database.activityLogDao().deleteAll()
-              withContext(Dispatchers.Main) { result.success(true) }
-            } catch (e: Exception) {
-              withContext(Dispatchers.Main) { result.error("CLEAR_LOGS_ERROR", e.message, null) }
-            }
-          }
-        }
         "exportActivityLogs" -> {
           scope.launch {
             try {
@@ -453,26 +495,6 @@ class MainActivity : FlutterActivity() {
               withContext(Dispatchers.Main) { result.success(true) }
             } catch (e: Exception) {
               withContext(Dispatchers.Main) { result.error("CLEAR_LOGS_ERROR", e.message, null) }
-            }
-          }
-        }
-        "exportActivityLogs" -> {
-          scope.launch {
-            try {
-              val logs = database.activityLogDao().getRecent(1000)
-              val csv = buildString {
-                appendLine("Timestamp,Date,Event Type,App Name,Package Name,Details")
-                logs.forEach { log ->
-                  val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                  val date = dateFormat.format(Date(log.timestamp))
-                  appendLine(
-                          "${log.timestamp},\"$date\",\"${log.eventType}\",\"${log.appName ?: ""}\",\"${log.packageName ?: ""}\",\"${log.details}\""
-                  )
-                }
-              }
-              withContext(Dispatchers.Main) { result.success(csv) }
-            } catch (e: Exception) {
-              withContext(Dispatchers.Main) { result.error("EXPORT_LOGS_ERROR", e.message, null) }
             }
           }
         }
