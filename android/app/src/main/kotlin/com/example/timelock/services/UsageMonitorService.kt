@@ -14,6 +14,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.timelock.database.AppDatabase
+import com.example.timelock.monitoring.NetworkMonitor
 import com.example.timelock.monitoring.UsageStatsMonitor
 import com.example.timelock.receivers.DailyResetReceiver
 import java.util.Calendar
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
 
 class UsageMonitorService : Service() {
   private lateinit var usageStatsMonitor: UsageStatsMonitor
+  private lateinit var networkMonitor: NetworkMonitor
   private lateinit var database: AppDatabase
   private val handler = Handler(Looper.getMainLooper())
   private val updateInterval = 30000L
@@ -40,10 +42,12 @@ class UsageMonitorService : Service() {
   override fun onCreate() {
     super.onCreate()
     usageStatsMonitor = UsageStatsMonitor(this)
+    networkMonitor = NetworkMonitor(this)
     database = AppDatabase.getDatabase(this)
     createNotificationChannel()
     startForeground(NOTIFICATION_ID, createNotification())
     scheduleDailyReset()
+    networkMonitor.start()
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -56,6 +60,7 @@ class UsageMonitorService : Service() {
   override fun onDestroy() {
     super.onDestroy()
     handler.removeCallbacks(updateRunnable)
+    networkMonitor.stop()
   }
 
   fun scheduleDailyReset() {
@@ -120,8 +125,8 @@ class UsageMonitorService : Service() {
                       .setContentTitle("AppTimeControl activo")
                       .setContentText(
                               "Monitoreando $monitoredAppsCount ${
-                      if (monitoredAppsCount == 1) "aplicación" else "aplicaciones"
-                  }"
+                        if (monitoredAppsCount == 1) "aplicación" else "aplicaciones"
+                    }"
                       )
                       .setSmallIcon(android.R.drawable.ic_menu_info_details)
                       .setPriority(NotificationCompat.PRIORITY_LOW)

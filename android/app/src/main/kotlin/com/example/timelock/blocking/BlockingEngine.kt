@@ -19,25 +19,45 @@ class BlockingEngine(private val context: Context) {
     val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
     if (!restriction.isEnabled) return false
 
-    val today = dateFormat.format(Date())
-    val usage = database.dailyUsageDao().getUsage(packageName, today)
-
-    if (usage != null && usage.usedMinutes >= restriction.dailyQuotaMinutes) {
-      Log.d("BlockingEngine", "$packageName should be blocked - quota reached")
-      return true
-    }
+    if (isQuotaBlocked(packageName)) return true
+    if (isWifiBlocked(packageName)) return true
 
     return false
+  }
+
+  suspend fun isQuotaBlocked(packageName: String): Boolean {
+    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
+    val today = dateFormat.format(Date())
+    val usage = database.dailyUsageDao().getUsage(packageName, today) ?: return false
+    return usage.usedMinutes >= restriction.dailyQuotaMinutes
+  }
+
+  suspend fun isWifiBlocked(packageName: String): Boolean {
+    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
+    val blockedSSIDs = restriction.getBlockedWifiList()
+    if (blockedSSIDs.isEmpty()) return false
+
+    val currentSSID = getCurrentSSID() ?: return false
+    return currentSSID in blockedSSIDs
+  }
+
+  private fun getCurrentSSID(): String? {
+    val wifiManager = context.getSystemService(android.wifi.WifiManager::class.java) ?: return null
+    val info = wifiManager.connectionInfo ?: return null
+    if (info.networkId == -1) return null
+    return info.ssid?.removeSurrounding("\"")
   }
 
   fun blockApp(packageName: String, callback: (Boolean) -> Unit) {
     scope.launch {
       val today = dateFormat.format(Date())
-      val usage = database.dailyUsageDao().getUsage(packageName, today)
+      var usage = database.dailyUsageDao().getUsage(packageName, today)
 
       if (usage != null) {
-        database.dailyUsageDao().update(usage.copy(isBlocked = true))
-        Log.i("BlockingEngine", "$packageName blocked")
+        if (!usage.isBlocked) {
+          database.dailyUsageDao().update(usage.copy(isBlocked = true))
+          Log.i("BlockingEngine", "$packageName blocked")
+        }
         withContext(Dispatchers.Main) { callback(true) }
       } else {
         withContext(Dispatchers.Main) { callback(false) }
@@ -54,9 +74,8 @@ class BlockingEngine(private val context: Context) {
   fun unblockApp(packageName: String) {
     scope.launch {
       val today = dateFormat.format(Date())
-      val usage = database.dailyUsageDao().getUsage(packageName, today)
-
-      if (usage != null) {
+      val usage = database.dailyUsageDao().getUsage(packageName, today) ?: return@launch
+      if (usage.isBlocked) {
         database.dailyUsageDao().update(usage.copy(isBlocked = false))
         Log.i("BlockingEngine", "$packageName unblocked")
       }
