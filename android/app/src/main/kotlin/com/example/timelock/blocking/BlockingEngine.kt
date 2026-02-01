@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.wifi.WifiManager
 import android.util.Log
 import com.example.timelock.database.AppDatabase
+import com.example.timelock.notifications.NotificationHelper
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.CoroutineScope
@@ -15,6 +16,7 @@ class BlockingEngine(private val context: Context) {
   private val database = AppDatabase.getDatabase(context)
   private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
   private val scope = CoroutineScope(Dispatchers.IO)
+  private val notificationHelper = NotificationHelper(context)
 
   suspend fun shouldBlock(packageName: String): Boolean {
     val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
@@ -51,15 +53,21 @@ class BlockingEngine(private val context: Context) {
     return info.ssid?.removeSurrounding("\"")
   }
 
-  fun blockApp(packageName: String, callback: (Boolean) -> Unit) {
+  fun blockApp(
+          packageName: String,
+          reason: NotificationHelper.BlockReason,
+          callback: (Boolean) -> Unit
+  ) {
     scope.launch {
       val today = dateFormat.format(Date())
       var usage = database.dailyUsageDao().getUsage(packageName, today)
+      val restriction = database.appRestrictionDao().getByPackage(packageName)
 
-      if (usage != null) {
+      if (usage != null && restriction != null) {
         if (!usage.isBlocked) {
           database.dailyUsageDao().update(usage.copy(isBlocked = true))
-          Log.i("BlockingEngine", "$packageName blocked")
+          notificationHelper.notifyAppBlocked(restriction.appName, reason)
+          Log.i("BlockingEngine", "$packageName blocked - reason: $reason")
         }
         withContext(Dispatchers.Main) { callback(true) }
       } else {

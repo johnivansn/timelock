@@ -9,6 +9,7 @@ import android.net.wifi.WifiManager
 import android.util.Log
 import com.example.timelock.blocking.BlockingEngine
 import com.example.timelock.database.AppDatabase
+import com.example.timelock.notifications.NotificationHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -94,7 +95,10 @@ class NetworkMonitor(private val context: Context) {
       for (restriction in restrictions) {
         val blockedSSIDs = restriction.getBlockedWifiList()
         if (ssid in blockedSSIDs) {
-          blockingEngine.blockApp(restriction.packageName) { success ->
+          blockingEngine.blockApp(
+                  restriction.packageName,
+                  NotificationHelper.BlockReason.WIFI_BLOCKED
+          ) { success ->
             if (success) {
               Log.i("NetworkMonitor", "${restriction.packageName} blocked by WiFi: $ssid")
             }

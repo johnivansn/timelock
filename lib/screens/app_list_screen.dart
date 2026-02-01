@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:timelock/screens/permissions_screen.dart';
 import 'package:timelock/screens/pin_verify_screen.dart';
+import 'package:timelock/screens/notification_settings_screen.dart';
 import 'package:timelock/widgets/app_picker_dialog.dart';
 import 'package:timelock/widgets/time_picker_dialog.dart';
 import 'package:timelock/widgets/wifi_picker_dialog.dart';
@@ -241,13 +242,47 @@ class _AppListScreenState extends State<AppListScreen> {
         ),
       ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.settings_outlined,
-              color: Colors.white70, size: 22),
-          onPressed: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const PermissionsScreen()),
-          ).then((_) => _checkPermissions()),
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert, color: Colors.white70, size: 22),
+          color: const Color(0xFF1A1A2E),
+          onSelected: (value) {
+            if (value == 'permissions') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PermissionsScreen()),
+              ).then((_) => _checkPermissions());
+            } else if (value == 'notifications') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const NotificationSettingsScreen()),
+              );
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(
+              value: 'permissions',
+              child: Row(
+                children: [
+                  Icon(Icons.security_outlined,
+                      color: Colors.white70, size: 20),
+                  SizedBox(width: 12),
+                  Text('Permisos', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+            ),
+            const PopupMenuItem(
+              value: 'notifications',
+              child: Row(
+                children: [
+                  Icon(Icons.notifications_outlined,
+                      color: Colors.white70, size: 20),
+                  SizedBox(width: 12),
+                  Text('Notificaciones', style: TextStyle(color: Colors.white)),
+                ],
+              ),
+            ),
+          ],
         ),
         const SizedBox(width: 8),
       ],

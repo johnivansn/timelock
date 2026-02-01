@@ -222,6 +222,22 @@ class MainActivity : FlutterActivity() {
             }
           }
         }
+        "getNotificationSettings" -> {
+          val prefs = com.example.timelock.preferences.NotificationPreferences(this)
+          result.success(prefs.getAll())
+        }
+        "saveNotificationSettings" -> {
+          val args = call.arguments as Map<*, *>
+          val prefs = com.example.timelock.preferences.NotificationPreferences(this)
+          val settings =
+                  mapOf(
+                          "quota25" to (args["quota25"] as Boolean),
+                          "quota10" to (args["quota10"] as Boolean),
+                          "blocked" to (args["blocked"] as Boolean)
+                  )
+          prefs.saveAll(settings)
+          result.success(null)
+        }
         else -> result.notImplemented()
       }
     }

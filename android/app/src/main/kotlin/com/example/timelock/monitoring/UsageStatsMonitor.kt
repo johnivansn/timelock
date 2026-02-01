@@ -5,6 +5,7 @@ import android.content.Context
 import android.util.Log
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.DailyUsage
+import com.example.timelock.notifications.NotificationHelper
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.CoroutineScope
@@ -17,6 +18,10 @@ class UsageStatsMonitor(private val context: Context) {
   private val database = AppDatabase.getDatabase(context)
   private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
   private val scope = CoroutineScope(Dispatchers.IO)
+  private val notificationHelper = NotificationHelper(context)
+
+  private val notified25Percent = mutableSetOf<String>()
+  private val notified10Percent = mutableSetOf<String>()
 
   fun getUsageToday(packageName: String): Long {
     val calendar = Calendar.getInstance()
@@ -30,7 +35,10 @@ class UsageStatsMonitor(private val context: Context) {
     val stats =
             usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
                     ?: run {
-                      Log.w("UsageStatsMonitor", "queryUsageStats returned null - permission not granted?")
+                      Log.w(
+                              "UsageStatsMonitor",
+                              "queryUsageStats returned null - permission not granted?"
+                      )
                       return 0L
                     }
 
@@ -49,7 +57,10 @@ class UsageStatsMonitor(private val context: Context) {
         val usageMillis = getUsageToday(restriction.packageName)
         val usageMinutes = (usageMillis / 60000).toInt()
 
-        Log.d("UsageStatsMonitor", "${restriction.packageName}: $usageMinutes min used today (quota: ${restriction.dailyQuotaMinutes} min)")
+        Log.d(
+                "UsageStatsMonitor",
+                "${restriction.packageName}: $usageMinutes min used today (quota: ${restriction.dailyQuotaMinutes} min)"
+        )
 
         var dailyUsage = database.dailyUsageDao().getUsage(restriction.packageName, today)
 
@@ -73,12 +84,52 @@ class UsageStatsMonitor(private val context: Context) {
           database.dailyUsageDao().update(dailyUsage)
         }
 
+        checkAndNotifyQuota(
+                restriction.packageName,
+                restriction.appName,
+                usageMinutes,
+                restriction.dailyQuotaMinutes
+        )
+
         if (usageMinutes >= restriction.dailyQuotaMinutes && !dailyUsage.isBlocked) {
           dailyUsage = dailyUsage.copy(isBlocked = true)
           database.dailyUsageDao().update(dailyUsage)
+          notificationHelper.notifyAppBlocked(
+                  restriction.appName,
+                  NotificationHelper.BlockReason.QUOTA_EXCEEDED
+          )
           Log.i("UsageStatsMonitor", "${restriction.packageName} BLOCKED - quota reached")
         }
       }
     }
+  }
+
+  private fun checkAndNotifyQuota(
+          packageName: String,
+          appName: String,
+          usedMinutes: Int,
+          quotaMinutes: Int
+  ) {
+    val remainingMinutes = quotaMinutes - usedMinutes
+    val percentageUsed = (usedMinutes.toFloat() / quotaMinutes.toFloat()) * 100
+
+    when {
+      percentageUsed >= 90 && !notified10Percent.contains(packageName) -> {
+        notificationHelper.notifyQuota10(appName, remainingMinutes)
+        notified10Percent.add(packageName)
+        Log.i("UsageStatsMonitor", "Notified 10% remaining for $packageName")
+      }
+      percentageUsed >= 75 && !notified25Percent.contains(packageName) -> {
+        notificationHelper.notifyQuota25(appName, remainingMinutes)
+        notified25Percent.add(packageName)
+        Log.i("UsageStatsMonitor", "Notified 25% remaining for $packageName")
+      }
+    }
+  }
+
+  fun resetNotificationFlags() {
+    notified25Percent.clear()
+    notified10Percent.clear()
+    Log.i("UsageStatsMonitor", "Notification flags reset")
   }
 }
