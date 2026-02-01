@@ -4,6 +4,7 @@ import 'package:timelock/screens/permissions_screen.dart';
 import 'package:timelock/screens/pin_verify_screen.dart';
 import 'package:timelock/screens/notification_settings_screen.dart';
 import 'package:timelock/screens/export_import_screen.dart';
+import 'package:timelock/screens/optimization_screen.dart';
 import 'package:timelock/widgets/app_picker_dialog.dart';
 import 'package:timelock/widgets/time_picker_dialog.dart';
 import 'package:timelock/widgets/wifi_picker_dialog.dart';
@@ -306,6 +307,17 @@ class _AppListScreenState extends State<AppListScreen> {
                 ).then((_) => _loadRestrictions());
               },
             ),
+            _menuItem(
+              icon: Icons.speed_outlined,
+              title: 'Optimización',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const OptimizationScreen()),
+                );
+              },
+            ),
             const SizedBox(height: AppSpacing.md),
           ],
         ),
@@ -336,7 +348,8 @@ class _AppListScreenState extends State<AppListScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 24),
+          const Icon(Icons.warning_amber_rounded,
+              color: AppColors.warning, size: 24),
           const SizedBox(width: AppSpacing.md),
           const Expanded(
             child: Text(
@@ -552,7 +565,8 @@ class _AppListScreenState extends State<AppListScreen> {
 
     return Row(
       children: [
-        const Icon(Icons.wifi_outlined, color: AppColors.textTertiary, size: 20),
+        const Icon(Icons.wifi_outlined,
+            color: AppColors.textTertiary, size: 20),
         const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: ssids.isEmpty

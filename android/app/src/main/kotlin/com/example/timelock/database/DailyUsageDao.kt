@@ -11,8 +11,12 @@ interface DailyUsageDao {
 
   @Update suspend fun update(usage: DailyUsage)
 
+  @Delete suspend fun delete(usage: DailyUsage)
+
   @Query("UPDATE daily_usage SET usedMinutes = 0, isBlocked = 0 WHERE date = :date")
   suspend fun resetUsageForDate(date: String)
 
   @Query("DELETE FROM daily_usage WHERE date < :date") suspend fun deleteOldUsage(date: String)
+
+  @Query("SELECT * FROM daily_usage") suspend fun getAllUsage(): List<DailyUsage>
 }

@@ -18,6 +18,10 @@ import com.example.timelock.admin.AdminManager
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.AppRestriction
 import com.example.timelock.monitoring.NetworkMonitor
+import com.example.timelock.optimization.AppCacheManager
+import com.example.timelock.optimization.BatteryModeManager
+import com.example.timelock.optimization.DataCleanupManager
+import com.example.timelock.optimization.WifiCacheManager
 import com.example.timelock.services.AppBlockAccessibilityService
 import com.example.timelock.services.UsageMonitorService
 import io.flutter.embedding.android.FlutterActivity
@@ -36,6 +40,10 @@ class MainActivity : FlutterActivity() {
   private val CHANNEL = "app.restriction/config"
   private lateinit var database: AppDatabase
   private lateinit var adminManager: AdminManager
+  private lateinit var appCacheManager: AppCacheManager
+  private lateinit var wifiCacheManager: WifiCacheManager
+  private lateinit var batteryModeManager: BatteryModeManager
+  private lateinit var dataCleanupManager: DataCleanupManager
   private val scope = CoroutineScope(Dispatchers.Main + Job())
   private val systemPackages =
           setOf(
@@ -51,6 +59,10 @@ class MainActivity : FlutterActivity() {
     super.configureFlutterEngine(flutterEngine)
     database = AppDatabase.getDatabase(this)
     adminManager = AdminManager(this)
+    appCacheManager = AppCacheManager(this)
+    wifiCacheManager = WifiCacheManager(this)
+    batteryModeManager = BatteryModeManager(this)
+    dataCleanupManager = DataCleanupManager(this)
 
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler {
             call,
@@ -341,6 +353,45 @@ class MainActivity : FlutterActivity() {
         "isPersistentNotificationEnabled" -> {
           result.success(isPersistentNotificationEnabled())
         }
+        "setBatterySaverMode" -> {
+          val enabled = call.arguments as Boolean
+          batteryModeManager.setBatterySaverEnabled(enabled)
+          result.success(null)
+        }
+        "isBatterySaverEnabled" -> {
+          result.success(batteryModeManager.isBatterySaverEnabled())
+        }
+        "getOptimizationStats" -> {
+          scope.launch {
+            try {
+              val stats = getOptimizationStats()
+              withContext(Dispatchers.Main) { result.success(stats) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("STATS_ERROR", e.message, null) }
+            }
+          }
+        }
+        "invalidateCache" -> {
+          scope.launch {
+            try {
+              appCacheManager.invalidateCache()
+              wifiCacheManager.invalidateCache()
+              withContext(Dispatchers.Main) { result.success(null) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("CACHE_ERROR", e.message, null) }
+            }
+          }
+        }
+        "forceCleanup" -> {
+          scope.launch {
+            try {
+              dataCleanupManager.forceCleanup()
+              withContext(Dispatchers.Main) { result.success(null) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("CLEANUP_ERROR", e.message, null) }
+            }
+          }
+        }
         else -> result.notImplemented()
       }
     }
@@ -566,7 +617,27 @@ class MainActivity : FlutterActivity() {
             .sortedBy { it["appName"]?.lowercase() ?: "" }
   }
 
+  private suspend fun getOptimizationStats(): Map<String, Any> {
+    val cleanupStats = dataCleanupManager.getCleanupStats()
+    val cacheSize = appCacheManager.getCacheSize()
+
+    return mapOf(
+            "batterySaverEnabled" to batteryModeManager.isBatterySaverEnabled(),
+            "updateIntervalMs" to batteryModeManager.getUpdateInterval(),
+            "cacheSizeKB" to (cacheSize / 1024),
+            "databaseSizeMB" to cleanupStats["databaseSizeMB"]!!,
+            "usageRecordCount" to cleanupStats["usageRecordCount"]!!,
+            "wifiHistoryCount" to cleanupStats["wifiHistoryCount"]!!,
+            "lastCleanup" to cleanupStats["lastCleanup"]!!
+    )
+  }
+
   private suspend fun getSavedWifiNetworks(): List<String> {
+    val cached = wifiCacheManager.getCachedNetworks()
+    if (cached != null) {
+      return cached
+    }
+
     val wifiManager =
             applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
                     ?: return emptyList()
@@ -601,7 +672,9 @@ class MainActivity : FlutterActivity() {
       allSSIDs.add(it)
     }
 
-    return allSSIDs.sorted()
+    val result = allSSIDs.sorted()
+    wifiCacheManager.cacheNetworks(result)
+    return result
   }
 
   private suspend fun updateRestrictionWifi(args: Map<*, *>) {
@@ -656,6 +729,7 @@ class MainActivity : FlutterActivity() {
             "isBlocked" to (usage?.isBlocked ?: false)
     )
   }
+
   private fun enableDeviceAdmin() {
     val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
     val adminComponent =
@@ -678,10 +752,8 @@ class MainActivity : FlutterActivity() {
             ComponentName(this, com.example.timelock.admin.DeviceAdminManager::class.java)
     return dpm.isAdminActive(adminComponent)
   }
-}
 
-companion
-
-object {
-  private const val REQUEST_ENABLE_ADMIN = 1001
+  companion object {
+    private const val REQUEST_ENABLE_ADMIN = 1001
+  }
 }

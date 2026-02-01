@@ -1,0 +1,131 @@
+package com.example.timelock.optimization
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import android.util.Log
+import java.io.File
+import java.io.FileOutputStream
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+class AppCacheManager(private val context: Context) {
+  private val cacheDir = File(context.cacheDir, "app_cache")
+  private val prefs = context.getSharedPreferences("app_cache", Context.MODE_PRIVATE)
+
+  companion object {
+    private const val KEY_LAST_CACHE_UPDATE = "last_cache_update"
+    private const val CACHE_VALIDITY_MS = 24 * 60 * 60 * 1000L
+  }
+
+  init {
+    if (!cacheDir.exists()) {
+      cacheDir.mkdirs()
+    }
+  }
+
+  suspend fun getCachedInstalledApps(): List<Map<String, String>>? =
+          withContext(Dispatchers.IO) {
+            try {
+              val lastUpdate = prefs.getLong(KEY_LAST_CACHE_UPDATE, 0L)
+              val now = System.currentTimeMillis()
+
+              if (now - lastUpdate > CACHE_VALIDITY_MS) {
+                Log.d("AppCacheManager", "Cache expired, needs refresh")
+                return@withContext null
+              }
+
+              val cacheFile = File(cacheDir, "installed_apps.cache")
+              if (!cacheFile.exists()) {
+                return@withContext null
+              }
+
+              val apps = mutableListOf<Map<String, String>>()
+              cacheFile.readLines().forEach { line ->
+                val parts = line.split("|")
+                if (parts.size == 2) {
+                  apps.add(mapOf("packageName" to parts[0], "appName" to parts[1]))
+                }
+              }
+
+              Log.d("AppCacheManager", "Loaded ${apps.size} apps from cache")
+              apps
+            } catch (e: Exception) {
+              Log.e("AppCacheManager", "Error reading cache", e)
+              null
+            }
+          }
+
+  suspend fun cacheInstalledApps(apps: List<Map<String, String>>) =
+          withContext(Dispatchers.IO) {
+            try {
+              val cacheFile = File(cacheDir, "installed_apps.cache")
+              cacheFile.writeText(
+                      apps.joinToString("\n") { "${it["packageName"]}|${it["appName"]}" }
+              )
+
+              prefs.edit().putLong(KEY_LAST_CACHE_UPDATE, System.currentTimeMillis()).apply()
+              Log.d("AppCacheManager", "Cached ${apps.size} apps")
+            } catch (e: Exception) {
+              Log.e("AppCacheManager", "Error writing cache", e)
+            }
+          }
+
+  suspend fun cacheAppIcon(packageName: String, drawable: Drawable) =
+          withContext(Dispatchers.IO) {
+            try {
+              val iconFile = File(cacheDir, "$packageName.png")
+              val bitmap = drawableToBitmap(drawable)
+              FileOutputStream(iconFile).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 85, out)
+              }
+              Log.d("AppCacheManager", "Cached icon for $packageName")
+            } catch (e: Exception) {
+              Log.e("AppCacheManager", "Error caching icon", e)
+            }
+          }
+
+  fun getCachedIconPath(packageName: String): String? {
+    val iconFile = File(cacheDir, "$packageName.png")
+    return if (iconFile.exists()) iconFile.absolutePath else null
+  }
+
+  private fun drawableToBitmap(drawable: Drawable): Bitmap {
+    if (drawable is BitmapDrawable) {
+      return drawable.bitmap
+    }
+
+    val bitmap =
+            Bitmap.createBitmap(
+                    drawable.intrinsicWidth.coerceAtLeast(1),
+                    drawable.intrinsicHeight.coerceAtLeast(1),
+                    Bitmap.Config.ARGB_8888
+            )
+    val canvas = Canvas(bitmap)
+    drawable.setBounds(0, 0, canvas.width, canvas.height)
+    drawable.draw(canvas)
+    return bitmap
+  }
+
+  suspend fun invalidateCache() =
+          withContext(Dispatchers.IO) {
+            try {
+              cacheDir.listFiles()?.forEach { it.delete() }
+              prefs.edit().remove(KEY_LAST_CACHE_UPDATE).apply()
+              Log.d("AppCacheManager", "Cache invalidated")
+            } catch (e: Exception) {
+              Log.e("AppCacheManager", "Error invalidating cache", e)
+            }
+          }
+
+  suspend fun getCacheSize(): Long =
+          withContext(Dispatchers.IO) {
+            try {
+              cacheDir.listFiles()?.sumOf { it.length() } ?: 0L
+            } catch (e: Exception) {
+              0L
+            }
+          }
+}

@@ -18,6 +18,8 @@ import com.example.timelock.monitoring.NetworkMonitor
 import com.example.timelock.monitoring.ScheduleMonitor
 import com.example.timelock.monitoring.UsageStatsMonitor
 import com.example.timelock.notifications.PersistentNotification
+import com.example.timelock.optimization.BatteryModeManager
+import com.example.timelock.optimization.DataCleanupManager
 import com.example.timelock.receivers.DailyResetReceiver
 import com.example.timelock.widget.AppTimeWidget
 import com.example.timelock.widget.AppTimeWidgetMedium
@@ -35,9 +37,10 @@ class UsageMonitorService : Service() {
   private lateinit var scheduleMonitor: ScheduleMonitor
   private lateinit var persistentNotification: PersistentNotification
   private lateinit var database: AppDatabase
+  private lateinit var batteryModeManager: BatteryModeManager
+  private lateinit var dataCleanupManager: DataCleanupManager
   private val handler = Handler(Looper.getMainLooper())
   private val scope = CoroutineScope(Dispatchers.IO + Job())
-  private val updateInterval = 30000L
   private var monitoredAppsCount = 0
 
   private val updateRunnable =
@@ -48,7 +51,11 @@ class UsageMonitorService : Service() {
               updateNotification()
               updateWidgets()
               updatePersistentNotification()
-              handler.postDelayed(this, updateInterval)
+
+              scope.launch { dataCleanupManager.performCleanupIfNeeded() }
+
+              val interval = batteryModeManager.getUpdateInterval()
+              handler.postDelayed(this, interval)
             }
           }
 
@@ -59,11 +66,15 @@ class UsageMonitorService : Service() {
     networkMonitor = NetworkMonitor(this, scope)
     scheduleMonitor = ScheduleMonitor(this, scope)
     persistentNotification = PersistentNotification(this)
+    batteryModeManager = BatteryModeManager(this)
+    dataCleanupManager = DataCleanupManager(this)
     createNotificationChannel()
     startForeground(NOTIFICATION_ID, createNotification())
     scheduleDailyReset()
     networkMonitor.start()
     persistentNotification.show()
+
+    scope.launch { dataCleanupManager.performCleanupIfNeeded() }
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
