@@ -17,7 +17,10 @@ import com.example.timelock.database.AppDatabase
 import com.example.timelock.monitoring.NetworkMonitor
 import com.example.timelock.monitoring.ScheduleMonitor
 import com.example.timelock.monitoring.UsageStatsMonitor
+import com.example.timelock.notifications.PersistentNotification
 import com.example.timelock.receivers.DailyResetReceiver
+import com.example.timelock.widget.AppTimeWidget
+import com.example.timelock.widget.AppTimeWidgetMedium
 import java.util.Calendar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +33,7 @@ class UsageMonitorService : Service() {
   private lateinit var usageStatsMonitor: UsageStatsMonitor
   private lateinit var networkMonitor: NetworkMonitor
   private lateinit var scheduleMonitor: ScheduleMonitor
+  private lateinit var persistentNotification: PersistentNotification
   private lateinit var database: AppDatabase
   private val handler = Handler(Looper.getMainLooper())
   private val scope = CoroutineScope(Dispatchers.IO + Job())
@@ -42,6 +46,8 @@ class UsageMonitorService : Service() {
               usageStatsMonitor.updateAllUsage()
               scheduleMonitor.checkSchedules()
               updateNotification()
+              updateWidgets()
+              updatePersistentNotification()
               handler.postDelayed(this, updateInterval)
             }
           }
@@ -52,10 +58,12 @@ class UsageMonitorService : Service() {
     usageStatsMonitor = UsageStatsMonitor(this)
     networkMonitor = NetworkMonitor(this, scope)
     scheduleMonitor = ScheduleMonitor(this, scope)
+    persistentNotification = PersistentNotification(this)
     createNotificationChannel()
     startForeground(NOTIFICATION_ID, createNotification())
     scheduleDailyReset()
     networkMonitor.start()
+    persistentNotification.show()
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -69,6 +77,7 @@ class UsageMonitorService : Service() {
     super.onDestroy()
     handler.removeCallbacks(updateRunnable)
     networkMonitor.stop()
+    persistentNotification.hide()
     scope.cancel()
   }
 
@@ -144,6 +153,15 @@ class UsageMonitorService : Service() {
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
       }
     }
+  }
+
+  private fun updateWidgets() {
+    AppTimeWidget.updateWidget(this)
+    AppTimeWidgetMedium.updateWidget(this)
+  }
+
+  private fun updatePersistentNotification() {
+    persistentNotification.show()
   }
 
   companion object {

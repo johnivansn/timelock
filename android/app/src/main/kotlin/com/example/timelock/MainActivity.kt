@@ -316,6 +316,31 @@ class MainActivity : FlutterActivity() {
             }
           }
         }
+        "enablePersistentNotification" -> {
+          val enabled = call.arguments as Boolean
+          scope.launch {
+            try {
+              savePersistentNotificationPref(enabled)
+              if (enabled) {
+                val persistentNotif =
+                        com.example.timelock.notifications.PersistentNotification(this@MainActivity)
+                persistentNotif.show()
+              } else {
+                val persistentNotif =
+                        com.example.timelock.notifications.PersistentNotification(this@MainActivity)
+                persistentNotif.hide()
+              }
+              withContext(Dispatchers.Main) { result.success(null) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) {
+                result.error("PERSISTENT_NOTIF_ERROR", e.message, null)
+              }
+            }
+          }
+        }
+        "isPersistentNotificationEnabled" -> {
+          result.success(isPersistentNotificationEnabled())
+        }
         else -> result.notImplemented()
       }
     }
@@ -324,6 +349,16 @@ class MainActivity : FlutterActivity() {
   override fun onDestroy() {
     super.onDestroy()
     scope.cancel()
+  }
+
+  private fun savePersistentNotificationPref(enabled: Boolean) {
+    val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+    prefs.edit().putBoolean("persistent_notification_enabled", enabled).apply()
+  }
+
+  private fun isPersistentNotificationEnabled(): Boolean {
+    val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+    return prefs.getBoolean("persistent_notification_enabled", false)
   }
 
   private suspend fun getSchedules(packageName: String): List<Map<String, Any>> {

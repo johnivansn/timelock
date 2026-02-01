@@ -34,11 +34,26 @@
     </receiver>
 
     <receiver android:name=".receivers.DailyResetReceiver" android:enabled="true" android:exported="false" />
+
     <receiver android:name=".admin.DeviceAdminManager" android:permission="android.permission.BIND_DEVICE_ADMIN" android:exported="true">
       <meta-data android:name="android.app.device_admin" android:resource="@xml/device_admin" />
       <intent-filter>
         <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
       </intent-filter>
+    </receiver>
+
+    <receiver android:name=".widget.AppTimeWidget" android:exported="true">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_small_info" />
+    </receiver>
+
+    <receiver android:name=".widget.AppTimeWidgetMedium" android:exported="true">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_medium_info" />
     </receiver>
 
     <meta-data android:name="flutterEmbedding" android:value="2" />
