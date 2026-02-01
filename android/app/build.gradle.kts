@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-  namespace = "com.apptimecontrol"
+  namespace = "com.example.timelock"
   compileSdk = flutter.compileSdkVersion
   ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
   }
 
   defaultConfig {
-    applicationId = "com.apptimecontrol"
+    applicationId = "com.example.timelock"
     minSdk = flutter.minSdkVersion
     targetSdk = flutter.targetSdkVersion
     versionCode = flutter.versionCode
@@ -42,7 +42,7 @@ dependencies {
   coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
   implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
-  val roomVersion = "2.6.1"
+  val roomVersion = "2.7.0"
   implementation("androidx.room:room-runtime:$roomVersion")
   implementation("androidx.room:room-ktx:$roomVersion")
   kapt("androidx.room:room-compiler:$roomVersion")

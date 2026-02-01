@@ -4,10 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverters
 
-@Database(entities = [AppRestriction::class, DailyUsage::class], version = 1)
-@TypeConverters(Converters::class)
+@Database(entities = [AppRestriction::class, DailyUsage::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
   abstract fun appRestrictionDao(): AppRestrictionDao
   abstract fun dailyUsageDao(): DailyUsageDao
@@ -22,7 +20,7 @@ abstract class AppDatabase : RoomDatabase() {
                         Room.databaseBuilder(
                                         context.applicationContext,
                                         AppDatabase::class.java,
-                                        "app_time_control_db"
+                                        "app_time_control_db",
                                 )
                                 .build()
                 INSTANCE = instance

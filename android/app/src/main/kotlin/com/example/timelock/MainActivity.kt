@@ -101,7 +101,6 @@ class MainActivity : FlutterActivity() {
   override fun onDestroy() {
     super.onDestroy()
     scope.cancel()
-    Log.d("MainActivity", "Coroutine scope cancelled")
   }
 
   private fun hasUsageStatsPermission(): Boolean {
@@ -148,10 +147,10 @@ class MainActivity : FlutterActivity() {
     } else {
       startService(intent)
     }
-    Log.d("MainActivity", "Monitoring service started")
   }
 
   private suspend fun addRestriction(args: Map<*, *>) {
+    val wifiList = (args["blockedWifiSSIDs"] as? List<*>)?.map { it.toString() } ?: emptyList()
     val restriction =
             AppRestriction(
                     id = UUID.randomUUID().toString(),
@@ -159,15 +158,10 @@ class MainActivity : FlutterActivity() {
                     appName = args["appName"] as String,
                     dailyQuotaMinutes = args["dailyQuotaMinutes"] as Int,
                     isEnabled = args["isEnabled"] as Boolean,
-                    blockedWifiSSIDs = (args["blockedWifiSSIDs"] as? List<*>)?.map { it.toString() }
-                                    ?: emptyList(),
+                    blockedWifiSSIDs = wifiList.joinToString(","),
                     createdAt = System.currentTimeMillis()
             )
     database.appRestrictionDao().insert(restriction)
-    Log.d(
-            "MainActivity",
-            "Restriction added: ${restriction.appName} (${restriction.dailyQuotaMinutes} min)"
-    )
   }
 
   private suspend fun getRestrictions(): List<Map<String, Any?>> {
@@ -178,7 +172,7 @@ class MainActivity : FlutterActivity() {
               "appName" to restriction.appName,
               "dailyQuotaMinutes" to restriction.dailyQuotaMinutes,
               "isEnabled" to restriction.isEnabled,
-              "blockedWifiSSIDs" to restriction.blockedWifiSSIDs
+              "blockedWifiSSIDs" to restriction.getBlockedWifiList()
       )
     }
   }
@@ -187,7 +181,6 @@ class MainActivity : FlutterActivity() {
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val today = dateFormat.format(Date())
     val usage = database.dailyUsageDao().getUsage(packageName, today)
-
     return mapOf(
             "usedMinutes" to (usage?.usedMinutes ?: 0),
             "isBlocked" to (usage?.isBlocked ?: false)

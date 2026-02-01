@@ -36,8 +36,7 @@ class BlockingEngine(private val context: Context) {
       val usage = database.dailyUsageDao().getUsage(packageName, today)
 
       if (usage != null) {
-        val updatedUsage = usage.copy(isBlocked = true)
-        database.dailyUsageDao().update(updatedUsage)
+        database.dailyUsageDao().update(usage.copy(isBlocked = true))
         Log.i("BlockingEngine", "$packageName blocked")
         withContext(Dispatchers.Main) { callback(true) }
       } else {
@@ -58,8 +57,7 @@ class BlockingEngine(private val context: Context) {
       val usage = database.dailyUsageDao().getUsage(packageName, today)
 
       if (usage != null) {
-        val updatedUsage = usage.copy(isBlocked = false)
-        database.dailyUsageDao().update(updatedUsage)
+        database.dailyUsageDao().update(usage.copy(isBlocked = false))
         Log.i("BlockingEngine", "$packageName unblocked")
       }
     }

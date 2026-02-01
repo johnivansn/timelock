@@ -1,4 +1,4 @@
-name: app_time_control
+name: timelock
 description: Sistema minimalista de control temporal de aplicaciones
 publish_to: 'none'
 version: 1.0.0+1

@@ -1,8 +1,10 @@
 package com.example.timelock.services
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.Build
@@ -13,6 +15,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.monitoring.UsageStatsMonitor
+import com.example.timelock.receivers.DailyResetReceiver
+import java.util.Calendar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -39,12 +43,11 @@ class UsageMonitorService : Service() {
     database = AppDatabase.getDatabase(this)
     createNotificationChannel()
     startForeground(NOTIFICATION_ID, createNotification())
-    Log.d("UsageMonitorService", "Service created")
+    scheduleDailyReset()
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     handler.post(updateRunnable)
-    Log.d("UsageMonitorService", "Service started")
     return START_STICKY
   }
 
@@ -53,7 +56,38 @@ class UsageMonitorService : Service() {
   override fun onDestroy() {
     super.onDestroy()
     handler.removeCallbacks(updateRunnable)
-    Log.d("UsageMonitorService", "Service destroyed")
+  }
+
+  fun scheduleDailyReset() {
+    val alarmManager = getSystemService(AlarmManager::class.java)
+    val intent = Intent(this, DailyResetReceiver::class.java)
+    val pendingIntent =
+            PendingIntent.getBroadcast(
+                    this,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+    val midnight =
+            Calendar.getInstance().apply {
+              set(Calendar.HOUR_OF_DAY, 0)
+              set(Calendar.MINUTE, 0)
+              set(Calendar.SECOND, 0)
+              set(Calendar.MILLISECOND, 0)
+              if (timeInMillis <= System.currentTimeMillis()) {
+                add(Calendar.DAY_OF_MONTH, 1)
+              }
+            }
+
+    alarmManager.setRepeating(
+            AlarmManager.RTC_WAKEUP,
+            midnight.timeInMillis,
+            AlarmManager.INTERVAL_DAY,
+            pendingIntent
+    )
+
+    Log.i("UsageMonitorService", "Daily reset scheduled for ${midnight.time}")
   }
 
   private fun createNotificationChannel() {
@@ -65,8 +99,7 @@ class UsageMonitorService : Service() {
                               NotificationManager.IMPORTANCE_LOW
                       )
                       .apply { description = "Monitoreo continuo de uso de aplicaciones" }
-      val notificationManager = getSystemService(NotificationManager::class.java)
-      notificationManager.createNotificationChannel(channel)
+      getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
   }
 
@@ -82,19 +115,18 @@ class UsageMonitorService : Service() {
   private fun updateNotification() {
     CoroutineScope(Dispatchers.IO).launch {
       monitoredAppsCount = database.appRestrictionDao().getEnabled().size
-
       val notification =
               NotificationCompat.Builder(this@UsageMonitorService, CHANNEL_ID)
                       .setContentTitle("AppTimeControl activo")
                       .setContentText(
-                              "Monitoreando $monitoredAppsCount ${if (monitoredAppsCount == 1) "aplicación" else "aplicaciones"}"
+                              "Monitoreando $monitoredAppsCount ${
+                      if (monitoredAppsCount == 1) "aplicación" else "aplicaciones"
+                  }"
                       )
                       .setSmallIcon(android.R.drawable.ic_menu_info_details)
                       .setPriority(NotificationCompat.PRIORITY_LOW)
                       .build()
-
-      val notificationManager = getSystemService(NotificationManager::class.java)
-      notificationManager.notify(NOTIFICATION_ID, notification)
+      getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
     }
   }
 
