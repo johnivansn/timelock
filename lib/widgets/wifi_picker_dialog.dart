@@ -85,50 +85,76 @@ class _WifiPickerDialogState extends State<WifiPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      minChildSize: 0.4,
-      maxChildSize: 0.85,
-      builder: (_, scroll) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: AppSpacing.sm),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    return SingleChildScrollView(
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(2),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Bloqueo por WiFi',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Bloqueo por WiFi',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
                           ),
+                        ),
+                        Text(
+                          widget.appName,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: AppColors.textTertiary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_currentWifi != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.wifi_rounded,
+                              color: AppColors.success, size: 16),
+                          const SizedBox(width: AppSpacing.xs),
                           Text(
-                            widget.appName,
+                            _currentWifi!,
                             style: const TextStyle(
-                              fontSize: 14,
-                              color: AppColors.textTertiary,
+                              fontSize: 12,
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w500,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -136,110 +162,84 @@ class _WifiPickerDialogState extends State<WifiPickerDialog> {
                         ],
                       ),
                     ),
-                    if (_currentWifi != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.xs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.wifi_rounded,
-                                color: AppColors.success, size: 16),
-                            const SizedBox(width: AppSpacing.xs),
-                            Text(
-                              _currentWifi!,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.success,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: TextEditingController(text: _manual),
-                        onChanged: (v) => setState(() => _manual = v),
-                        onSubmitted: (_) => _addManual(),
-                        decoration: const InputDecoration(
-                          hintText: 'Agregar red manualmente...',
-                          prefixIcon: Icon(Icons.wifi_outlined, size: 22),
-                        ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: TextEditingController(text: _manual),
+                      onChanged: (v) => setState(() => _manual = v),
+                      onSubmitted: (_) => _addManual(),
+                      decoration: const InputDecoration(
+                        hintText: 'Agregar red manualmente...',
+                        prefixIcon: Icon(Icons.wifi_outlined, size: 22),
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    IconButton(
-                      onPressed: _addManual,
-                      icon: const Icon(Icons.add_rounded),
-                      style: IconButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                      ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  IconButton(
+                    onPressed: _addManual,
+                    icon: const Icon(Icons.add_rounded),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.all(AppSpacing.md),
                     ),
-                  ],
+                  ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Expanded(
-                child: _loading
-                    ? const Center(
-                        child: CircularProgressIndicator(strokeWidth: 3))
-                    : _available.isEmpty
-                        ? const Center(
-                            child: Text(
-                              'No hay redes guardadas\nAgrega una manualmente',
-                              style: TextStyle(
-                                color: AppColors.textTertiary,
-                                fontSize: 14,
+                const SizedBox(height: AppSpacing.md),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.4,
+                  ),
+                  child: _loading
+                      ? const Center(
+                          child: CircularProgressIndicator(strokeWidth: 3))
+                      : _available.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No hay redes guardadas\nAgrega una manualmente',
+                                style: TextStyle(
+                                  color: AppColors.textTertiary,
+                                  fontSize: 14,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
-                              textAlign: TextAlign.center,
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.lg),
+                              itemCount: _available.length,
+                              itemBuilder: (_, i) =>
+                                  _networkTile(_available[i]),
                             ),
-                          )
-                        : ListView.builder(
-                            controller: scroll,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.lg),
-                            itemCount: _available.length,
-                            itemBuilder: (_, i) => _networkTile(_available[i]),
-                          ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: FilledButton(
-                    onPressed: _save,
-                    child: Text(
-                      _selected.isEmpty
-                          ? 'Guardar sin redes'
-                          : 'Guardar ${_selected.length} red${_selected.length == 1 ? '' : 'es'}',
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: _save,
+                      child: Text(
+                        _selected.isEmpty
+                            ? 'Guardar sin redes'
+                            : 'Guardar ${_selected.length} red${_selected.length == 1 ? '' : 'es'}',
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+      )
     );
   }
 

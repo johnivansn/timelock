@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:timelock/screens/export_import_screen.dart';
+import 'package:timelock/screens/notification_settings_screen.dart';
+import 'package:timelock/screens/optimization_screen.dart';
 import 'package:timelock/screens/permissions_screen.dart';
 import 'package:timelock/screens/pin_verify_screen.dart';
-import 'package:timelock/screens/notification_settings_screen.dart';
-import 'package:timelock/screens/export_import_screen.dart';
-import 'package:timelock/screens/optimization_screen.dart';
+import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/widgets/app_picker_dialog.dart';
 import 'package:timelock/widgets/time_picker_dialog.dart';
 import 'package:timelock/widgets/wifi_picker_dialog.dart';
-import 'package:timelock/theme/app_theme.dart';
 
 class AppListScreen extends StatefulWidget {
   const AppListScreen({super.key});
@@ -135,8 +135,10 @@ class _AppListScreenState extends State<AppListScreen> {
             .toList() ??
         [];
 
-    final result = await showDialog<List<String>>(
+    final result = await showModalBottomSheet<List<String>>(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (_) => WifiPickerDialog(
         appName: r['appName'],
         packageName: r['packageName'],
@@ -165,8 +167,10 @@ class _AppListScreenState extends State<AppListScreen> {
         _restrictions.map((r) => r['packageName'] as String).toSet();
 
     if (!mounted) return;
-    final app = await showDialog<Map<String, String>>(
+    final app = await showModalBottomSheet<Map<String, String>>(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (_) => AppPickerDialog(excludedPackages: existing),
     );
     if (app == null || !mounted) return;
@@ -563,54 +567,65 @@ class _AppListScreenState extends State<AppListScreen> {
             .toList() ??
         [];
 
-    return Row(
-      children: [
-        const Icon(Icons.wifi_outlined,
-            color: AppColors.textTertiary, size: 20),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: ssids.isEmpty
-              ? const Text(
-                  'Sin redes bloqueadas',
-                  style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
-                )
-              : Wrap(
-                  spacing: AppSpacing.xs,
-                  runSpacing: AppSpacing.xs,
-                  children: ssids
-                      .map((ssid) => Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.sm,
-                              vertical: AppSpacing.xs,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              ssid,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ))
-                      .toList(),
-                ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        IconButton(
-          onPressed: () => _openWifiPicker(r),
-          icon: const Icon(Icons.settings_outlined, size: 20),
-          style: IconButton.styleFrom(
-            backgroundColor: AppColors.surfaceVariant,
-            padding: const EdgeInsets.all(AppSpacing.sm),
+    return SizedBox(
+      width: double.infinity,
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_outlined,
+              color: AppColors.textTertiary, size: 20),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: ssids.isEmpty
+                ? const Text(
+                    'Sin redes bloqueadas',
+                    style:
+                        TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                  )
+                : SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: ssids
+                          .map((ssid) => Padding(
+                                padding:
+                                    const EdgeInsets.only(right: AppSpacing.xs),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.sm,
+                                    vertical: AppSpacing.xs,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary
+                                        .withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    ssid,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ))
+                          .toList(),
+                    ),
+                  ),
           ),
-        ),
-      ],
+          const SizedBox(width: AppSpacing.sm),
+          IconButton(
+            onPressed: () => _openWifiPicker(r),
+            icon: const Icon(Icons.settings_outlined, size: 20),
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.surfaceVariant,
+              padding: const EdgeInsets.all(AppSpacing.sm),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

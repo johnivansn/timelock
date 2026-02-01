@@ -44,59 +44,62 @@ class _QuotaTimePickerState extends State<QuotaTimePicker> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(2),
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          const Text(
-            'Tiempo diario',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+            const SizedBox(height: AppSpacing.lg),
+            const Text(
+              'Tiempo diario',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          const Text(
-            'Selecciona el límite máximo de uso',
-            style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: _presets.map((p) => _presetChip(p)).toList(),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          _customRow(),
-          const SizedBox(height: AppSpacing.xl),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: FilledButton(
-              onPressed: _valid ? () => Navigator.pop(context, _value) : null,
-              child: Text('Confirmar — ${_label(_value)}'),
+            const SizedBox(height: AppSpacing.xs),
+            const Text(
+              'Selecciona el límite máximo de uso',
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
             ),
-          ),
-        ],
+            const SizedBox(height: AppSpacing.lg),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: _presets.map((p) => _presetChip(p)).toList(),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            _customRow(),
+            const SizedBox(height: AppSpacing.xl),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: FilledButton(
+                onPressed: _valid ? () => Navigator.pop(context, _value) : null,
+                child: Text('Confirmar — ${_label(_value)}'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

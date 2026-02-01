@@ -504,8 +504,9 @@ class MainActivity : FlutterActivity() {
 
   private suspend fun importConfig(json: String): Map<String, Any> {
     val gson = com.google.gson.Gson()
+    val type = object : com.google.gson.reflect.TypeToken<Map<String, Any>>() {}.type
     val data =
-            gson.fromJson(json, Map<String, Any>::class.java)
+            gson.fromJson<Map<String, Any>>(json, type)
                     ?: return mapOf("success" to false, "error" to "JSON inválido")
 
     val version = (data["version"] as? Number)?.toInt() ?: 0

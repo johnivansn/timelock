@@ -60,92 +60,88 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.5,
-      maxChildSize: 0.9,
-      builder: (ctx, scroll) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: AppSpacing.sm),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    return SingleChildScrollView(
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(2),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Selecciona una app',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Selecciona una app',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: TextField(
-                  onChanged: _filter,
-                  decoration: const InputDecoration(
-                    hintText: 'Buscar apps...',
-                    prefixIcon: Icon(Icons.search_rounded, size: 22),
-                    contentPadding:
-                        EdgeInsets.symmetric(vertical: AppSpacing.md),
                   ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close_rounded),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: TextField(
+                onChanged: _filter,
+                decoration: const InputDecoration(
+                  hintText: 'Buscar apps...',
+                  prefixIcon: Icon(Icons.search_rounded, size: 22),
+                  contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.md),
                 ),
               ),
-              const SizedBox(height: AppSpacing.md),
-              Expanded(
-                child: _loading
-                    ? const Center(
-                        child: CircularProgressIndicator(strokeWidth: 3))
-                    : _filtered.isEmpty
-                        ? Center(
-                            child: Text(
-                              _query.isEmpty
-                                  ? 'No hay apps disponibles'
-                                  : 'Sin resultados',
-                              style: const TextStyle(
-                                color: AppColors.textTertiary,
-                                fontSize: 15,
-                              ),
-                            ),
-                          )
-                        : ListView.builder(
-                            controller: scroll,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.lg),
-                            itemCount: _filtered.length,
-                            itemBuilder: (_, i) => _appTile(_filtered[i]),
-                          ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.5,
               ),
-            ],
-          ),
-        );
-      },
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(strokeWidth: 3))
+                  : _filtered.isEmpty
+                      ? Center(
+                          child: Text(
+                            _query.isEmpty
+                                ? 'No hay apps disponibles'
+                                : 'Sin resultados',
+                            style: const TextStyle(
+                              color: AppColors.textTertiary,
+                              fontSize: 15,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.lg),
+                          itemCount: _filtered.length,
+                          itemBuilder: (_, i) => _appTile(_filtered[i]),
+                        ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -313,7 +313,9 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: AppSpacing.sm,
                     children: [
                       Text(
                         title,
@@ -323,8 +325,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      if (critical) ...[
-                        const SizedBox(width: AppSpacing.sm),
+                      if (critical)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.sm,
@@ -344,7 +345,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                             ),
                           ),
                         ),
-                      ],
                     ],
                   ),
                   const SizedBox(height: AppSpacing.xs),
