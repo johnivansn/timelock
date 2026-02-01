@@ -15,6 +15,8 @@ import android.os.Process
 import android.provider.Settings
 import android.util.Log
 import com.example.timelock.admin.AdminManager
+import com.example.timelock.backup.AutoBackupWorker
+import com.example.timelock.backup.BackupManager
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.AppRestriction
 import com.example.timelock.monitoring.NetworkMonitor
@@ -33,6 +35,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : FlutterActivity() {
+  private lateinit var backupManager: BackupManager
   private val CHANNEL = "app.restriction/config"
   private lateinit var database: AppDatabase
   private lateinit var adminManager: AdminManager
@@ -51,6 +54,9 @@ class MainActivity : FlutterActivity() {
     super.configureFlutterEngine(flutterEngine)
     database = AppDatabase.getDatabase(this)
     adminManager = AdminManager(this)
+    backupManager = BackupManager(this)
+
+    AutoBackupWorker.schedule(this)
 
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler {
             call,
@@ -263,6 +269,103 @@ class MainActivity : FlutterActivity() {
         }
         "isDeviceAdminEnabled" -> {
           result.success(isDeviceAdminEnabled())
+        }
+        "createManualBackup" -> {
+          scope.launch {
+            try {
+              val file = backupManager.createBackup()
+              withContext(Dispatchers.Main) { result.success(file != null) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("BACKUP_ERROR", e.message, null) }
+            }
+          }
+        }
+        "listBackups" -> {
+          scope.launch {
+            try {
+              val backups =
+                      backupManager.listBackups().map { backup ->
+                        mapOf(
+                                "path" to backup.file.absolutePath,
+                                "timestamp" to backup.timestamp,
+                                "formattedDate" to backup.formatDate(),
+                                "size" to backup.size,
+                                "formattedSize" to backup.formatSize(),
+                                "restrictionCount" to backup.restrictionCount,
+                                "hasAdminMode" to backup.hasAdminMode,
+                                "isAutomatic" to backup.file.name.startsWith("backup_")
+                        )
+                      }
+              withContext(Dispatchers.Main) { result.success(backups) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("LIST_BACKUPS_ERROR", e.message, null) }
+            }
+          }
+        }
+        "restoreBackup" -> {
+          val path = call.arguments as String
+          scope.launch {
+            try {
+              val file = java.io.File(path)
+              val restoreResult = backupManager.restoreBackup(file)
+              val response =
+                      when (restoreResult) {
+                        is BackupManager.RestoreResult.Success ->
+                                mapOf(
+                                        "success" to true,
+                                        "imported" to restoreResult.imported,
+                                        "skipped" to restoreResult.skipped
+                                )
+                        is BackupManager.RestoreResult.Error ->
+                                mapOf("success" to false, "error" to restoreResult.message)
+                      }
+              withContext(Dispatchers.Main) { result.success(response) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("RESTORE_ERROR", e.message, null) }
+            }
+          }
+        }
+        "deleteBackup" -> {
+          val path = call.arguments as String
+          scope.launch {
+            try {
+              val file = java.io.File(path)
+              val deleted = backupManager.deleteBackup(file)
+              withContext(Dispatchers.Main) { result.success(deleted) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("DELETE_BACKUP_ERROR", e.message, null) }
+            }
+          }
+        }
+        "checkBackupOnFirstLaunch" -> {
+          scope.launch {
+            try {
+              val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+              val isFirstLaunch = prefs.getBoolean("is_first_launch", true)
+
+              if (isFirstLaunch) {
+                prefs.edit().putBoolean("is_first_launch", false).apply()
+                val latestBackup = backupManager.getLatestBackup()
+
+                if (latestBackup != null) {
+                  val backupInfo =
+                          mapOf(
+                                  "exists" to true,
+                                  "path" to latestBackup.file.absolutePath,
+                                  "formattedDate" to latestBackup.formatDate(),
+                                  "restrictionCount" to latestBackup.restrictionCount
+                          )
+                  withContext(Dispatchers.Main) { result.success(backupInfo) }
+                } else {
+                  withContext(Dispatchers.Main) { result.success(mapOf("exists" to false)) }
+                }
+              } else {
+                withContext(Dispatchers.Main) { result.success(mapOf("exists" to false)) }
+              }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("CHECK_BACKUP_ERROR", e.message, null) }
+            }
+          }
         }
         else -> result.notImplemented()
       }
