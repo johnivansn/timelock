@@ -1,0 +1,18 @@
+package com.example.timelock.database
+
+import androidx.room.*
+
+@Dao
+interface DailyUsageDao {
+  @Query("SELECT * FROM daily_usage WHERE packageName = :packageName AND date = :date LIMIT 1")
+  suspend fun getUsage(packageName: String, date: String): DailyUsage?
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(usage: DailyUsage)
+
+  @Update suspend fun update(usage: DailyUsage)
+
+  @Query("UPDATE daily_usage SET usedMinutes = 0, isBlocked = 0 WHERE date = :date")
+  suspend fun resetUsageForDate(date: String)
+
+  @Query("DELETE FROM daily_usage WHERE date < :date") suspend fun deleteOldUsage(date: String)
+}
