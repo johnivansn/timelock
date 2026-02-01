@@ -6,6 +6,7 @@ import android.util.Log
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.logging.ActivityLogger
 import com.example.timelock.notifications.NotificationHelper
+import com.example.timelock.preferences.ProfilePreferences
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -14,22 +15,32 @@ class BlockingEngine(private val context: Context) {
   private val database = AppDatabase.getDatabase(context)
   private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
   private val notificationHelper = NotificationHelper(context)
+  private val profilePrefs = ProfilePreferences(context)
 
   suspend fun shouldBlock(packageName: String): Boolean {
-    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
+    val profileId = profilePrefs.activeProfileId
+    val restriction =
+            database.appRestrictionDao().getByPackageAndProfile(packageName, profileId)
+                    ?: return false
     if (!restriction.isEnabled) return false
     return isQuotaBlocked(packageName) || isWifiBlocked(packageName)
   }
 
   suspend fun isQuotaBlocked(packageName: String): Boolean {
-    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
+    val profileId = profilePrefs.activeProfileId
+    val restriction =
+            database.appRestrictionDao().getByPackageAndProfile(packageName, profileId)
+                    ?: return false
     val today = dateFormat.format(Date())
     val usage = database.dailyUsageDao().getUsage(packageName, today) ?: return false
     return usage.usedMinutes >= restriction.dailyQuotaMinutes
   }
 
   suspend fun isWifiBlocked(packageName: String): Boolean {
-    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
+    val profileId = profilePrefs.activeProfileId
+    val restriction =
+            database.appRestrictionDao().getByPackageAndProfile(packageName, profileId)
+                    ?: return false
     val blockedSSIDs = restriction.getBlockedWifiList()
     if (blockedSSIDs.isEmpty()) return false
     val currentSSID = getCurrentSSID() ?: return false
@@ -48,7 +59,10 @@ class BlockingEngine(private val context: Context) {
   suspend fun blockApp(packageName: String, reason: NotificationHelper.BlockReason): Boolean {
     val today = dateFormat.format(Date())
     val usage = database.dailyUsageDao().getUsage(packageName, today) ?: return false
-    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
+    val profileId = profilePrefs.activeProfileId
+    val restriction =
+            database.appRestrictionDao().getByPackageAndProfile(packageName, profileId)
+                    ?: return false
 
     if (usage.isBlocked) return true
 
@@ -77,7 +91,8 @@ class BlockingEngine(private val context: Context) {
     val today = dateFormat.format(Date())
     val usage = database.dailyUsageDao().getUsage(packageName, today) ?: return
     if (usage.isBlocked) {
-      val restriction = database.appRestrictionDao().getByPackage(packageName)
+      val profileId = profilePrefs.activeProfileId
+      val restriction = database.appRestrictionDao().getByPackageAndProfile(packageName, profileId)
       database.dailyUsageDao().update(usage.copy(isBlocked = false))
       if (restriction != null) {
         activityLogger.logAppUnblocked(
@@ -92,7 +107,8 @@ class BlockingEngine(private val context: Context) {
 
   suspend fun getBlockedApps(): List<String> {
     val today = dateFormat.format(Date())
-    val restrictions = database.appRestrictionDao().getEnabled()
+    val profileId = profilePrefs.activeProfileId
+    val restrictions = database.appRestrictionDao().getEnabledForProfile(profileId)
     return restrictions
             .filter { r ->
               val usage = database.dailyUsageDao().getUsage(r.packageName, today)

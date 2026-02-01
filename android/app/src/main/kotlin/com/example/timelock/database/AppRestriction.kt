@@ -11,7 +11,8 @@ data class AppRestriction(
         val dailyQuotaMinutes: Int,
         val isEnabled: Boolean,
         val blockedWifiSSIDs: String = "",
-        val createdAt: Long
+        val createdAt: Long,
+        val profileId: String = "default"
 ) {
   fun getBlockedWifiList(): List<String> {
     return if (blockedWifiSSIDs.isEmpty()) emptyList() else blockedWifiSSIDs.split(",")

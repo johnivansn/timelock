@@ -19,9 +19,11 @@ import com.example.timelock.backup.AutoBackupWorker
 import com.example.timelock.backup.BackupManager
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.AppRestriction
+import com.example.timelock.database.RestrictionProfile
 import com.example.timelock.logging.ActivityLogger
 import com.example.timelock.logging.LogCleanupWorker
 import com.example.timelock.monitoring.NetworkMonitor
+import com.example.timelock.preferences.ProfilePreferences
 import com.example.timelock.services.AppBlockAccessibilityService
 import com.example.timelock.services.UsageMonitorService
 import io.flutter.embedding.android.FlutterActivity
@@ -39,6 +41,7 @@ import kotlinx.coroutines.withContext
 class MainActivity : FlutterActivity() {
   private lateinit var backupManager: BackupManager
   private lateinit var activityLogger: ActivityLogger
+  private lateinit var profilePrefs: ProfilePreferences
   private val CHANNEL = "app.restriction/config"
   private lateinit var database: AppDatabase
   private lateinit var adminManager: AdminManager
@@ -59,8 +62,8 @@ class MainActivity : FlutterActivity() {
     adminManager = AdminManager(this)
     backupManager = BackupManager(this)
     activityLogger = ActivityLogger(this)
+    profilePrefs = ProfilePreferences(this)
     LogCleanupWorker.schedule(this)
-
     AutoBackupWorker.schedule(this)
 
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler {
@@ -107,10 +110,12 @@ class MainActivity : FlutterActivity() {
           }
         }
         "deleteRestriction" -> {
-          val packageName = call.arguments as String
+          val args = call.arguments as Map<*, *>
+          val packageName = args["packageName"] as String
+          val profileId = args["profileId"] as? String ?: profilePrefs.activeProfileId
           scope.launch {
             try {
-              deleteRestriction(packageName)
+              deleteRestriction(packageName, profileId)
               withContext(Dispatchers.Main) { result.success(null) }
             } catch (e: Exception) {
               Log.e("MainActivity", "Error deleting restriction", e)
@@ -123,7 +128,8 @@ class MainActivity : FlutterActivity() {
         "getRestrictions" -> {
           scope.launch {
             try {
-              val restrictions = getRestrictions()
+              val profileId = profilePrefs.activeProfileId
+              val restrictions = getRestrictions(profileId)
               withContext(Dispatchers.Main) { result.success(restrictions) }
             } catch (e: Exception) {
               Log.e("MainActivity", "Error getting restrictions", e)
@@ -421,11 +427,9 @@ class MainActivity : FlutterActivity() {
             try {
               val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
               val isFirstLaunch = prefs.getBoolean("is_first_launch", true)
-
               if (isFirstLaunch) {
                 prefs.edit().putBoolean("is_first_launch", false).apply()
                 val latestBackup = backupManager.getLatestBackup()
-
                 if (latestBackup != null) {
                   val backupInfo =
                           mapOf(
@@ -498,6 +502,129 @@ class MainActivity : FlutterActivity() {
             }
           }
         }
+        "getProfiles" -> {
+          scope.launch {
+            try {
+              val profiles = database.restrictionProfileDao().getAll()
+              val activeId = profilePrefs.activeProfileId
+              val data =
+                      profiles.map { p ->
+                        mapOf(
+                                "id" to p.id,
+                                "name" to p.name,
+                                "isDefault" to p.isDefault,
+                                "isActive" to (p.id == activeId)
+                        )
+                      }
+              withContext(Dispatchers.Main) { result.success(data) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("GET_PROFILES_ERROR", e.message, null) }
+            }
+          }
+        }
+        "createProfile" -> {
+          val name = call.arguments as String
+          scope.launch {
+            try {
+              val count = database.restrictionProfileDao().count()
+              if (count >= 5) {
+                withContext(Dispatchers.Main) {
+                  result.error("PROFILE_LIMIT", "Máximo 5 perfiles", null)
+                }
+                return@launch
+              }
+              val profile =
+                      RestrictionProfile(
+                              id = java.util.UUID.randomUUID().toString(),
+                              name = name,
+                              isDefault = false,
+                              createdAt = System.currentTimeMillis()
+                      )
+              database.restrictionProfileDao().insert(profile)
+              withContext(Dispatchers.Main) { result.success(profile.id) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) {
+                result.error("CREATE_PROFILE_ERROR", e.message, null)
+              }
+            }
+          }
+        }
+        "renameProfile" -> {
+          val args = call.arguments as Map<*, *>
+          val id = args["id"] as String
+          val name = args["name"] as String
+          scope.launch {
+            try {
+              val profile = database.restrictionProfileDao().getById(id)
+              if (profile != null) {
+                database.restrictionProfileDao().update(profile.copy(name = name))
+              }
+              withContext(Dispatchers.Main) { result.success(true) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) {
+                result.error("RENAME_PROFILE_ERROR", e.message, null)
+              }
+            }
+          }
+        }
+        "deleteProfile" -> {
+          val id = call.arguments as String
+          scope.launch {
+            try {
+              val profile = database.restrictionProfileDao().getById(id)
+              if (profile == null || profile.isDefault) {
+                withContext(Dispatchers.Main) {
+                  result.error("CANNOT_DELETE", "No se puede eliminar el perfil Default", null)
+                }
+                return@launch
+              }
+              database.appRestrictionDao().deleteAllForProfile(id)
+              database.restrictionProfileDao().delete(profile)
+              if (profilePrefs.activeProfileId == id) {
+                profilePrefs.activeProfileId = "default"
+              }
+              withContext(Dispatchers.Main) { result.success(true) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) {
+                result.error("DELETE_PROFILE_ERROR", e.message, null)
+              }
+            }
+          }
+        }
+        "setActiveProfile" -> {
+          val id = call.arguments as String
+          scope.launch {
+            try {
+              val profile = database.restrictionProfileDao().getById(id)
+              if (profile != null) {
+                profilePrefs.activeProfileId = id
+                withContext(Dispatchers.Main) { result.success(true) }
+              } else {
+                withContext(Dispatchers.Main) {
+                  result.error("PROFILE_NOT_FOUND", "Perfil no encontrado", null)
+                }
+              }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("SET_ACTIVE_ERROR", e.message, null) }
+            }
+          }
+        }
+        "getActiveProfileId" -> {
+          result.success(profilePrefs.activeProfileId)
+        }
+        "getRestrictionsForProfile" -> {
+          val profileId = call.arguments as String
+          scope.launch {
+            try {
+              val restrictions = getRestrictions(profileId)
+              withContext(Dispatchers.Main) { result.success(restrictions) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) {
+                result.error("GET_RESTRICTIONS_ERROR", e.message, null)
+              }
+            }
+          }
+        }
         else -> result.notImplemented()
       }
     }
@@ -509,24 +636,30 @@ class MainActivity : FlutterActivity() {
   }
 
   private suspend fun exportConfig(): String {
-    val restrictions = database.appRestrictionDao().getAll()
+    val profiles = database.restrictionProfileDao().getAll()
+    val allRestrictions = database.appRestrictionDao().getAll()
     val adminSettings = database.adminSettingsDao().get()
 
+    val profilesData =
+            profiles.map { p -> mapOf("id" to p.id, "name" to p.name, "isDefault" to p.isDefault) }
+
     val restrictionsData =
-            restrictions.map { r ->
+            allRestrictions.map { r ->
               mapOf(
                       "packageName" to r.packageName,
                       "appName" to r.appName,
                       "dailyQuotaMinutes" to r.dailyQuotaMinutes,
                       "isEnabled" to r.isEnabled,
-                      "blockedWifiSSIDs" to r.getBlockedWifiList()
+                      "blockedWifiSSIDs" to r.getBlockedWifiList(),
+                      "profileId" to r.profileId
               )
             }
 
     val exportMap =
             mutableMapOf<String, Any>(
-                    "version" to 1,
+                    "version" to 2,
                     "exportedAt" to System.currentTimeMillis(),
+                    "profiles" to profilesData,
                     "restrictions" to restrictionsData
             )
 
@@ -544,8 +677,27 @@ class MainActivity : FlutterActivity() {
                     ?: return mapOf("success" to false, "error" to "JSON inválido")
 
     val version = (data["version"] as? Number)?.toInt() ?: 0
-    if (version != 1) {
+    if (version !in 1..2) {
       return mapOf("success" to false, "error" to "Versión no soportada: $version")
+    }
+
+    if (version == 2) {
+      @Suppress("UNCHECKED_CAST")
+      val profiles = data["profiles"] as? List<Map<String, Any>> ?: emptyList()
+      for (p in profiles) {
+        val id = p["id"] as? String ?: continue
+        val existing = database.restrictionProfileDao().getById(id)
+        if (existing == null) {
+          database.restrictionProfileDao()
+                  .insert(
+                          RestrictionProfile(
+                                  id = id,
+                                  name = p["name"] as? String ?: "Perfil",
+                                  isDefault = p["isDefault"] as? Boolean ?: false
+                          )
+                  )
+        }
+      }
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -558,7 +710,9 @@ class MainActivity : FlutterActivity() {
 
     for (item in restrictions) {
       val pkg = item["packageName"] as? String ?: continue
-      val existing = database.appRestrictionDao().getByPackage(pkg)
+      val profileId = if (version == 2) item["profileId"] as? String ?: "default" else "default"
+
+      val existing = database.appRestrictionDao().getByPackageAndProfile(pkg, profileId)
       if (existing != null) {
         skipped++
         continue
@@ -575,7 +729,8 @@ class MainActivity : FlutterActivity() {
                       dailyQuotaMinutes = (item["dailyQuotaMinutes"] as? Number)?.toInt() ?: 60,
                       isEnabled = item["isEnabled"] as? Boolean ?: true,
                       blockedWifiSSIDs = wifiList.joinToString(","),
-                      createdAt = System.currentTimeMillis()
+                      createdAt = System.currentTimeMillis(),
+                      profileId = profileId
               )
       database.appRestrictionDao().insert(restriction)
       imported++
@@ -634,13 +789,11 @@ class MainActivity : FlutterActivity() {
   private fun getInstalledApps(): List<Map<String, String>> {
     val pm = packageManager
     val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-
     return packages
             .filter { appInfo ->
               val packageName = appInfo.packageName
               val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
               val isUpdatedSystem = (appInfo.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-
               !systemPackages.any { packageName.startsWith(it) } && (!isSystem || isUpdatedSystem)
             }
             .map { appInfo ->
@@ -656,7 +809,6 @@ class MainActivity : FlutterActivity() {
     val wifiManager =
             applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
                     ?: return emptyList()
-
     val allSSIDs = mutableSetOf<String>()
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -664,7 +816,6 @@ class MainActivity : FlutterActivity() {
               getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
       val network = connectivityManager.activeNetwork
       val capabilities = connectivityManager.getNetworkCapabilities(network)
-
       if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
         val currentSSID = wifiManager.connectionInfo?.ssid?.removeSurrounding("\"")
         if (!currentSSID.isNullOrEmpty() && currentSSID != "<unknown ssid>") {
@@ -683,18 +834,18 @@ class MainActivity : FlutterActivity() {
     restricted.flatMap { it.getBlockedWifiList() }.filter { it.isNotEmpty() }.forEach {
       allSSIDs.add(it)
     }
-
     return allSSIDs.sorted()
   }
 
   private suspend fun updateRestrictionWifi(args: Map<*, *>) {
     val packageName = args["packageName"] as String
+    val profileId = args["profileId"] as? String ?: profilePrefs.activeProfileId
     val ssids = (args["blockedWifiSSIDs"] as? List<*>)?.map { it.toString() } ?: emptyList()
-    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return
+    val restriction =
+            database.appRestrictionDao().getByPackageAndProfile(packageName, profileId) ?: return
     database.appRestrictionDao()
             .update(restriction.copy(blockedWifiSSIDs = ssids.joinToString(",")))
     activityLogger.logWifiUpdated(packageName, restriction.appName, ssids)
-    Log.i("MainActivity", "Updated WiFi blocks for $packageName: $ssids")
   }
 
   private suspend fun addRestriction(args: Map<*, *>) {
@@ -702,6 +853,7 @@ class MainActivity : FlutterActivity() {
     val packageName = args["packageName"] as String
     val appName = args["appName"] as String
     val quota = args["dailyQuotaMinutes"] as Int
+    val profileId = args["profileId"] as? String ?: profilePrefs.activeProfileId
 
     val restriction =
             AppRestriction(
@@ -711,28 +863,30 @@ class MainActivity : FlutterActivity() {
                     dailyQuotaMinutes = quota,
                     isEnabled = args["isEnabled"] as Boolean,
                     blockedWifiSSIDs = wifiList.joinToString(","),
-                    createdAt = System.currentTimeMillis()
+                    createdAt = System.currentTimeMillis(),
+                    profileId = profileId
             )
     database.appRestrictionDao().insert(restriction)
     activityLogger.logRestrictionAdded(packageName, appName, quota)
   }
 
-  private suspend fun deleteRestriction(packageName: String) {
-    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return
+  private suspend fun deleteRestriction(packageName: String, profileId: String) {
+    val restriction =
+            database.appRestrictionDao().getByPackageAndProfile(packageName, profileId) ?: return
     database.appRestrictionDao().delete(restriction)
     activityLogger.logRestrictionRemoved(packageName, restriction.appName)
-    Log.i("MainActivity", "Deleted restriction for $packageName")
   }
 
-  private suspend fun getRestrictions(): List<Map<String, Any?>> {
-    return database.appRestrictionDao().getAll().map { restriction ->
+  private suspend fun getRestrictions(profileId: String): List<Map<String, Any?>> {
+    return database.appRestrictionDao().getAllForProfile(profileId).map { restriction ->
       mapOf(
               "id" to restriction.id,
               "packageName" to restriction.packageName,
               "appName" to restriction.appName,
               "dailyQuotaMinutes" to restriction.dailyQuotaMinutes,
               "isEnabled" to restriction.isEnabled,
-              "blockedWifiSSIDs" to restriction.getBlockedWifiList()
+              "blockedWifiSSIDs" to restriction.getBlockedWifiList(),
+              "profileId" to restriction.profileId
       )
     }
   }
@@ -746,11 +900,11 @@ class MainActivity : FlutterActivity() {
             "isBlocked" to (usage?.isBlocked ?: false)
     )
   }
+
   private fun enableDeviceAdmin() {
     val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
     val adminComponent =
             ComponentName(this, com.example.timelock.admin.DeviceAdminManager::class.java)
-
     if (!dpm.isAdminActive(adminComponent)) {
       val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
       intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
@@ -768,10 +922,8 @@ class MainActivity : FlutterActivity() {
             ComponentName(this, com.example.timelock.admin.DeviceAdminManager::class.java)
     return dpm.isAdminActive(adminComponent)
   }
-}
 
-companion
-
-object {
-  private const val REQUEST_ENABLE_ADMIN = 1001
+  companion object {
+    private const val REQUEST_ENABLE_ADMIN = 1001
+  }
 }

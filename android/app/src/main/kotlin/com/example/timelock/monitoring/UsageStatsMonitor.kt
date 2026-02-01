@@ -6,6 +6,7 @@ import android.util.Log
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.DailyUsage
 import com.example.timelock.notifications.NotificationHelper
+import com.example.timelock.preferences.ProfilePreferences
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +20,7 @@ class UsageStatsMonitor(private val context: Context) {
   private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
   private val scope = CoroutineScope(Dispatchers.IO)
   private val notificationHelper = NotificationHelper(context)
+  private val profilePrefs = ProfilePreferences(context)
 
   private val notified25Percent = mutableSetOf<String>()
   private val notified10Percent = mutableSetOf<String>()
@@ -48,10 +50,14 @@ class UsageStatsMonitor(private val context: Context) {
 
   fun updateAllUsage() {
     scope.launch {
-      val restrictions = database.appRestrictionDao().getEnabled()
+      val profileId = profilePrefs.activeProfileId
+      val restrictions = database.appRestrictionDao().getEnabledForProfile(profileId)
       val today = dateFormat.format(Date())
 
-      Log.d("UsageStatsMonitor", "Updating usage for ${restrictions.size} apps")
+      Log.d(
+              "UsageStatsMonitor",
+              "Updating usage for ${restrictions.size} apps (profile: $profileId)"
+      )
 
       for (restriction in restrictions) {
         val usageMillis = getUsageToday(restriction.packageName)

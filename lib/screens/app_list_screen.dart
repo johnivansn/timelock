@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:timelock/screens/permissions_screen.dart';
 import 'package:timelock/screens/pin_verify_screen.dart';
 import 'package:timelock/screens/notification_settings_screen.dart';
+import 'package:timelock/screens/profile_screen.dart';
 import 'package:timelock/widgets/app_picker_dialog.dart';
 import 'package:timelock/widgets/time_picker_dialog.dart';
 import 'package:timelock/widgets/wifi_picker_dialog.dart';
@@ -23,9 +24,12 @@ class _AppListScreenState extends State<AppListScreen>
   static const _ch = MethodChannel('app.restriction/config');
 
   List<Map<String, dynamic>> _restrictions = [];
+  List<Map<String, dynamic>> _profiles = [];
   bool _loading = true;
   bool _permissionsOk = false;
   bool _adminEnabled = false;
+  String? _activeProfileId;
+  String _activeProfileName = 'Default';
   late AnimationController _fabController;
 
   @override
@@ -47,6 +51,7 @@ class _AppListScreenState extends State<AppListScreen>
   Future<void> _init() async {
     await _startMonitoring();
     await _checkPermissions();
+    await _loadProfiles();
     await _loadRestrictions();
     if (mounted) {
       await FirstLaunchDialog.checkAndShow(context);
@@ -72,6 +77,25 @@ class _AppListScreenState extends State<AppListScreen>
   Future<void> _startMonitoring() async {
     try {
       await _ch.invokeMethod('startMonitoring');
+    } catch (_) {}
+  }
+
+  Future<void> _loadProfiles() async {
+    try {
+      final raw = await _ch.invokeMethod<List<dynamic>>('getProfiles') ?? [];
+      final profiles = raw.map((e) => Map<String, dynamic>.from(e)).toList();
+      final activeId =
+          await _ch.invokeMethod<String>('getActiveProfileId') ?? 'default';
+      if (mounted) {
+        setState(() {
+          _profiles = profiles;
+          _activeProfileId = activeId;
+          _activeProfileName = profiles.firstWhere(
+            (p) => p['id'] == activeId,
+            orElse: () => {'name': 'Default'},
+          )['name'] as String;
+        });
+      }
     } catch (_) {}
   }
 
@@ -106,6 +130,11 @@ class _AppListScreenState extends State<AppListScreen>
     }
   }
 
+  Future<void> _refreshAll() async {
+    await _loadProfiles();
+    await _loadRestrictions();
+  }
+
   Future<void> _addRestriction(String pkg, String name, int minutes) async {
     try {
       await _ch.invokeMethod('addRestriction', {
@@ -114,6 +143,7 @@ class _AppListScreenState extends State<AppListScreen>
         'dailyQuotaMinutes': minutes,
         'isEnabled': true,
         'blockedWifiSSIDs': [],
+        'profileId': _activeProfileId ?? 'default',
       });
       await _loadRestrictions();
     } catch (e) {
@@ -139,7 +169,10 @@ class _AppListScreenState extends State<AppListScreen>
 
   Future<void> _deleteRestriction(Map<String, dynamic> r) async {
     try {
-      await _ch.invokeMethod('deleteRestriction', r['packageName']);
+      await _ch.invokeMethod('deleteRestriction', {
+        'packageName': r['packageName'],
+        'profileId': r['profileId'] ?? _activeProfileId ?? 'default',
+      });
       await _loadRestrictions();
     } catch (_) {
       _restrictions.removeWhere((x) => x['packageName'] == r['packageName']);
@@ -165,10 +198,26 @@ class _AppListScreenState extends State<AppListScreen>
         appName: r['appName'],
         packageName: r['packageName'],
         currentSSIDs: current,
+        profileId: r['profileId'] ?? _activeProfileId ?? 'default',
       ),
     );
     if (result != null) {
       await _loadRestrictions();
+    }
+  }
+
+  Future<void> _switchProfile(Map<String, dynamic> profile) async {
+    try {
+      await _ch.invokeMethod('setActiveProfile', profile['id']);
+      if (mounted) {
+        setState(() {
+          _activeProfileId = profile['id'];
+          _activeProfileName = profile['name'] as String;
+        });
+        await _loadRestrictions();
+      }
+    } catch (_) {
+      if (mounted) _showSnack('Error al cambiar perfil', isError: true);
     }
   }
 
@@ -254,6 +303,12 @@ class _AppListScreenState extends State<AppListScreen>
           ),
           if (!_permissionsOk)
             SliverToBoxAdapter(child: _permissionsBanner(colorScheme)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: _profileSelector(colorScheme),
+            ),
+          ),
           if (_loading)
             const SliverFillRemaining(
               child: Center(child: CircularProgressIndicator()),
@@ -285,6 +340,75 @@ class _AppListScreenState extends State<AppListScreen>
     );
   }
 
+  Widget _profileSelector(ColorScheme colorScheme) {
+    if (_profiles.length <= 1) return const SizedBox.shrink();
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          ..._profiles.map((p) {
+            final isActive = p['id'] == _activeProfileId;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () => _switchProfile(p),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? colorScheme.primary
+                        : colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isActive)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Icon(Icons.check_rounded,
+                              size: 16, color: colorScheme.onPrimary),
+                        ),
+                      Text(
+                        p['name'] as String,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: isActive
+                              ? colorScheme.onPrimary
+                              : colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+          GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            ).then((_) => _refreshAll()),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border.all(
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3)),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Icon(Icons.add_rounded,
+                  size: 18, color: colorScheme.onSurfaceVariant),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -306,6 +430,17 @@ class _AppListScreenState extends State<AppListScreen>
               ),
             ),
             const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.layers_rounded),
+              title: const Text('Perfiles'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                ).then((_) => _refreshAll());
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.security_rounded),
               title: const Text('Permisos'),
@@ -427,6 +562,14 @@ class _AppListScreenState extends State<AppListScreen>
                   height: 1.5),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Perfil activo: $_activeProfileName',
+              style: TextStyle(
+                  fontSize: 13,
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w500),
+            ),
           ],
         ),
       ),
@@ -447,7 +590,7 @@ class _AppListScreenState extends State<AppListScreen>
             : colorScheme.secondary;
 
     return Dismissible(
-      key: ValueKey(r['packageName']),
+      key: ValueKey('${r['packageName']}_${r['profileId']}'),
       direction: DismissDirection.endToStart,
       confirmDismiss: (_) =>
           _requireAdmin('Ingresa tu PIN para eliminar esta restricción'),
@@ -468,7 +611,6 @@ class _AppListScreenState extends State<AppListScreen>
       child: Material(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        elevation: blocked ? 0 : 0,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
           onTap: () {},
@@ -577,7 +719,8 @@ class _AppListScreenState extends State<AppListScreen>
     return Row(
       children: [
         Icon(Icons.wifi_rounded,
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5), size: 20),
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            size: 20),
         const SizedBox(width: 12),
         Expanded(
           child: ssids.isEmpty
@@ -585,7 +728,8 @@ class _AppListScreenState extends State<AppListScreen>
                   'Sin redes bloqueadas',
                   style: TextStyle(
                       fontSize: 13,
-                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
+                      color:
+                          colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
                 )
               : Wrap(
                   spacing: 6,
@@ -595,7 +739,8 @@ class _AppListScreenState extends State<AppListScreen>
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: colorScheme.primary.withValues(alpha: 0.15),
+                              color:
+                                  colorScheme.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(

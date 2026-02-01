@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.example.timelock.MainActivity
 import com.example.timelock.R
+import com.example.timelock.preferences.NotificationPreferences
 
 class NotificationHelper(private val context: Context) {
   private val notificationManager =

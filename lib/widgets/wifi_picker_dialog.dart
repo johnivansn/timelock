@@ -7,11 +7,13 @@ class WifiPickerDialog extends StatefulWidget {
     required this.appName,
     required this.packageName,
     required this.currentSSIDs,
+    this.profileId = 'default',
   });
 
   final String appName;
   final String packageName;
   final List<String> currentSSIDs;
+  final String profileId;
 
   @override
   State<WifiPickerDialog> createState() => _WifiPickerDialogState();
@@ -75,6 +77,7 @@ class _WifiPickerDialogState extends State<WifiPickerDialog> {
       await _ch.invokeMethod('updateRestrictionWifi', {
         'packageName': widget.packageName,
         'blockedWifiSSIDs': _selected.toList(),
+        'profileId': widget.profileId,
       });
       if (mounted) Navigator.pop(context, _selected.toList());
     } catch (_) {
