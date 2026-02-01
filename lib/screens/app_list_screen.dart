@@ -35,8 +35,10 @@ class _AppListScreenState extends State<AppListScreen> {
 
   Future<void> _checkPermissions() async {
     try {
-      final usage = await _ch.invokeMethod<bool>('checkUsagePermission') ?? false;
-      final acc = await _ch.invokeMethod<bool>('checkAccessibilityPermission') ?? false;
+      final usage =
+          await _ch.invokeMethod<bool>('checkUsagePermission') ?? false;
+      final acc =
+          await _ch.invokeMethod<bool>('checkAccessibilityPermission') ?? false;
       final admin = await _ch.invokeMethod<bool>('isAdminEnabled') ?? false;
       if (mounted) {
         setState(() {
@@ -55,13 +57,15 @@ class _AppListScreenState extends State<AppListScreen> {
 
   Future<void> _loadRestrictions() async {
     try {
-      final raw = await _ch.invokeMethod<List<dynamic>>('getRestrictions') ?? [];
+      final raw =
+          await _ch.invokeMethod<List<dynamic>>('getRestrictions') ?? [];
       final list = raw.map((e) => Map<String, dynamic>.from(e)).toList();
 
       for (final r in list) {
         try {
           final usage = await _ch.invokeMethod<Map<dynamic, dynamic>>(
-            'getUsageToday', r['packageName'],
+            'getUsageToday',
+            r['packageName'],
           );
           r['usedMinutes'] = usage?['usedMinutes'] ?? 0;
           r['isBlocked'] = usage?['isBlocked'] ?? false;
@@ -118,10 +122,14 @@ class _AppListScreenState extends State<AppListScreen> {
   }
 
   Future<void> _openWifiPicker(Map<String, dynamic> r) async {
-    final allowed = await _requireAdmin('Ingresa tu PIN para modificar bloqueos por WiFi');
+    final allowed =
+        await _requireAdmin('Ingresa tu PIN para modificar bloqueos por WiFi');
     if (!allowed || !mounted) return;
 
-    final current = (r['blockedWifiSSIDs'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final current = (r['blockedWifiSSIDs'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        [];
 
     final result = await showDialog<List<String>>(
       context: context,
@@ -141,7 +149,8 @@ class _AppListScreenState extends State<AppListScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: isError ? const Color(0xFFE74C3C) : const Color(0xFF27AE60),
+        backgroundColor:
+            isError ? const Color(0xFFE74C3C) : const Color(0xFF27AE60),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -150,7 +159,8 @@ class _AppListScreenState extends State<AppListScreen> {
   }
 
   void _openAddFlow() async {
-    final existing = _restrictions.map((r) => r['packageName'] as String).toSet();
+    final existing =
+        _restrictions.map((r) => r['packageName'] as String).toSet();
 
     if (!mounted) return;
     final app = await showDialog<Map<String, String>>(
@@ -232,7 +242,8 @@ class _AppListScreenState extends State<AppListScreen> {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.settings_outlined, color: Colors.white70, size: 22),
+          icon: const Icon(Icons.settings_outlined,
+              color: Colors.white70, size: 22),
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const PermissionsScreen()),
@@ -259,7 +270,10 @@ class _AppListScreenState extends State<AppListScreen> {
           const Expanded(
             child: Text(
               'Faltan permisos necesarios',
-              style: TextStyle(color: Color(0xFFF39C12), fontSize: 13, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                  color: Color(0xFFF39C12),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500),
             ),
           ),
           TextButton(
@@ -268,7 +282,8 @@ class _AppListScreenState extends State<AppListScreen> {
               MaterialPageRoute(builder: (_) => const PermissionsScreen()),
             ).then((_) => _checkPermissions()),
             style: TextButton.styleFrom(padding: EdgeInsets.zero),
-            child: const Text('Configurar', style: TextStyle(color: Color(0xFFF39C12), fontSize: 13)),
+            child: const Text('Configurar',
+                style: TextStyle(color: Color(0xFFF39C12), fontSize: 13)),
           ),
         ],
       ),
@@ -286,12 +301,16 @@ class _AppListScreenState extends State<AppListScreen> {
             SizedBox(height: 24),
             Text(
               'Sin restricciones',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.white),
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white),
             ),
             SizedBox(height: 8),
             Text(
               'Toca el botón + para agregar\nuna aplicación con límite de tiempo',
-              style: TextStyle(fontSize: 14, color: Colors.white38, height: 1.5),
+              style:
+                  TextStyle(fontSize: 14, color: Colors.white38, height: 1.5),
               textAlign: TextAlign.center,
             ),
           ],
@@ -316,7 +335,8 @@ class _AppListScreenState extends State<AppListScreen> {
     return Dismissible(
       key: ValueKey(r['packageName']),
       direction: DismissDirection.endToStart,
-      confirmDismiss: (_) => _requireAdmin('Ingresa tu PIN para eliminar esta restricción'),
+      confirmDismiss: (_) =>
+          _requireAdmin('Ingresa tu PIN para eliminar esta restricción'),
       background: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
@@ -361,7 +381,8 @@ class _AppListScreenState extends State<AppListScreen> {
                 ),
                 if (blocked)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                     decoration: BoxDecoration(
                       color: const Color(0x33E74C3C),
                       borderRadius: BorderRadius.circular(20),
@@ -397,8 +418,13 @@ class _AppListScreenState extends State<AppListScreen> {
                   style: const TextStyle(fontSize: 12, color: Colors.white38),
                 ),
                 Text(
-                  blocked ? 'Se abre a medianoche' : '${_timeLabel(remaining)} restantes',
-                  style: TextStyle(fontSize: 12, color: blocked ? const Color(0xFFE74C3C) : Colors.white38),
+                  blocked
+                      ? 'Se abre a medianoche'
+                      : '${_timeLabel(remaining)} restantes',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color:
+                          blocked ? const Color(0xFFE74C3C) : Colors.white38),
                 ),
               ],
             ),
@@ -413,7 +439,10 @@ class _AppListScreenState extends State<AppListScreen> {
   }
 
   Widget _wifiRow(Map<String, dynamic> r) {
-    final ssids = (r['blockedWifiSSIDs'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final ssids = (r['blockedWifiSSIDs'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        [];
 
     return Row(
       children: [
@@ -427,19 +456,29 @@ class _AppListScreenState extends State<AppListScreen> {
                 )
               : Wrap(
                   spacing: 4,
-                  children: ssids.map((ssid) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: const Color(0x1A6C5CE7),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      ssid,
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF6C5CE7), fontWeight: FontWeight.w500),
-                    ),
-                  )).toList(),
+                  runSpacing: 4,
+                  children: ssids
+                      .map((ssid) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0x1A6C5CE7),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              ssid,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF6C5CE7),
+                                  fontWeight: FontWeight.w500),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ))
+                      .toList(),
                 ),
         ),
+        const SizedBox(width: 8),
         GestureDetector(
           onTap: () => _openWifiPicker(r),
           child: Container(
@@ -448,7 +487,8 @@ class _AppListScreenState extends State<AppListScreen> {
               color: const Color(0xFF2A2A3E),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.settings_outlined, color: Colors.white38, size: 16),
+            child: const Icon(Icons.settings_outlined,
+                color: Colors.white38, size: 16),
           ),
         ),
       ],

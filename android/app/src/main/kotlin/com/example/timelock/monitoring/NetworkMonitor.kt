@@ -5,8 +5,8 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.net.wifi.WifiManager
 import android.util.Log
-import android.wifi.WifiManager
 import com.example.timelock.blocking.BlockingEngine
 import com.example.timelock.database.AppDatabase
 import kotlinx.coroutines.CoroutineScope
@@ -14,8 +14,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class NetworkMonitor(private val context: Context) {
-  private val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
-  private val wifiManager = context.getSystemService(WifiManager::class.java)
+  private val connectivityManager =
+          context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+  private val wifiManager =
+          context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
   private val database = AppDatabase.getDatabase(context)
   private val blockingEngine = BlockingEngine(context)
   private val scope = CoroutineScope(Dispatchers.IO)
@@ -26,15 +28,14 @@ class NetworkMonitor(private val context: Context) {
             override fun onAvailable(network: Network) {
               super.onAvailable(network)
               val caps = connectivityManager.getNetworkCapabilities(network) ?: return
-              if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_WIFI)) return
+              if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return
               refreshSSID()
             }
 
             override fun onLost(network: Network) {
               super.onLost(network)
               val caps = connectivityManager.getNetworkCapabilities(network)
-              if (caps != null && !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_WIFI))
-                      return
+              if (caps != null && !caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return
               handleDisconnect()
             }
 
@@ -43,7 +44,7 @@ class NetworkMonitor(private val context: Context) {
                     networkCapabilities: NetworkCapabilities
             ) {
               super.onCapabilitiesChanged(network, networkCapabilities)
-              if (networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_WIFI)) {
+              if (networkCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
                 refreshSSID()
               }
             }
@@ -51,7 +52,7 @@ class NetworkMonitor(private val context: Context) {
 
   fun start() {
     val request =
-            NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_WIFI).build()
+            NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build()
     connectivityManager.registerNetworkCallback(request, networkCallback)
     refreshSSID()
     Log.i("NetworkMonitor", "Started")

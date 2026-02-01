@@ -192,12 +192,14 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
             Icon(Icons.check_circle_outline,
                 color: Color(0xFF27AE60), size: 24),
             SizedBox(width: 12),
-            Text(
-              '¡Todo configurado correctamente!',
-              style: TextStyle(
-                  color: Color(0xFF27AE60),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500),
+            Expanded(
+              child: Text(
+                '¡Todo configurado correctamente!',
+                style: TextStyle(
+                    color: Color(0xFF27AE60),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500),
+              ),
             ),
           ],
         ),
@@ -265,7 +267,9 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
                   children: [
                     Text(
                       title,
@@ -274,8 +278,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                           fontWeight: FontWeight.w600,
                           color: Colors.white),
                     ),
-                    if (critical) ...[
-                      const SizedBox(width: 8),
+                    if (critical)
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 2),
@@ -292,7 +295,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                               letterSpacing: 0.5),
                         ),
                       ),
-                    ],
                   ],
                 ),
                 const SizedBox(height: 4),

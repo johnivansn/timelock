@@ -4,11 +4,11 @@ import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Process
 import android.provider.Settings
 import android.util.Log
-import android.wifi.WifiManager
 import com.example.timelock.admin.AdminManager
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.AppRestriction
@@ -289,21 +289,24 @@ class MainActivity : FlutterActivity() {
             .map { pkg ->
               mapOf(
                       "packageName" to pkg.packageName,
-                      "appName" to pkg.applicationInfo.loadLabel(pm).toString()
+                      "appName" to pkg.applicationInfo?.loadLabel(pm).toString()
               )
             }
             .sortedBy { it["appName"]?.lowercase() ?: "" }
   }
 
   private fun getCurrentWifiSSID(): String? {
-    val wifiManager = getSystemService(WifiManager::class.java) ?: return null
+    val wifiManager =
+            applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager ?: return null
     val info = wifiManager.connectionInfo ?: return null
     if (info.networkId == -1) return null
     return info.ssid?.removeSurrounding("\"")
   }
 
   private suspend fun getSavedWifiNetworks(): List<String> {
-    val wifiManager = getSystemService(WifiManager::class.java) ?: return emptyList()
+    val wifiManager =
+            applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+                    ?: return emptyList()
     val configs = wifiManager.configuredNetworks ?: return emptyList()
     val ssids =
             configs

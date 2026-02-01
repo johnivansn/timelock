@@ -1,6 +1,7 @@
 package com.example.timelock.blocking
 
 import android.content.Context
+import android.net.wifi.WifiManager
 import android.util.Log
 import com.example.timelock.database.AppDatabase
 import java.text.SimpleDateFormat
@@ -42,7 +43,9 @@ class BlockingEngine(private val context: Context) {
   }
 
   private fun getCurrentSSID(): String? {
-    val wifiManager = context.getSystemService(android.wifi.WifiManager::class.java) ?: return null
+    val wifiManager =
+            context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+                    ?: return null
     val info = wifiManager.connectionInfo ?: return null
     if (info.networkId == -1) return null
     return info.ssid?.removeSurrounding("\"")
