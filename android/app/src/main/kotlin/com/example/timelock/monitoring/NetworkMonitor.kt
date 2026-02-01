@@ -10,7 +10,6 @@ import android.util.Log
 import com.example.timelock.blocking.BlockingEngine
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.WifiHistory
-import com.example.timelock.notifications.NotificationHelper
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -69,9 +68,27 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
   }
 
   fun getCurrentSSID(): String? {
-    val info = wifiManager.connectionInfo ?: return null
-    if (info.networkId == -1) return null
-    return info.ssid?.removeSurrounding("\"")
+    return try {
+      @Suppress("DEPRECATION") val info = wifiManager.connectionInfo
+      if (info != null && info.networkId != -1) {
+        val ssid = info.ssid?.removeSurrounding("\"")
+        if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>") {
+          Log.d("NetworkMonitor", "WiFi SSID obtenido: $ssid")
+          return ssid
+        }
+      }
+
+      val caps = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+      if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+        Log.d("NetworkMonitor", "WiFi conectada (detectada pero SSID no disponible)")
+        return "WiFi_Connected"
+      }
+
+      null
+    } catch (e: Exception) {
+      Log.e("NetworkMonitor", "Error obteniendo SSID", e)
+      null
+    }
   }
 
   private fun refreshSSID() {
@@ -122,7 +139,7 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
           val blocked =
                   blockingEngine.blockApp(
                           restriction.packageName,
-                          NotificationHelper.BlockReason.WIFI_BLOCKED
+                          BlockingEngine.BlockReason.WifiBlocked
                   )
           if (blocked) Log.i("NetworkMonitor", "${restriction.packageName} blocked by WiFi: $ssid")
         }

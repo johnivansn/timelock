@@ -21,7 +21,7 @@ class DailyResetReceiver : BroadcastReceiver() {
     val database = AppDatabase.getDatabase(context)
     val scope = CoroutineScope(Dispatchers.IO + Job())
     val usageStatsMonitor = UsageStatsMonitor(context)
-    val scheduleMonitor = ScheduleMonitor(context, scope)
+    val scheduleMonitor = ScheduleMonitor(context)
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val today = dateFormat.format(Date())
     val yesterday =

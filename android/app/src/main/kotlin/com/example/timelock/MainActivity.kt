@@ -5,7 +5,6 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -428,16 +427,17 @@ class MainActivity : FlutterActivity() {
   }
 
   private suspend fun addSchedule(args: Map<*, *>) {
-    val daysOfWeek = (args["daysOfWeek"] as? List<*>)?.map { it.toString().toInt() } ?: emptyList()
+    val daysList = (args["daysOfWeek"] as? List<*>)?.map { it.toString().toInt() } ?: emptyList()
+    val daysOfWeek = daysList.fold(0) { mask, day -> mask or (1 shl (day - 1)) }
     val schedule =
             com.example.timelock.database.AppSchedule(
                     id = java.util.UUID.randomUUID().toString(),
                     packageName = args["packageName"] as String,
-                    startHour = args["startHour"] as Int,
-                    startMinute = args["startMinute"] as Int,
-                    endHour = args["endHour"] as Int,
-                    endMinute = args["endMinute"] as Int,
-                    daysOfWeek = daysOfWeek.joinToString(","),
+                    startHour = (args["startHour"] as? Number)?.toInt() ?: 0,
+                    startMinute = (args["startMinute"] as? Number)?.toInt() ?: 0,
+                    endHour = (args["endHour"] as? Number)?.toInt() ?: 0,
+                    endMinute = (args["endMinute"] as? Number)?.toInt() ?: 0,
+                    daysOfWeek = daysOfWeek,
                     isEnabled = args["isEnabled"] as? Boolean ?: true,
                     createdAt = System.currentTimeMillis()
             )
@@ -450,16 +450,17 @@ class MainActivity : FlutterActivity() {
     val schedules = database.appScheduleDao().getAllEnabled()
     val existing = schedules.find { it.id == id } ?: return
 
-    val daysOfWeek =
+    val daysList =
             (args["daysOfWeek"] as? List<*>)?.map { it.toString().toInt() }
                     ?: existing.getDaysOfWeekList()
+    val daysOfWeek = daysList.fold(0) { mask, day -> mask or (1 shl (day - 1)) }
     val updated =
             existing.copy(
-                    startHour = args["startHour"] as? Int ?: existing.startHour,
-                    startMinute = args["startMinute"] as? Int ?: existing.startMinute,
-                    endHour = args["endHour"] as? Int ?: existing.endHour,
-                    endMinute = args["endMinute"] as? Int ?: existing.endMinute,
-                    daysOfWeek = daysOfWeek.joinToString(","),
+                    startHour = (args["startHour"] as? Number)?.toInt() ?: existing.startHour,
+                    startMinute = (args["startMinute"] as? Number)?.toInt() ?: existing.startMinute,
+                    endHour = (args["endHour"] as? Number)?.toInt() ?: existing.endHour,
+                    endMinute = (args["endMinute"] as? Number)?.toInt() ?: existing.endMinute,
+                    daysOfWeek = daysOfWeek,
                     isEnabled = args["isEnabled"] as? Boolean ?: existing.isEnabled
             )
     database.appScheduleDao().update(updated)
@@ -597,25 +598,70 @@ class MainActivity : FlutterActivity() {
     }
   }
 
-  private fun getInstalledApps(): List<Map<String, String>> {
+  private fun getInstalledApps(): List<Map<String, Any>> {
     val pm = packageManager
     val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+    val coreSystemPackages =
+            setOf(
+                    "com.example.timelock",
+                    "com.android.systemui",
+                    "android",
+                    "com.android.system",
+                    "com.android.launcher",
+                    "com.android.settings"
+            )
 
     return packages
-            .filter { appInfo ->
-              val packageName = appInfo.packageName
-              val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-              val isUpdatedSystem = (appInfo.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-
-              !systemPackages.any { packageName.startsWith(it) } && (!isSystem || isUpdatedSystem)
-            }
+            .filter { !coreSystemPackages.contains(it.packageName) }
+            .distinctBy { it.packageName }
             .map { appInfo ->
-              mapOf(
-                      "packageName" to appInfo.packageName,
-                      "appName" to appInfo.loadLabel(pm).toString()
-              )
+              try {
+                val sourceDir = appInfo.sourceDir ?: ""
+                val inSystemPath = sourceDir.contains("/system/") || sourceDir.contains("/product/")
+                val inDataPath = sourceDir.contains("/data/app/")
+                val hasSystemFlag = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                val installerPackage =
+                        try {
+                          pm.getInstallerPackageName(appInfo.packageName)
+                        } catch (e: Exception) {
+                          null
+                        }
+                val hasPlayStoreInstaller =
+                        !installerPackage.isNullOrEmpty() &&
+                                installerPackage != "com.android.vending"
+                val isSystemApp =
+                        when {
+                          inSystemPath -> true
+                          hasPlayStoreInstaller -> false
+                          inDataPath && !hasSystemFlag ->
+                                  false
+                          else -> hasSystemFlag
+                        }
+
+                val appLabel = appInfo.loadLabel(pm).toString()
+
+                mapOf<String, Any>(
+                        "packageName" to appInfo.packageName,
+                        "appName" to appLabel,
+                        "isSystem" to isSystemApp
+                )
+              } catch (e: Exception) {
+                val sourceDir = appInfo.sourceDir ?: ""
+                val isSystemApp = !sourceDir.contains("/data/app/")
+
+                mapOf<String, Any>(
+                        "packageName" to appInfo.packageName,
+                        "appName" to appInfo.packageName,
+                        "isSystem" to isSystemApp
+                )
+              }
             }
-            .sortedBy { it["appName"]?.lowercase() ?: "" }
+            .sortedWith(
+                    compareBy(
+                            { (it["isSystem"] as? Boolean) ?: false },
+                            { it["appName"]?.toString()?.lowercase() ?: "" }
+                    )
+            )
   }
 
   private suspend fun getOptimizationStats(): Map<String, Any> {

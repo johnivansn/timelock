@@ -11,16 +11,18 @@ data class AppSchedule(
         val startMinute: Int,
         val endHour: Int,
         val endMinute: Int,
-        val daysOfWeek: String,
-        val isEnabled: Boolean,
-        val createdAt: Long
+        val daysOfWeek: Int = 0,
+        val isEnabled: Boolean = true,
+        val createdAt: Long = System.currentTimeMillis()
 ) {
   fun getDaysOfWeekList(): List<Int> {
-    return if (daysOfWeek.isEmpty()) emptyList() else daysOfWeek.split(",").map { it.toInt() }
+    val mask = daysOfWeek and 0xFF
+    return (0..6).filter { (mask and (1 shl it)) != 0 }
   }
 
   fun isActiveOnDay(dayOfWeek: Int): Boolean {
-    return dayOfWeek in getDaysOfWeekList()
+    val dayBit = 1 shl (dayOfWeek - 1)
+    return (daysOfWeek and dayBit) != 0
   }
 
   fun isActiveNow(): Boolean {

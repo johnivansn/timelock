@@ -2,110 +2,51 @@ package com.example.timelock.monitoring
 
 import android.content.Context
 import android.util.Log
-import com.example.timelock.blocking.BlockingEngine
 import com.example.timelock.database.AppDatabase
-import com.example.timelock.notifications.NotificationHelper
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import com.example.timelock.database.AppSchedule
+import java.util.*
 
-class ScheduleMonitor(private val context: Context, private val scope: CoroutineScope) {
-  private val database = AppDatabase.getDatabase(context)
-  private val blockingEngine = BlockingEngine(context)
-  private val notificationHelper = NotificationHelper(context)
-  private val notified5MinBefore = mutableSetOf<String>()
+class ScheduleMonitor(private val context: Context? = null) {
+  private var database: AppDatabase? = null
 
-  fun checkSchedules() {
-    scope.launch(Dispatchers.IO) {
-      try {
-        val schedules = database.appScheduleDao().getAllEnabled()
-        val scheduledPackages = schedules.map { it.packageName }.toSet()
-
-        for (schedule in schedules) {
-          if (!schedule.isEnabled) continue
-
-          if (schedule.isActiveNow()) {
-            handleScheduleActive(schedule)
-          } else {
-            handleScheduleInactive(schedule)
-          }
-
-          val minutesUntil = schedule.getMinutesUntilStart()
-          if (minutesUntil != null && minutesUntil <= 5) {
-            notifyUpcoming(schedule, minutesUntil)
-          }
-        }
-
-        unblockScheduledApps(scheduledPackages)
-      } catch (e: Exception) {
-        Log.e("ScheduleMonitor", "Error checking schedules", e)
-      }
+  init {
+    if (context != null) {
+      database = AppDatabase.getDatabase(context)
     }
   }
 
-  private suspend fun handleScheduleActive(schedule: com.example.timelock.database.AppSchedule) {
-    val restriction = database.appRestrictionDao().getByPackage(schedule.packageName)
-    if (restriction == null || !restriction.isEnabled) return
+  fun isCurrentlyBlocked(schedules: List<AppSchedule>): Boolean {
+    if (schedules.isEmpty()) return false
+    val now = Calendar.getInstance()
+    val currentHour = now.get(Calendar.HOUR_OF_DAY)
+    val currentMinute = now.get(Calendar.MINUTE)
+    val currentDayOfWeek = now.get(Calendar.DAY_OF_WEEK)
+    val currentTimeMinutes = currentHour * 60 + currentMinute
 
-    val alreadyBlocked = blockingEngine.isBlocked(schedule.packageName)
-    val quotaBlocked = blockingEngine.isQuotaBlocked(schedule.packageName)
-    val wifiBlocked = blockingEngine.isWifiBlocked(schedule.packageName)
+    for (schedule in schedules) {
+      if (!schedule.isEnabled) continue
 
-    if (!alreadyBlocked && !quotaBlocked && !wifiBlocked) {
-      blockingEngine.blockApp(schedule.packageName, NotificationHelper.BlockReason.SCHEDULE_BLOCKED)
-      Log.i("ScheduleMonitor", "${schedule.packageName} blocked by schedule")
-    }
-  }
+      val dayBit = 1 shl (currentDayOfWeek - 1)
+      val daysValue: Int = schedule.daysOfWeek
+      if ((daysValue and dayBit) == 0) continue
 
-  private suspend fun handleScheduleInactive(schedule: com.example.timelock.database.AppSchedule) {
-    val restriction = database.appRestrictionDao().getByPackage(schedule.packageName)
-    if (restriction == null || !restriction.isEnabled) return
+      val startTimeMinutes = (schedule.startHour * 60) + schedule.startMinute
+      val endTimeMinutes = (schedule.endHour * 60) + schedule.endMinute
 
-    val quotaBlocked = blockingEngine.isQuotaBlocked(schedule.packageName)
-    val wifiBlocked = blockingEngine.isWifiBlocked(schedule.packageName)
-
-    if (!quotaBlocked && !wifiBlocked) {
-      blockingEngine.unblockApp(schedule.packageName)
-      Log.i("ScheduleMonitor", "${schedule.packageName} unblocked - schedule ended")
-    }
-  }
-
-  private suspend fun unblockScheduledApps(scheduledPackages: Set<String>) {
-    val restrictions = database.appRestrictionDao().getEnabled()
-    for (restriction in restrictions) {
-      if (restriction.packageName !in scheduledPackages) continue
-
-      val hasActiveSchedule =
-              database.appScheduleDao().getByPackage(restriction.packageName).any {
-                it.isActiveNow()
+      val isActive =
+              if (startTimeMinutes <= endTimeMinutes) {
+                currentTimeMinutes >= startTimeMinutes && currentTimeMinutes < endTimeMinutes
+              } else {
+                currentTimeMinutes >= startTimeMinutes || currentTimeMinutes < endTimeMinutes
               }
 
-      if (!hasActiveSchedule) {
-        val quotaBlocked = blockingEngine.isQuotaBlocked(restriction.packageName)
-        val wifiBlocked = blockingEngine.isWifiBlocked(restriction.packageName)
-
-        if (!quotaBlocked && !wifiBlocked) {
-          blockingEngine.unblockApp(restriction.packageName)
-        }
-      }
+      if (isActive) return true
     }
-  }
 
-  private suspend fun notifyUpcoming(
-          schedule: com.example.timelock.database.AppSchedule,
-          minutes: Int
-  ) {
-    val key = "${schedule.packageName}_${schedule.id}"
-    if (notified5MinBefore.contains(key)) return
-
-    val restriction = database.appRestrictionDao().getByPackage(schedule.packageName) ?: return
-    notificationHelper.notifyScheduleUpcoming(restriction.appName, minutes)
-    notified5MinBefore.add(key)
-    Log.i("ScheduleMonitor", "Notified upcoming schedule for ${schedule.packageName}")
+    return false
   }
 
   fun resetNotificationFlags() {
-    notified5MinBefore.clear()
     Log.i("ScheduleMonitor", "Schedule notification flags reset")
   }
 }

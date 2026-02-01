@@ -47,7 +47,6 @@ class UsageMonitorService : Service() {
           object : Runnable {
             override fun run() {
               usageStatsMonitor.updateAllUsage()
-              scheduleMonitor.checkSchedules()
               updateNotification()
               updateWidgets()
               updatePersistentNotification()
@@ -64,7 +63,7 @@ class UsageMonitorService : Service() {
     database = AppDatabase.getDatabase(this)
     usageStatsMonitor = UsageStatsMonitor(this)
     networkMonitor = NetworkMonitor(this, scope)
-    scheduleMonitor = ScheduleMonitor(this, scope)
+    scheduleMonitor = ScheduleMonitor(this)
     persistentNotification = PersistentNotification(this)
     batteryModeManager = BatteryModeManager(this)
     dataCleanupManager = DataCleanupManager(this)

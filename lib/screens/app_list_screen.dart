@@ -167,7 +167,7 @@ class _AppListScreenState extends State<AppListScreen> {
         _restrictions.map((r) => r['packageName'] as String).toSet();
 
     if (!mounted) return;
-    final app = await showModalBottomSheet<Map<String, String>>(
+    final app = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -181,7 +181,8 @@ class _AppListScreenState extends State<AppListScreen> {
     );
     if (minutes == null) return;
 
-    await _addRestriction(app['packageName']!, app['appName']!, minutes);
+    await _addRestriction(
+        app['packageName']! as String, app['appName']! as String, minutes);
   }
 
   double _progressFor(Map<String, dynamic> r) {
