@@ -19,6 +19,8 @@ import com.example.timelock.backup.AutoBackupWorker
 import com.example.timelock.backup.BackupManager
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.AppRestriction
+import com.example.timelock.logging.ActivityLogger
+import com.example.timelock.logging.LogCleanupWorker
 import com.example.timelock.monitoring.NetworkMonitor
 import com.example.timelock.services.AppBlockAccessibilityService
 import com.example.timelock.services.UsageMonitorService
@@ -36,6 +38,7 @@ import kotlinx.coroutines.withContext
 
 class MainActivity : FlutterActivity() {
   private lateinit var backupManager: BackupManager
+  private lateinit var activityLogger: ActivityLogger
   private val CHANNEL = "app.restriction/config"
   private lateinit var database: AppDatabase
   private lateinit var adminManager: AdminManager
@@ -55,6 +58,8 @@ class MainActivity : FlutterActivity() {
     database = AppDatabase.getDatabase(this)
     adminManager = AdminManager(this)
     backupManager = BackupManager(this)
+    activityLogger = ActivityLogger(this)
+    LogCleanupWorker.schedule(this)
 
     AutoBackupWorker.schedule(this)
 
@@ -367,6 +372,110 @@ class MainActivity : FlutterActivity() {
             }
           }
         }
+        "getActivityLogs" -> {
+          scope.launch {
+            try {
+              val logs = database.activityLogDao().getRecent(200)
+              val logsData =
+                      logs.map { log ->
+                        mapOf(
+                                "id" to log.id,
+                                "timestamp" to log.timestamp,
+                                "eventType" to log.eventType,
+                                "packageName" to log.packageName,
+                                "appName" to log.appName,
+                                "details" to log.details,
+                                "metadata" to log.metadata
+                        )
+                      }
+              withContext(Dispatchers.Main) { result.success(logsData) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("GET_LOGS_ERROR", e.message, null) }
+            }
+          }
+        }
+        "clearActivityLogs" -> {
+          scope.launch {
+            try {
+              database.activityLogDao().deleteAll()
+              withContext(Dispatchers.Main) { result.success(true) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("CLEAR_LOGS_ERROR", e.message, null) }
+            }
+          }
+        }
+        "exportActivityLogs" -> {
+          scope.launch {
+            try {
+              val logs = database.activityLogDao().getRecent(1000)
+              val csv = buildString {
+                appendLine("Timestamp,Date,Event Type,App Name,Package Name,Details")
+                logs.forEach { log ->
+                  val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                  val date = dateFormat.format(Date(log.timestamp))
+                  appendLine(
+                          "${log.timestamp},\"$date\",\"${log.eventType}\",\"${log.appName ?: ""}\",\"${log.packageName ?: ""}\",\"${log.details}\""
+                  )
+                }
+              }
+              withContext(Dispatchers.Main) { result.success(csv) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("EXPORT_LOGS_ERROR", e.message, null) }
+            }
+          }
+        }
+        "getActivityLogs" -> {
+          scope.launch {
+            try {
+              val logs = database.activityLogDao().getRecent(200)
+              val logsData =
+                      logs.map { log ->
+                        mapOf(
+                                "id" to log.id,
+                                "timestamp" to log.timestamp,
+                                "eventType" to log.eventType,
+                                "packageName" to log.packageName,
+                                "appName" to log.appName,
+                                "details" to log.details,
+                                "metadata" to log.metadata
+                        )
+                      }
+              withContext(Dispatchers.Main) { result.success(logsData) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("GET_LOGS_ERROR", e.message, null) }
+            }
+          }
+        }
+        "clearActivityLogs" -> {
+          scope.launch {
+            try {
+              database.activityLogDao().deleteAll()
+              withContext(Dispatchers.Main) { result.success(true) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("CLEAR_LOGS_ERROR", e.message, null) }
+            }
+          }
+        }
+        "exportActivityLogs" -> {
+          scope.launch {
+            try {
+              val logs = database.activityLogDao().getRecent(1000)
+              val csv = buildString {
+                appendLine("Timestamp,Date,Event Type,App Name,Package Name,Details")
+                logs.forEach { log ->
+                  val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+                  val date = dateFormat.format(Date(log.timestamp))
+                  appendLine(
+                          "${log.timestamp},\"$date\",\"${log.eventType}\",\"${log.appName ?: ""}\",\"${log.packageName ?: ""}\",\"${log.details}\""
+                  )
+                }
+              }
+              withContext(Dispatchers.Main) { result.success(csv) }
+            } catch (e: Exception) {
+              withContext(Dispatchers.Main) { result.error("EXPORT_LOGS_ERROR", e.message, null) }
+            }
+          }
+        }
         else -> result.notImplemented()
       }
     }
@@ -562,27 +671,34 @@ class MainActivity : FlutterActivity() {
     val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return
     database.appRestrictionDao()
             .update(restriction.copy(blockedWifiSSIDs = ssids.joinToString(",")))
+    activityLogger.logWifiUpdated(packageName, restriction.appName, ssids)
     Log.i("MainActivity", "Updated WiFi blocks for $packageName: $ssids")
   }
 
   private suspend fun addRestriction(args: Map<*, *>) {
     val wifiList = (args["blockedWifiSSIDs"] as? List<*>)?.map { it.toString() } ?: emptyList()
+    val packageName = args["packageName"] as String
+    val appName = args["appName"] as String
+    val quota = args["dailyQuotaMinutes"] as Int
+
     val restriction =
             AppRestriction(
-                    id = UUID.randomUUID().toString(),
-                    packageName = args["packageName"] as String,
-                    appName = args["appName"] as String,
-                    dailyQuotaMinutes = args["dailyQuotaMinutes"] as Int,
+                    id = java.util.UUID.randomUUID().toString(),
+                    packageName = packageName,
+                    appName = appName,
+                    dailyQuotaMinutes = quota,
                     isEnabled = args["isEnabled"] as Boolean,
                     blockedWifiSSIDs = wifiList.joinToString(","),
                     createdAt = System.currentTimeMillis()
             )
     database.appRestrictionDao().insert(restriction)
+    activityLogger.logRestrictionAdded(packageName, appName, quota)
   }
 
   private suspend fun deleteRestriction(packageName: String) {
     val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return
     database.appRestrictionDao().delete(restriction)
+    activityLogger.logRestrictionRemoved(packageName, restriction.appName)
     Log.i("MainActivity", "Deleted restriction for $packageName")
   }
 

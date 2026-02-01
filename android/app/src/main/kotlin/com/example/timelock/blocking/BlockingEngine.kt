@@ -4,11 +4,13 @@ import android.content.Context
 import android.net.wifi.WifiManager
 import android.util.Log
 import com.example.timelock.database.AppDatabase
+import com.example.timelock.logging.ActivityLogger
 import com.example.timelock.notifications.NotificationHelper
 import java.text.SimpleDateFormat
 import java.util.*
 
 class BlockingEngine(private val context: Context) {
+  private val activityLogger = ActivityLogger(context)
   private val database = AppDatabase.getDatabase(context)
   private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
   private val notificationHelper = NotificationHelper(context)
@@ -52,6 +54,15 @@ class BlockingEngine(private val context: Context) {
 
     database.dailyUsageDao().update(usage.copy(isBlocked = true))
     notificationHelper.notifyAppBlocked(restriction.appName, reason)
+
+    val reasonText =
+            when (reason) {
+              NotificationHelper.BlockReason.QUOTA_EXCEEDED -> "cuota diaria alcanzada"
+              NotificationHelper.BlockReason.WIFI_BLOCKED -> "bloqueada en esta WiFi"
+              NotificationHelper.BlockReason.MANUAL -> "bloqueo manual"
+            }
+    activityLogger.logAppBlocked(packageName, restriction.appName, reasonText)
+
     Log.i("BlockingEngine", "$packageName blocked - reason: $reason")
     return true
   }
@@ -66,7 +77,15 @@ class BlockingEngine(private val context: Context) {
     val today = dateFormat.format(Date())
     val usage = database.dailyUsageDao().getUsage(packageName, today) ?: return
     if (usage.isBlocked) {
+      val restriction = database.appRestrictionDao().getByPackage(packageName)
       database.dailyUsageDao().update(usage.copy(isBlocked = false))
+      if (restriction != null) {
+        activityLogger.logAppUnblocked(
+                packageName,
+                restriction.appName,
+                "reset diario o WiFi desconectado"
+        )
+      }
       Log.i("BlockingEngine", "$packageName unblocked")
     }
   }

@@ -20,15 +20,45 @@ class Migration1To2 : Migration(1, 2) {
   }
 }
 
+class Migration2To3 : Migration(2, 3) {
+  override fun migrate(database: SupportSQLiteDatabase) {
+    database.execSQL(
+            "CREATE TABLE IF NOT EXISTS activity_logs (" +
+                    "id TEXT PRIMARY KEY NOT NULL, " +
+                    "timestamp INTEGER NOT NULL, " +
+                    "eventType TEXT NOT NULL, " +
+                    "packageName TEXT, " +
+                    "appName TEXT, " +
+                    "details TEXT NOT NULL, " +
+                    "metadata TEXT)"
+    )
+    database.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_activity_logs_timestamp ON activity_logs(timestamp)"
+    )
+    database.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_activity_logs_packageName ON activity_logs(packageName)"
+    )
+    database.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_activity_logs_eventType ON activity_logs(eventType)"
+    )
+  }
+}
+
 @Database(
-        entities = [AppRestriction::class, DailyUsage::class, AdminSettings::class],
-        version = 2,
+        entities =
+                [
+                        AppRestriction::class,
+                        DailyUsage::class,
+                        AdminSettings::class,
+                        ActivityLog::class],
+        version = 3,
         exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
   abstract fun appRestrictionDao(): AppRestrictionDao
   abstract fun dailyUsageDao(): DailyUsageDao
   abstract fun adminSettingsDao(): AdminSettingsDao
+  abstract fun activityLogDao(): ActivityLogDao
 
   companion object {
     @Volatile private var INSTANCE: AppDatabase? = null
@@ -42,7 +72,7 @@ abstract class AppDatabase : RoomDatabase() {
                                         AppDatabase::class.java,
                                         "app_time_control_db"
                                 )
-                                .addMigrations(Migration1To2())
+                                .addMigrations(Migration1To2(), Migration2To3())
                                 .build()
                 INSTANCE = instance
                 instance

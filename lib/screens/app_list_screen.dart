@@ -8,6 +8,7 @@ import 'package:timelock/widgets/time_picker_dialog.dart';
 import 'package:timelock/widgets/wifi_picker_dialog.dart';
 import 'package:timelock/screens/export_import_screen.dart';
 import 'package:timelock/screens/backup_screen.dart';
+import 'package:timelock/screens/activity_log_screen.dart';
 import 'package:timelock/widgets/first_launch_dialog.dart';
 
 class AppListScreen extends StatefulWidget {
@@ -325,6 +326,17 @@ class _AppListScreenState extends State<AppListScreen>
                   context,
                   MaterialPageRoute(
                       builder: (_) => const NotificationSettingsScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.history_rounded),
+              title: const Text('Historial de actividad'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ActivityLogScreen()),
                 );
               },
             ),
