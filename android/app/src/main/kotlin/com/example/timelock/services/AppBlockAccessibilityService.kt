@@ -29,6 +29,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
   private var currentBlockedPackage: String? = null
   private var overlayShown = false
   private var blockStartTime = 0L
+  private var isOverlayAttached = false
 
   companion object {
     private const val TAG = "AccessibilityService"
@@ -63,12 +64,9 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
     val now = System.currentTimeMillis()
 
-    if (currentBlockedPackage == packageName) {
+    if (currentBlockedPackage == packageName && overlayShown) {
       if (now - blockStartTime > 5000) {
-        Log.w(
-                TAG,
-                "Usuario persistente intentando acceder a $packageName, forzando home nuevamente"
-        )
+        Log.w(TAG, "Usuario persistente en $packageName, reforzando bloqueo")
         forceHomeScreen()
       }
       return
@@ -77,11 +75,9 @@ class AppBlockAccessibilityService : AccessibilityService() {
     scope.launch {
       val shouldBlock = blockingEngine.shouldBlock(packageName)
       if (shouldBlock) {
-        blockApp(packageName)
-      } else {
-        if (currentBlockedPackage == packageName) {
-          cleanupOverlay()
-        }
+        handler.post { blockApp(packageName) }
+      } else if (currentBlockedPackage == packageName) {
+        handler.post { cleanupOverlay() }
       }
     }
   }
@@ -93,7 +89,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
       currentBlockedPackage = packageName
       blockStartTime = System.currentTimeMillis()
       overlayShown = true
-
+      
       Log.i(TAG, "Bloqueando app: $packageName")
 
       showBlockOverlay(packageName)
@@ -108,44 +104,55 @@ class AppBlockAccessibilityService : AccessibilityService() {
   }
 
   private fun showBlockOverlay(packageName: String) {
-    if (overlayView != null) return
+    if (overlayView != null && isOverlayAttached) return
 
-    val inflater = getSystemService(LAYOUT_INFLATER_SERVICE) as LayoutInflater
-    overlayView = inflater.inflate(R.layout.block_overlay, null)
+    try {
+      val inflater = getSystemService(LAYOUT_INFLATER_SERVICE) as LayoutInflater
+      overlayView = inflater.inflate(R.layout.block_overlay, null)
 
-    val params =
-            WindowManager.LayoutParams().apply {
-              type =
-                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                      } else {
-                        @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
-                      }
-              format = PixelFormat.TRANSLUCENT
-              flags =
-                      WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                              WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                              WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                              WindowManager.LayoutParams.FLAG_FULLSCREEN or
-                              WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-              width = WindowManager.LayoutParams.MATCH_PARENT
-              height = WindowManager.LayoutParams.MATCH_PARENT
-              gravity = Gravity.CENTER
-            }
+      val params =
+              WindowManager.LayoutParams().apply {
+                type =
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                          WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                        } else {
+                          @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
+                        }
+                format = PixelFormat.TRANSLUCENT
+                flags =
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                                WindowManager.LayoutParams.FLAG_FULLSCREEN or
+                                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                width = WindowManager.LayoutParams.MATCH_PARENT
+                height = WindowManager.LayoutParams.MATCH_PARENT
+                gravity = Gravity.CENTER
+              }
 
-    windowManager?.addView(overlayView, params)
-    Log.i(TAG, "Overlay mostrado para $packageName")
+      windowManager?.addView(overlayView, params)
+      isOverlayAttached = true
+      Log.i(TAG, "Overlay mostrado para $packageName")
+    } catch (e: Exception) {
+      Log.e(TAG, "Error showing overlay", e)
+      overlayView = null
+      isOverlayAttached = false
+    }
   }
 
   private fun hideBlockOverlay() {
-    overlayView?.let {
-      try {
-        windowManager?.removeView(it)
-        overlayView = null
-        Log.d(TAG, "Overlay hidden")
-      } catch (e: Exception) {
-        Log.w(TAG, "Error hiding overlay", e)
-      }
+    if (overlayView == null || !isOverlayAttached) return
+
+    try {
+      windowManager?.removeView(overlayView)
+      Log.d(TAG, "Overlay hidden")
+    } catch (e: IllegalArgumentException) {
+      Log.w(TAG, "View not attached to window manager")
+    } catch (e: Exception) {
+      Log.w(TAG, "Error hiding overlay", e)
+    } finally {
+      overlayView = null
+      isOverlayAttached = false
     }
   }
 
