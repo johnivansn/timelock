@@ -59,15 +59,18 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
     if (overlayPackage == pkg) return
 
+    if (overlayPackage != null && overlayPackage != pkg) {
+      handler.removeCallbacksAndMessages(null)
+      removeOverlay()
+    }
+
     scope.launch {
       val reason = blockingEngine.shouldBlockSync(pkg)
       if (reason != null) {
-        if (overlayPackage != null && overlayPackage != pkg) {
-          removeOverlay()
-        }
         showOverlay(pkg, reason)
       } else {
         if (overlayPackage != null) {
+          handler.removeCallbacksAndMessages(null)
           removeOverlay()
         }
       }
@@ -77,9 +80,17 @@ class AppBlockAccessibilityService : AccessibilityService() {
   override fun onInterrupt() {}
 
   private fun showOverlay(pkg: String, reason: BlockingEngine.BlockReason) {
-    if (blockedOverlay != null) return
+    if (blockedOverlay != null && overlayPackage == pkg) return
 
     try {
+      // Remover overlay anterior si existe
+      if (blockedOverlay != null) {
+        try {
+          windowManager?.removeView(blockedOverlay)
+        } catch (_: Exception) {}
+        blockedOverlay = null
+      }
+
       blockedOverlay =
               FrameLayout(this).apply {
                 setBackgroundColor(0xCC000000.toInt())
@@ -137,17 +148,23 @@ class AppBlockAccessibilityService : AccessibilityService() {
       overlayPackage = pkg
       Log.i(TAG, "Overlay mostrado para $pkg")
 
+      handler.removeCallbacksAndMessages(null)
       handler.postDelayed(
               {
-                redirectToHome()
-                removeOverlay()
-                ignoraEventosHasta = System.currentTimeMillis() + COOLDOWN_MS
+                if (overlayPackage == pkg) {
+                  redirectToHome()
+                  removeOverlay()
+                  ignoraEventosHasta = System.currentTimeMillis() + COOLDOWN_MS
+                }
               },
               OVERLAY_DURATION_MS
       )
     } catch (e: Exception) {
       Log.e(TAG, "Error mostrando overlay", e)
       blockedOverlay = null
+      overlayPackage = null
+    }
+  }
       overlayPackage = null
     }
   }

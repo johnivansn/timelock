@@ -78,10 +78,19 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
         }
       }
 
-      val caps = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-      if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-        Log.d("NetworkMonitor", "WiFi conectada (detectada pero SSID no disponible)")
-        return "WiFi_Connected"
+      val activeNetwork = connectivityManager.activeNetwork
+      if (activeNetwork != null) {
+        val caps = connectivityManager.getNetworkCapabilities(activeNetwork)
+        if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
+          // Fallback a usar la BSSID como identificador
+          val bssid = info?.bssid
+          if (!bssid.isNullOrEmpty() && bssid != "02:00:00:00:00:00") {
+            Log.d("NetworkMonitor", "WiFi identificado por BSSID: $bssid")
+            return bssid
+          }
+          Log.d("NetworkMonitor", "WiFi conectada pero SSID no disponible - usando genérico")
+          return "WiFi_${System.currentTimeMillis() / 60000}"
+        }
       }
 
       null
