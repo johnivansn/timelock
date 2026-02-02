@@ -5,9 +5,6 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
-import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -28,8 +25,10 @@ class AppBlockAccessibilityService : AccessibilityService() {
   private var windowManager: WindowManager? = null
   private lateinit var blockingEngine: BlockingEngine
   private val scope = CoroutineScope(Dispatchers.Main + Job())
-  private val handler = Handler(Looper.getMainLooper())
-  private var lastBlockedPackage: String? = null
+
+  private var overlayPackage: String? = null
+  private var ignoraEventosHasta: Long = 0L
+  private val handler = android.os.Handler(android.os.Looper.getMainLooper())
 
   override fun onServiceConnected() {
     super.onServiceConnected()
@@ -41,86 +40,44 @@ class AppBlockAccessibilityService : AccessibilityService() {
     info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
     serviceInfo = info
 
-    Log.i(TAG, "AppBlockAccessibilityService connected")
+    Log.i(TAG, "Service connected")
   }
 
   override fun onAccessibilityEvent(event: AccessibilityEvent) {
     if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
-    val packageName = event.packageName?.toString() ?: return
+    val pkg = event.packageName?.toString() ?: return
 
-    if (shouldIgnorePackage(packageName)) {
-      removeBlockOverlay()
-      lastBlockedPackage = null
+    if (System.currentTimeMillis() < ignoraEventosHasta) return
+
+    if (pkg in IGNORED_PACKAGES) {
+      if (overlayPackage != null) {
+        removeOverlay()
+      }
       return
     }
 
-    Log.d(TAG, "Foreground app: $packageName")
+    if (overlayPackage == pkg) return
 
     scope.launch {
-      val blockReason = blockingEngine.shouldBlockSync(packageName)
-      if (blockReason != null) {
-        Log.w(TAG, "App blocked: $packageName - reason=$blockReason")
-        showBlockOverlay(packageName)
-        lastBlockedPackage = packageName
+      val reason = blockingEngine.shouldBlockSync(pkg)
+      if (reason != null) {
+        if (overlayPackage != null && overlayPackage != pkg) {
+          removeOverlay()
+        }
+        showOverlay(pkg, reason)
       } else {
-        if (lastBlockedPackage != packageName && blockedOverlay != null) {
-          removeBlockOverlay()
-          lastBlockedPackage = null
+        if (overlayPackage != null) {
+          removeOverlay()
         }
       }
     }
   }
 
-  override fun onInterrupt() {
-    Log.d(TAG, "Accessibility service interrupted")
-  }
+  override fun onInterrupt() {}
 
-  private fun shouldIgnorePackage(packageName: String): Boolean {
-    return packageName in setOf("com.example.timelock", "com.android.systemui", "android")
-  }
-
-  private fun getBlockReason(packageName: String): String {
-    return "Aplicación bloqueada"
-  }
-
-  private fun getBlockMessage(packageName: String): String {
-    return "Has alcanzado el límite establecido"
-  }
-
-  private suspend fun getBlockReasonSuspend(packageName: String): String {
-    val engine = BlockingEngine(this)
-    return when {
-      engine.isQuotaBlocked(packageName) -> "Cuota de tiempo agotada"
-      engine.isWifiBlocked(packageName) -> "Bloqueado en esta red WiFi"
-      engine.isScheduleBlocked(packageName) -> "Fuera de horario permitido"
-      else -> "Aplicación bloqueada"
-    }
-  }
-
-  private suspend fun getBlockMessageSuspend(packageName: String): String {
-    val engine = BlockingEngine(this)
-    return when {
-      engine.isQuotaBlocked(packageName) -> "Intenta mañana o ajusta tu límite de tiempo"
-      engine.isWifiBlocked(packageName) -> "Esta app no está permitida en esta red"
-      engine.isScheduleBlocked(packageName) -> "Solo disponible en horarios permitidos"
-      else -> "Has alcanzado el límite establecido"
-    }
-  }
-
-  private fun getAppName(packageName: String): String {
-    return try {
-      val info = packageManager.getApplicationInfo(packageName, 0)
-      packageManager.getApplicationLabel(info).toString().take(20)
-    } catch (e: Exception) {
-      packageName.substringAfterLast(".").take(15)
-    }
-  }
-
-  private fun showBlockOverlay(packageName: String) {
-    if (blockedOverlay != null) {
-      return
-    }
+  private fun showOverlay(pkg: String, reason: BlockingEngine.BlockReason) {
+    if (blockedOverlay != null) return
 
     try {
       blockedOverlay =
@@ -132,34 +89,40 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
       try {
         val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
-        val customView = inflater.inflate(R.layout.block_overlay, blockedOverlay, false)
+        val view = inflater.inflate(R.layout.block_overlay, blockedOverlay, false)
 
-        customView.findViewById<TextView?>(R.id.block_title)?.apply {
-          text = "🚫 ${getAppName(packageName)}"
-        }
+        view.findViewById<TextView?>(R.id.block_title)?.text = "🚫 ${appName(pkg)}"
 
         scope.launch {
-          val reason = getBlockReasonSuspend(packageName)
-          val message = getBlockMessageSuspend(packageName)
-
-          customView.findViewById<TextView?>(R.id.block_reason)?.apply { text = "Razón: $reason" }
-
-          customView.findViewById<TextView?>(R.id.block_message)?.apply { text = message }
+          val reasonText =
+                  when (reason) {
+                    is BlockingEngine.BlockReason.TimeQuota -> "Cuota de tiempo agotada"
+                    is BlockingEngine.BlockReason.WifiBlocked -> "Bloqueado en esta red WiFi"
+                    is BlockingEngine.BlockReason.ScheduleBlocked -> "Fuera de horario permitido"
+                    is BlockingEngine.BlockReason.Combined -> "Cuota agotada + horario"
+                  }
+          val msgText =
+                  when (reason) {
+                    is BlockingEngine.BlockReason.TimeQuota -> "Intenta mañana o ajusta tu límite"
+                    is BlockingEngine.BlockReason.WifiBlocked ->
+                            "Esta app no está permitida en esta red"
+                    is BlockingEngine.BlockReason.ScheduleBlocked ->
+                            "Solo disponible en horarios permitidos"
+                    is BlockingEngine.BlockReason.Combined ->
+                            "Revisa tu cuota y horario configurados"
+                  }
+          view.findViewById<TextView?>(R.id.block_reason)?.text = "Razón: $reasonText"
+          view.findViewById<TextView?>(R.id.block_message)?.text = msgText
         }
 
-        blockedOverlay!!.addView(customView)
+        blockedOverlay!!.addView(view)
       } catch (e: Exception) {
-        Log.w(TAG, "Could not inflate custom overlay layout", e)
+        Log.w(TAG, "No se pudo inflar layout del overlay", e)
       }
 
       val params =
               WindowManager.LayoutParams().apply {
-                type =
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                          WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
-                        } else {
-                          @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY
-                        }
+                type = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
                 format = PixelFormat.TRANSLUCENT
                 flags =
                         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -171,57 +134,68 @@ class AppBlockAccessibilityService : AccessibilityService() {
               }
 
       windowManager?.addView(blockedOverlay, params)
-      Log.i(TAG, "Block overlay shown for $packageName")
+      overlayPackage = pkg
+      Log.i(TAG, "Overlay mostrado para $pkg")
 
       handler.postDelayed(
               {
                 redirectToHome()
-                removeBlockOverlay()
+                removeOverlay()
+                ignoraEventosHasta = System.currentTimeMillis() + COOLDOWN_MS
               },
               OVERLAY_DURATION_MS
       )
     } catch (e: Exception) {
-      Log.e(TAG, "Error showing block overlay", e)
+      Log.e(TAG, "Error mostrando overlay", e)
       blockedOverlay = null
+      overlayPackage = null
     }
   }
 
-  private fun removeBlockOverlay() {
+  private fun removeOverlay() {
     try {
       if (blockedOverlay != null && windowManager != null) {
         windowManager!!.removeView(blockedOverlay)
-        blockedOverlay = null
-        Log.i(TAG, "Block overlay removed")
       }
-    } catch (e: Exception) {
-      Log.e(TAG, "Error removing block overlay", e)
-      blockedOverlay = null
-    }
+    } catch (_: Exception) {}
+    blockedOverlay = null
+    overlayPackage = null
   }
 
   private fun redirectToHome() {
     try {
-      val intent =
+      startActivity(
               Intent(Intent.ACTION_MAIN).apply {
                 addCategory(Intent.CATEGORY_HOME)
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK
               }
-      startActivity(intent)
-      Log.i(TAG, "Redirected to home")
+      )
     } catch (e: Exception) {
-      Log.e(TAG, "Error redirecting to home", e)
+      Log.e(TAG, "Error al redirigir al home", e)
     }
   }
 
+  private fun appName(pkg: String): String =
+          try {
+            packageManager
+                    .getApplicationLabel(packageManager.getApplicationInfo(pkg, 0))
+                    .toString()
+                    .take(20)
+          } catch (_: Exception) {
+            pkg.substringAfterLast(".").take(15)
+          }
+
   override fun onDestroy() {
     super.onDestroy()
-    removeBlockOverlay()
+    removeOverlay()
     scope.cancel()
-    Log.i(TAG, "AppBlockAccessibilityService destroyed")
   }
 
   companion object {
     private const val TAG = "AppBlockA11yService"
     private const val OVERLAY_DURATION_MS = 3000L
+    private const val COOLDOWN_MS = 2500L
+
+    private val IGNORED_PACKAGES = setOf("com.example.timelock", "com.android.systemui", "android")
   }
 }

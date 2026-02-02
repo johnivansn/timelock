@@ -16,6 +16,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
 
   bool _usage = false;
   bool _accessibility = false;
+  bool _overlay = false;
   bool _adminEnabled = false;
   bool _loading = true;
   bool _deviceAdmin = false;
@@ -31,6 +32,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       final u = await _ch.invokeMethod<bool>('checkUsagePermission') ?? false;
       final a =
           await _ch.invokeMethod<bool>('checkAccessibilityPermission') ?? false;
+      final o = await _ch.invokeMethod<bool>('checkOverlayPermission') ?? false;
       final admin = await _ch.invokeMethod<bool>('isAdminEnabled') ?? false;
       final deviceAdmin =
           await _ch.invokeMethod<bool>('isDeviceAdminEnabled') ?? false;
@@ -38,6 +40,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
         setState(() {
           _usage = u;
           _accessibility = a;
+          _overlay = o;
           _adminEnabled = admin;
           _deviceAdmin = deviceAdmin;
           _loading = false;
@@ -72,12 +75,21 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     } catch (_) {}
   }
 
+  Future<void> _requestOverlay() async {
+    try {
+      await _ch.invokeMethod('requestOverlayPermission');
+      await Future.delayed(const Duration(seconds: 2));
+      await _refresh();
+    } catch (_) {}
+  }
+
   Future<void> _configureAll() async {
     if (!_usage) await _requestUsage();
     if (!_accessibility) await _requestAccessibility();
+    if (!_overlay) await _requestOverlay();
   }
 
-  bool get _allOk => _usage && _accessibility;
+  bool get _allOk => _usage && _accessibility && _overlay;
 
   @override
   Widget build(BuildContext context) {
@@ -96,22 +108,14 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                ),
+                    AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.md),
                 child: _statusCard(),
               ),
             ),
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.xl,
-                  AppSpacing.lg,
-                  AppSpacing.xs,
-                ),
+                    AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, AppSpacing.xs),
                 child: Text(
                   'PERMISOS CRÍTICOS',
                   style: TextStyle(
@@ -144,6 +148,16 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                     critical: true,
                     onRequest: _requestAccessibility,
                   ),
+                  const SizedBox(height: AppSpacing.md),
+                  _permissionCard(
+                    icon: Icons.layers_rounded,
+                    title: 'Mostrar sobre otras apps',
+                    description:
+                        'Permite dibujar la pantalla de bloqueo encima de cualquier app',
+                    granted: _overlay,
+                    critical: true,
+                    onRequest: _requestOverlay,
+                  ),
                 ]),
               ),
             ),
@@ -164,11 +178,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.xl,
-                  AppSpacing.lg,
-                  AppSpacing.xs,
-                ),
+                    AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, AppSpacing.xs),
                 child: Text(
                   'MODO ADMINISTRADOR',
                   style: TextStyle(
@@ -189,11 +199,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
             const SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.xl,
-                  AppSpacing.lg,
-                  AppSpacing.xs,
-                ),
+                    AppSpacing.lg, AppSpacing.xl, AppSpacing.lg, AppSpacing.xs),
                 child: Text(
                   'PROTECCIÓN ADICIONAL',
                   style: TextStyle(
@@ -243,17 +249,15 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
               child: Text(
                 '¡Todo configurado correctamente!',
                 style: TextStyle(
-                  color: AppColors.success,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
+                    color: AppColors.success,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600),
               ),
             ),
           ],
         ),
       );
     }
-
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -268,10 +272,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
           Expanded(
             child: Text(
               'La app requiere estos permisos para funcionar',
-              style: TextStyle(
-                color: AppColors.warning,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: AppColors.warning, fontSize: 14),
             ),
           ),
         ],
@@ -328,9 +329,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                       if (critical)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm,
-                            vertical: 2,
-                          ),
+                              horizontal: AppSpacing.sm, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppColors.error.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(8),
@@ -351,10 +350,9 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                   Text(
                     description,
                     style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textTertiary,
-                      height: 1.4,
-                    ),
+                        fontSize: 13,
+                        color: AppColors.textTertiary,
+                        height: 1.4),
                   ),
                 ],
               ),
@@ -364,10 +362,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
               const Icon(Icons.check_circle_rounded,
                   color: AppColors.success, size: 24)
             else
-              TextButton(
-                onPressed: onRequest,
-                child: const Text('Habilitar'),
-              ),
+              TextButton(onPressed: onRequest, child: const Text('Habilitar')),
           ],
         ),
       ),
@@ -415,10 +410,9 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                         ? 'Se requiere PIN para modificar restricciones'
                         : 'Protege contra cambios accidentales',
                     style: const TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textTertiary,
-                      height: 1.4,
-                    ),
+                        fontSize: 13,
+                        color: AppColors.textTertiary,
+                        height: 1.4),
                   ),
                 ],
               ),

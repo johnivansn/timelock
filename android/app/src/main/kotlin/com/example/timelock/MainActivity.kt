@@ -6,6 +6,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ApplicationInfo
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
@@ -286,6 +287,17 @@ class MainActivity : FlutterActivity() {
               withContext(Dispatchers.Main) { result.error("GET_SCHEDULES_ERROR", e.message, null) }
             }
           }
+        }
+        "checkOverlayPermission" -> {
+          result.success(android.provider.Settings.canDrawOverlays(this))
+        }
+        "requestOverlayPermission" -> {
+          val intent = Intent(
+            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+            android.net.Uri.parse("package:$packageName")
+          )
+          startActivity(intent)
+          result.success(null)
         }
         "addSchedule" -> {
           val args = call.arguments as Map<*, *>
@@ -600,69 +612,55 @@ class MainActivity : FlutterActivity() {
 
   private fun getInstalledApps(): List<Map<String, Any>> {
     val pm = packageManager
-    val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-    val coreSystemPackages =
-            setOf(
-                    "com.example.timelock",
-                    "com.android.systemui",
-                    "android",
-                    "com.android.system",
-                    "com.android.launcher",
-                    "com.android.settings"
-            )
+
+    val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0L))
+    } else {
+      pm.getInstalledApplications(PackageManager.GET_META_DATA)
+    }
+
+    val coreSystemPackages = setOf(
+      "com.example.timelock",
+      "com.android.systemui",
+      "android",
+      "com.android.system",
+      "com.android.settings"
+    )
 
     return packages
-            .filter { !coreSystemPackages.contains(it.packageName) }
-            .distinctBy { it.packageName }
-            .map { appInfo ->
-              try {
-                val sourceDir = appInfo.sourceDir ?: ""
-                val inSystemPath = sourceDir.contains("/system/") || sourceDir.contains("/product/")
-                val inDataPath = sourceDir.contains("/data/app/")
-                val hasSystemFlag = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                val installerPackage =
-                        try {
-                          pm.getInstallerPackageName(appInfo.packageName)
-                        } catch (e: Exception) {
-                          null
-                        }
-                val hasPlayStoreInstaller =
-                        !installerPackage.isNullOrEmpty() &&
-                                installerPackage != "com.android.vending"
-                val isSystemApp =
-                        when {
-                          inSystemPath -> true
-                          hasPlayStoreInstaller -> false
-                          inDataPath && !hasSystemFlag ->
-                                  false
-                          else -> hasSystemFlag
-                        }
+      .filter { it.packageName !in coreSystemPackages }
+      .distinctBy { it.packageName }
+      .map { appInfo ->
+        val hasSystemFlag = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+        val hasUpdatedFlag = (appInfo.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+        val sourceDir = appInfo.sourceDir ?: ""
 
-                val appLabel = appInfo.loadLabel(pm).toString()
+        val isSystem = when {
+          hasUpdatedFlag -> false
+          sourceDir.contains("/data/app/") -> false
+          hasSystemFlag -> true
+          sourceDir.contains("/system/") || sourceDir.contains("/product/") -> true
+          else -> false
+        }
 
-                mapOf<String, Any>(
-                        "packageName" to appInfo.packageName,
-                        "appName" to appLabel,
-                        "isSystem" to isSystemApp
-                )
-              } catch (e: Exception) {
-                val sourceDir = appInfo.sourceDir ?: ""
-                val isSystemApp = !sourceDir.contains("/data/app/")
+        val appName = try {
+          appInfo.loadLabel(pm).toString()
+        } catch (_: Exception) {
+          appInfo.packageName
+        }
 
-                mapOf<String, Any>(
-                        "packageName" to appInfo.packageName,
-                        "appName" to appInfo.packageName,
-                        "isSystem" to isSystemApp
-                )
-              }
-            }
-            .sortedWith(
-                    compareBy(
-                            { (it["isSystem"] as? Boolean) ?: false },
-                            { it["appName"]?.toString()?.lowercase() ?: "" }
-                    )
-            )
+        mapOf<String, Any>(
+          "packageName" to appInfo.packageName,
+          "appName" to appName,
+          "isSystem" to isSystem
+        )
+      }
+      .sortedWith(compareBy(
+        { (it["isSystem"] as? Boolean) ?: false },
+        { it["appName"]?.toString()?.lowercase() ?: "" }
+      ))
   }
+
 
   private suspend fun getOptimizationStats(): Map<String, Any> {
     val cleanupStats = dataCleanupManager.getCleanupStats()
