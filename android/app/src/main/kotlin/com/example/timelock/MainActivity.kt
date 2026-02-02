@@ -5,8 +5,8 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
@@ -292,10 +292,12 @@ class MainActivity : FlutterActivity() {
           result.success(android.provider.Settings.canDrawOverlays(this))
         }
         "requestOverlayPermission" -> {
-          val intent = Intent(
-            android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-            android.net.Uri.parse("package:$packageName")
-          )
+          val intent =
+                  Intent(
+                          android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                          android.net.Uri.parse("package:$packageName")
+                  )
+          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
           startActivity(intent)
           result.success(null)
         }
@@ -403,6 +405,13 @@ class MainActivity : FlutterActivity() {
             }
           }
         }
+        "checkLocationPermission" -> {
+          result.success(hasLocationPermission())
+        }
+        "requestLocationPermission" -> {
+          requestLocationPermission()
+          result.success(null)
+        }
         else -> result.notImplemented()
       }
     }
@@ -411,6 +420,21 @@ class MainActivity : FlutterActivity() {
   override fun onDestroy() {
     super.onDestroy()
     scope.cancel()
+  }
+
+  private fun hasLocationPermission(): Boolean {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+              PackageManager.PERMISSION_GRANTED
+    } else {
+      true
+    }
+  }
+
+  private fun requestLocationPermission() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      requestPermissions(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), 1002)
+    }
   }
 
   private fun savePersistentNotificationPref(enabled: Boolean) {
@@ -613,54 +637,59 @@ class MainActivity : FlutterActivity() {
   private fun getInstalledApps(): List<Map<String, Any>> {
     val pm = packageManager
 
-    val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-      pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0L))
-    } else {
-      pm.getInstalledApplications(PackageManager.GET_META_DATA)
-    }
+    val packages =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+              pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(0L))
+            } else {
+              pm.getInstalledApplications(PackageManager.GET_META_DATA)
+            }
 
-    val coreSystemPackages = setOf(
-      "com.example.timelock",
-      "com.android.systemui",
-      "android",
-      "com.android.system",
-      "com.android.settings"
-    )
+    val coreSystemPackages =
+            setOf(
+                    "com.example.timelock",
+                    "com.android.systemui",
+                    "android",
+                    "com.android.system",
+                    "com.android.settings"
+            )
 
     return packages
-      .filter { it.packageName !in coreSystemPackages }
-      .distinctBy { it.packageName }
-      .map { appInfo ->
-        val hasSystemFlag = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-        val hasUpdatedFlag = (appInfo.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
-        val sourceDir = appInfo.sourceDir ?: ""
+            .filter { it.packageName !in coreSystemPackages }
+            .distinctBy { it.packageName }
+            .map { appInfo ->
+              val hasSystemFlag = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+              val hasUpdatedFlag = (appInfo.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
+              val sourceDir = appInfo.sourceDir ?: ""
 
-        val isSystem = when {
-          hasUpdatedFlag -> false
-          sourceDir.contains("/data/app/") -> false
-          hasSystemFlag -> true
-          sourceDir.contains("/system/") || sourceDir.contains("/product/") -> true
-          else -> false
-        }
+              val isSystem =
+                      when {
+                        hasUpdatedFlag -> false
+                        sourceDir.contains("/data/app/") -> false
+                        hasSystemFlag -> true
+                        sourceDir.contains("/system/") || sourceDir.contains("/product/") -> true
+                        else -> false
+                      }
 
-        val appName = try {
-          appInfo.loadLabel(pm).toString()
-        } catch (_: Exception) {
-          appInfo.packageName
-        }
+              val appName =
+                      try {
+                        appInfo.loadLabel(pm).toString()
+                      } catch (_: Exception) {
+                        appInfo.packageName
+                      }
 
-        mapOf<String, Any>(
-          "packageName" to appInfo.packageName,
-          "appName" to appName,
-          "isSystem" to isSystem
-        )
-      }
-      .sortedWith(compareBy(
-        { (it["isSystem"] as? Boolean) ?: false },
-        { it["appName"]?.toString()?.lowercase() ?: "" }
-      ))
+              mapOf<String, Any>(
+                      "packageName" to appInfo.packageName,
+                      "appName" to appName,
+                      "isSystem" to isSystem
+              )
+            }
+            .sortedWith(
+                    compareBy(
+                            { (it["isSystem"] as? Boolean) ?: false },
+                            { it["appName"]?.toString()?.lowercase() ?: "" }
+                    )
+            )
   }
-
 
   private suspend fun getOptimizationStats(): Map<String, Any> {
     val cleanupStats = dataCleanupManager.getCleanupStats()
@@ -678,6 +707,16 @@ class MainActivity : FlutterActivity() {
   }
 
   private suspend fun getSavedWifiNetworks(): List<String> {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      val hasPermission =
+              checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+                      PackageManager.PERMISSION_GRANTED
+
+      if (!hasPermission) {
+        requestPermissions(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), 1002)
+      }
+    }
+
     val cached = wifiCacheManager.getCachedNetworks()
     if (cached != null) {
       return cached
@@ -696,6 +735,7 @@ class MainActivity : FlutterActivity() {
       val capabilities = connectivityManager.getNetworkCapabilities(network)
 
       if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
+        @Suppress("DEPRECATION")
         val currentSSID = wifiManager.connectionInfo?.ssid?.removeSurrounding("\"")
         if (!currentSSID.isNullOrEmpty() && currentSSID != "<unknown ssid>") {
           allSSIDs.add(currentSSID)

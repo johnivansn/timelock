@@ -68,43 +68,54 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
   }
 
   fun getCurrentSSID(): String? {
-    val now = System.currentTimeMillis()
-    if (now - lastWifiCheckTime < wifiCheckInterval && currentSSID != null) {
-      return currentSSID
-    }
-    lastWifiCheckTime = now
-
-    return try {
-      @Suppress("DEPRECATION") val wifiInfo = wifiManager.connectionInfo
-
-      if (wifiInfo != null && wifiInfo.networkId != -1) {
-        val ssid = wifiInfo.ssid?.removeSurrounding("\"")
-        if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>" && ssid != "0x") {
-          Log.d("NetworkMonitor", "WiFi SSID obtenido: $ssid")
-          return ssid
-        }
-      }
-
-      val activeNetwork = connectivityManager.activeNetwork
-      if (activeNetwork != null) {
-        val caps = connectivityManager.getNetworkCapabilities(activeNetwork)
-        if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-          val networkId = wifiInfo?.networkId ?: -1
-          if (networkId != -1) {
-            val stableId = "WiFi_Network_$networkId"
-            Log.d("NetworkMonitor", "WiFi conectada, usando ID estable: $stableId")
-            return stableId
-          }
-        }
-      }
-
-      Log.d("NetworkMonitor", "No hay conexión WiFi")
-      null
-    } catch (e: Exception) {
-      Log.e("NetworkMonitor", "Error obteniendo SSID", e)
-      null
-    }
+  val now = System.currentTimeMillis()
+  if (now - lastWifiCheckTime < wifiCheckInterval && currentSSID != null) {
+    return currentSSID
   }
+  lastWifiCheckTime = now
+
+  return try {
+    val activeNetwork = connectivityManager.activeNetwork
+    val caps = connectivityManager.getNetworkCapabilities(activeNetwork)
+
+    if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) != true) {
+      Log.d("NetworkMonitor", "No hay conexión WiFi")
+      return null
+    }
+
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+      @Suppress("DEPRECATION") val wifiInfo = wifiManager.connectionInfo
+      val ssid = wifiInfo?.ssid?.removeSurrounding("\"")
+
+      if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>" && ssid != "0x") {
+        Log.d("NetworkMonitor", "WiFi SSID obtenido: $ssid")
+        return ssid
+      }
+
+      val networkId = wifiInfo?.networkId ?: -1
+      if (networkId != -1) {
+        val stableId = "WiFi_Network_$networkId"
+        Log.d("NetworkMonitor", "Usando ID estable: $stableId")
+        return stableId
+      }
+    } else {
+      @Suppress("DEPRECATION") val wifiInfo = wifiManager.connectionInfo
+      val ssid = wifiInfo?.ssid?.removeSurrounding("\"")
+
+      if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>") {
+        Log.d("NetworkMonitor", "WiFi SSID obtenido: $ssid")
+        return ssid
+      }
+    }
+
+    Log.d("NetworkMonitor", "No se pudo obtener SSID")
+    null
+  } catch (e: Exception) {
+    Log.e("NetworkMonitor", "Error obteniendo SSID", e)
+    null
+  }
+}
+
 
   private fun refreshSSID() {
     val ssid = getCurrentSSID()

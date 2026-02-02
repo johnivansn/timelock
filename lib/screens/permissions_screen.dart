@@ -13,7 +13,7 @@ class PermissionsScreen extends StatefulWidget {
 
 class _PermissionsScreenState extends State<PermissionsScreen> {
   static const _ch = MethodChannel('app.restriction/config');
-
+bool _location = false;
   bool _usage = false;
   bool _accessibility = false;
   bool _overlay = false;
@@ -27,12 +27,14 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     _refresh();
   }
 
-  Future<void> _refresh() async {
+Future<void> _refresh() async {
     try {
       final u = await _ch.invokeMethod<bool>('checkUsagePermission') ?? false;
       final a =
           await _ch.invokeMethod<bool>('checkAccessibilityPermission') ?? false;
       final o = await _ch.invokeMethod<bool>('checkOverlayPermission') ?? false;
+      final loc =
+          await _ch.invokeMethod<bool>('checkLocationPermission') ?? false;
       final admin = await _ch.invokeMethod<bool>('isAdminEnabled') ?? false;
       final deviceAdmin =
           await _ch.invokeMethod<bool>('isDeviceAdminEnabled') ?? false;
@@ -41,6 +43,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
           _usage = u;
           _accessibility = a;
           _overlay = o;
+          _location = loc;
           _adminEnabled = admin;
           _deviceAdmin = deviceAdmin;
           _loading = false;
@@ -49,6 +52,13 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+  Future<void> _requestLocation() async {
+    try {
+      await _ch.invokeMethod('requestLocationPermission');
+      await Future.delayed(const Duration(seconds: 2));
+      await _refresh();
+    } catch (_) {}
   }
 
   Future<void> _requestDeviceAdmin() async {
@@ -89,7 +99,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     if (!_overlay) await _requestOverlay();
   }
 
-  bool get _allOk => _usage && _accessibility && _overlay;
+ bool get _allOk => _usage && _accessibility && _overlay && _location;
 
   @override
   Widget build(BuildContext context) {
@@ -147,6 +157,16 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                     granted: _accessibility,
                     critical: true,
                     onRequest: _requestAccessibility,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _permissionCard(
+                    icon: Icons.location_on_outlined,
+                    title: 'Ubicación',
+                    description:
+                        'Necesario para detectar redes WiFi en Android 10+',
+                    granted: _location,
+                    critical: true,
+                    onRequest: _requestLocation,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   _permissionCard(
