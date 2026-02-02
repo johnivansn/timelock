@@ -5,6 +5,8 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -25,10 +27,12 @@ class AppBlockAccessibilityService : AccessibilityService() {
   private var windowManager: WindowManager? = null
   private lateinit var blockingEngine: BlockingEngine
   private val scope = CoroutineScope(Dispatchers.Main + Job())
+  private val handler = Handler(Looper.getMainLooper())
 
   private var overlayPackage: String? = null
-  private var ignoraEventosHasta: Long = 0L
-  private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+  private var lastCheckTime = 0L
+  private val checkInterval = 1000L
+  private var redirectScheduled = false
 
   override fun onServiceConnected() {
     super.onServiceConnected()
@@ -38,6 +42,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
     val info = AccessibilityServiceInfo()
     info.eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
     info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
+    info.flags = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
     serviceInfo = info
 
     Log.i(TAG, "Service connected")
@@ -48,8 +53,6 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
     val pkg = event.packageName?.toString() ?: return
 
-    if (System.currentTimeMillis() < ignoraEventosHasta) return
-
     if (pkg in IGNORED_PACKAGES) {
       if (overlayPackage != null) {
         removeOverlay()
@@ -57,21 +60,33 @@ class AppBlockAccessibilityService : AccessibilityService() {
       return
     }
 
-    if (overlayPackage == pkg) return
+    val now = System.currentTimeMillis()
+    if (now - lastCheckTime < checkInterval && overlayPackage == pkg) {
+      return
+    }
+    lastCheckTime = now
+
+    if (overlayPackage == pkg && blockedOverlay != null) {
+      return
+    }
 
     if (overlayPackage != null && overlayPackage != pkg) {
       handler.removeCallbacksAndMessages(null)
       removeOverlay()
+      redirectScheduled = false
     }
 
     scope.launch {
       val reason = blockingEngine.shouldBlockSync(pkg)
       if (reason != null) {
-        showOverlay(pkg, reason)
+        if (overlayPackage != pkg) {
+          showOverlay(pkg, reason)
+        }
       } else {
-        if (overlayPackage != null) {
+        if (overlayPackage == pkg) {
           handler.removeCallbacksAndMessages(null)
           removeOverlay()
+          redirectScheduled = false
         }
       }
     }
@@ -80,10 +95,11 @@ class AppBlockAccessibilityService : AccessibilityService() {
   override fun onInterrupt() {}
 
   private fun showOverlay(pkg: String, reason: BlockingEngine.BlockReason) {
-    if (blockedOverlay != null && overlayPackage == pkg) return
+    if (blockedOverlay != null && overlayPackage == pkg) {
+      return
+    }
 
     try {
-      // Remover overlay anterior si existe
       if (blockedOverlay != null) {
         try {
           windowManager?.removeView(blockedOverlay)
@@ -148,24 +164,25 @@ class AppBlockAccessibilityService : AccessibilityService() {
       overlayPackage = pkg
       Log.i(TAG, "Overlay mostrado para $pkg")
 
-      handler.removeCallbacksAndMessages(null)
-      handler.postDelayed(
-              {
-                if (overlayPackage == pkg) {
-                  redirectToHome()
-                  removeOverlay()
-                  ignoraEventosHasta = System.currentTimeMillis() + COOLDOWN_MS
-                }
-              },
-              OVERLAY_DURATION_MS
-      )
+      if (!redirectScheduled) {
+        redirectScheduled = true
+        handler.postDelayed(
+                {
+                  if (overlayPackage == pkg) {
+                    redirectToHome()
+                    removeOverlay()
+                    redirectScheduled = false
+                    lastCheckTime = System.currentTimeMillis() + 2000L
+                  }
+                },
+                OVERLAY_DURATION_MS
+        )
+      }
     } catch (e: Exception) {
       Log.e(TAG, "Error mostrando overlay", e)
       blockedOverlay = null
       overlayPackage = null
-    }
-  }
-      overlayPackage = null
+      redirectScheduled = false
     }
   }
 
@@ -174,7 +191,9 @@ class AppBlockAccessibilityService : AccessibilityService() {
       if (blockedOverlay != null && windowManager != null) {
         windowManager!!.removeView(blockedOverlay)
       }
-    } catch (_: Exception) {}
+    } catch (e: Exception) {
+      Log.w(TAG, "Error removing overlay", e)
+    }
     blockedOverlay = null
     overlayPackage = null
   }
@@ -204,6 +223,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
   override fun onDestroy() {
     super.onDestroy()
+    handler.removeCallbacksAndMessages(null)
     removeOverlay()
     scope.cancel()
   }
@@ -211,8 +231,14 @@ class AppBlockAccessibilityService : AccessibilityService() {
   companion object {
     private const val TAG = "AppBlockA11yService"
     private const val OVERLAY_DURATION_MS = 3000L
-    private const val COOLDOWN_MS = 2500L
 
-    private val IGNORED_PACKAGES = setOf("com.example.timelock", "com.android.systemui", "android")
+    private val IGNORED_PACKAGES =
+            setOf(
+                    "com.example.timelock",
+                    "com.android.systemui",
+                    "android",
+                    "com.android.launcher",
+                    "com.android.launcher3"
+            )
   }
 }

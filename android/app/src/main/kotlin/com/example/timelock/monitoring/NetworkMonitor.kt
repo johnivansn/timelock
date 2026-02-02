@@ -23,6 +23,8 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
   private val database = AppDatabase.getDatabase(context)
   private val blockingEngine = BlockingEngine(context)
   private var currentSSID: String? = null
+  private var lastWifiCheckTime = 0L
+  private val wifiCheckInterval = 5000L // Check every 5 seconds max
 
   private val networkCallback =
           object : ConnectivityManager.NetworkCallback() {
@@ -35,8 +37,6 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
 
             override fun onLost(network: Network) {
               super.onLost(network)
-              val caps = connectivityManager.getNetworkCapabilities(network)
-              if (caps != null && !caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return
               handleDisconnect()
             }
 
@@ -68,11 +68,18 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
   }
 
   fun getCurrentSSID(): String? {
+    val now = System.currentTimeMillis()
+    if (now - lastWifiCheckTime < wifiCheckInterval && currentSSID != null) {
+      return currentSSID
+    }
+    lastWifiCheckTime = now
+
     return try {
-      @Suppress("DEPRECATION") val info = wifiManager.connectionInfo
-      if (info != null && info.networkId != -1) {
-        val ssid = info.ssid?.removeSurrounding("\"")
-        if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>") {
+      @Suppress("DEPRECATION") val wifiInfo = wifiManager.connectionInfo
+
+      if (wifiInfo != null && wifiInfo.networkId != -1) {
+        val ssid = wifiInfo.ssid?.removeSurrounding("\"")
+        if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>" && ssid != "0x") {
           Log.d("NetworkMonitor", "WiFi SSID obtenido: $ssid")
           return ssid
         }
@@ -82,17 +89,16 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
       if (activeNetwork != null) {
         val caps = connectivityManager.getNetworkCapabilities(activeNetwork)
         if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
-          // Fallback a usar la BSSID como identificador
-          val bssid = info?.bssid
-          if (!bssid.isNullOrEmpty() && bssid != "02:00:00:00:00:00") {
-            Log.d("NetworkMonitor", "WiFi identificado por BSSID: $bssid")
-            return bssid
+          val networkId = wifiInfo?.networkId ?: -1
+          if (networkId != -1) {
+            val stableId = "WiFi_Network_$networkId"
+            Log.d("NetworkMonitor", "WiFi conectada, usando ID estable: $stableId")
+            return stableId
           }
-          Log.d("NetworkMonitor", "WiFi conectada pero SSID no disponible - usando genérico")
-          return "WiFi_${System.currentTimeMillis() / 60000}"
         }
       }
 
+      Log.d("NetworkMonitor", "No hay conexión WiFi")
       null
     } catch (e: Exception) {
       Log.e("NetworkMonitor", "Error obteniendo SSID", e)
@@ -102,18 +108,25 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
 
   private fun refreshSSID() {
     val ssid = getCurrentSSID()
+
     if (ssid == currentSSID) return
-    Log.i("NetworkMonitor", "SSID changed: ${currentSSID} -> $ssid")
+
+    Log.i("NetworkMonitor", "SSID changed: $currentSSID -> $ssid")
+    val previousSSID = currentSSID
     currentSSID = ssid
+
     if (ssid != null) {
       handleConnect(ssid)
       recordWifiHistory(ssid)
-    } else {
+    } else if (previousSSID != null) {
       handleDisconnect()
     }
   }
 
   private fun recordWifiHistory(ssid: String) {
+    // Don't record generic IDs
+    if (ssid.startsWith("WiFi_Network_")) return
+
     scope.launch(Dispatchers.IO) {
       try {
         val existing = database.wifiHistoryDao().getAll().find { it.ssid == ssid }
@@ -144,7 +157,15 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
     scope.launch(Dispatchers.IO) {
       val restrictions = database.appRestrictionDao().getEnabled()
       for (restriction in restrictions) {
-        if (ssid in restriction.getBlockedWifiList()) {
+        val blockedSSIDs = restriction.getBlockedWifiList()
+
+        val isBlocked =
+                blockedSSIDs.any { blocked ->
+                  blocked == ssid ||
+                          (ssid.startsWith("WiFi_Network_") && blocked.startsWith("WiFi_Network_"))
+                }
+
+        if (isBlocked) {
           val blocked =
                   blockingEngine.blockApp(
                           restriction.packageName,
@@ -161,9 +182,8 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
       val restrictions = database.appRestrictionDao().getEnabled()
       for (restriction in restrictions) {
         if (restriction.getBlockedWifiList().isEmpty()) continue
-        val stillOnBlockedWifi =
-                currentSSID != null && currentSSID in restriction.getBlockedWifiList()
-        if (!stillOnBlockedWifi && !blockingEngine.isQuotaBlocked(restriction.packageName)) {
+
+        if (!blockingEngine.isQuotaBlocked(restriction.packageName)) {
           blockingEngine.unblockApp(restriction.packageName)
           Log.i("NetworkMonitor", "${restriction.packageName} unblocked - left WiFi")
         }
