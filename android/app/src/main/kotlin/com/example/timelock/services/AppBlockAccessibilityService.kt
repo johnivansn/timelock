@@ -30,6 +30,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
   private var overlayShown = false
   private var blockStartTime = 0L
   private var isOverlayAttached = false
+  private var blockReceiver: android.content.BroadcastReceiver? = null
 
   companion object {
     private const val TAG = "AccessibilityService"
@@ -47,7 +48,45 @@ class AppBlockAccessibilityService : AccessibilityService() {
     super.onServiceConnected()
     blockingEngine = BlockingEngine(this)
     windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+    setupBlockReceiver()
     Log.d(TAG, "Service connected")
+  }
+
+  private fun setupBlockReceiver() {
+    blockReceiver =
+            object : android.content.BroadcastReceiver() {
+              override fun onReceive(
+                      context: android.content.Context?,
+                      intent: android.content.Intent?
+              ) {
+                if (intent?.action == "com.example.timelock.BLOCK_APP") {
+                  val packageName = intent.getStringExtra("packageName")
+                  if (packageName != null) {
+                    Log.i(TAG, "Recibida señal de bloqueo para $packageName")
+                    handler.post { forceBlockNow(packageName) }
+                  }
+                }
+              }
+            }
+
+    val filter = android.content.IntentFilter("com.example.timelock.BLOCK_APP")
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+      registerReceiver(blockReceiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+    } else {
+      registerReceiver(blockReceiver, filter)
+    }
+    Log.d(TAG, "Block receiver registrado")
+  }
+
+  private fun forceBlockNow(packageName: String) {
+    Log.w(TAG, "Forzando bloqueo inmediato de $packageName")
+    val currentPackage = rootInActiveWindow?.packageName?.toString()
+    if (currentPackage == packageName) {
+      Log.i(TAG, "App está activa, bloqueando ahora")
+      blockApp(packageName)
+    } else {
+      Log.d(TAG, "App no está activa actualmente (actual: $currentPackage)")
+    }
   }
 
   override fun onAccessibilityEvent(event: AccessibilityEvent) {
@@ -62,10 +101,8 @@ class AppBlockAccessibilityService : AccessibilityService() {
       return
     }
 
-    val now = System.currentTimeMillis()
-
     if (currentBlockedPackage == packageName && overlayShown) {
-      if (now - blockStartTime > 5000) {
+      if (System.currentTimeMillis() - blockStartTime > 5000) {
         Log.w(TAG, "Usuario persistente en $packageName, reforzando bloqueo")
         forceHomeScreen()
       }
@@ -89,7 +126,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
       currentBlockedPackage = packageName
       blockStartTime = System.currentTimeMillis()
       overlayShown = true
-      
+
       Log.i(TAG, "Bloqueando app: $packageName")
 
       showBlockOverlay(packageName)
@@ -212,6 +249,16 @@ class AppBlockAccessibilityService : AccessibilityService() {
     super.onDestroy()
     cleanupOverlay()
     scope.cancel()
+
+    try {
+      if (blockReceiver != null) {
+        unregisterReceiver(blockReceiver)
+        Log.d(TAG, "Block receiver desregistrado")
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Error desregistrando receiver", e)
+    }
+
     Log.d(TAG, "Service destroyed")
   }
 }
