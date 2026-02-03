@@ -15,8 +15,14 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.monitoring.NetworkMonitor
+import com.example.timelock.monitoring.ScheduleMonitor
 import com.example.timelock.monitoring.UsageStatsMonitor
+import com.example.timelock.notifications.PersistentNotification
+import com.example.timelock.optimization.BatteryModeManager
+import com.example.timelock.optimization.DataCleanupManager
 import com.example.timelock.receivers.DailyResetReceiver
+import com.example.timelock.widget.AppTimeWidget
+import com.example.timelock.widget.AppTimeWidgetMedium
 import java.util.Calendar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,10 +34,13 @@ import kotlinx.coroutines.withContext
 class UsageMonitorService : Service() {
   private lateinit var usageStatsMonitor: UsageStatsMonitor
   private lateinit var networkMonitor: NetworkMonitor
+  private lateinit var scheduleMonitor: ScheduleMonitor
+  private lateinit var persistentNotification: PersistentNotification
   private lateinit var database: AppDatabase
+  private lateinit var batteryModeManager: BatteryModeManager
+  private lateinit var dataCleanupManager: DataCleanupManager
   private val handler = Handler(Looper.getMainLooper())
   private val scope = CoroutineScope(Dispatchers.IO + Job())
-  private val updateInterval = 30000L
   private var monitoredAppsCount = 0
 
   private val updateRunnable =
@@ -39,7 +48,13 @@ class UsageMonitorService : Service() {
             override fun run() {
               usageStatsMonitor.updateAllUsage()
               updateNotification()
-              handler.postDelayed(this, updateInterval)
+              updateWidgets()
+              updatePersistentNotification()
+
+              scope.launch { dataCleanupManager.performCleanupIfNeeded() }
+
+              val interval = batteryModeManager.getUpdateInterval()
+              handler.postDelayed(this, interval)
             }
           }
 
@@ -48,10 +63,17 @@ class UsageMonitorService : Service() {
     database = AppDatabase.getDatabase(this)
     usageStatsMonitor = UsageStatsMonitor(this)
     networkMonitor = NetworkMonitor(this, scope)
+    scheduleMonitor = ScheduleMonitor(this)
+    persistentNotification = PersistentNotification(this)
+    batteryModeManager = BatteryModeManager(this)
+    dataCleanupManager = DataCleanupManager(this)
     createNotificationChannel()
     startForeground(NOTIFICATION_ID, createNotification())
     scheduleDailyReset()
     networkMonitor.start()
+    persistentNotification.show()
+
+    scope.launch { dataCleanupManager.performCleanupIfNeeded() }
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -65,6 +87,7 @@ class UsageMonitorService : Service() {
     super.onDestroy()
     handler.removeCallbacks(updateRunnable)
     networkMonitor.stop()
+    persistentNotification.hide()
     scope.cancel()
   }
 
@@ -140,6 +163,15 @@ class UsageMonitorService : Service() {
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
       }
     }
+  }
+
+  private fun updateWidgets() {
+    AppTimeWidget.updateWidget(this)
+    AppTimeWidgetMedium.updateWidget(this)
+  }
+
+  private fun updatePersistentNotification() {
+    persistentNotification.show()
   }
 
   companion object {

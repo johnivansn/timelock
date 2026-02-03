@@ -5,11 +5,13 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.example.timelock.database.AppDatabase
+import com.example.timelock.monitoring.ScheduleMonitor
 import com.example.timelock.monitoring.UsageStatsMonitor
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class DailyResetReceiver : BroadcastReceiver() {
@@ -17,7 +19,9 @@ class DailyResetReceiver : BroadcastReceiver() {
     Log.i("DailyResetReceiver", "Daily reset triggered at ${Date()}")
 
     val database = AppDatabase.getDatabase(context)
+    val scope = CoroutineScope(Dispatchers.IO + Job())
     val usageStatsMonitor = UsageStatsMonitor(context)
+    val scheduleMonitor = ScheduleMonitor(context)
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val today = dateFormat.format(Date())
     val yesterday =
@@ -26,11 +30,12 @@ class DailyResetReceiver : BroadcastReceiver() {
             }
     val pendingResult = goAsync()
 
-    CoroutineScope(Dispatchers.IO).launch {
+    scope.launch {
       try {
         database.dailyUsageDao().resetUsageForDate(today)
         database.dailyUsageDao().deleteOldUsage(yesterday)
         usageStatsMonitor.resetNotificationFlags()
+        scheduleMonitor.resetNotificationFlags()
         Log.i("DailyResetReceiver", "Reset completed for $today, purged before $yesterday")
       } catch (e: Exception) {
         Log.e("DailyResetReceiver", "Reset failed", e)

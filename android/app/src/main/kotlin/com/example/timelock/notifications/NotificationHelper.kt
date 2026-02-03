@@ -18,10 +18,12 @@ class NotificationHelper(private val context: Context) {
   companion object {
     private const val CHANNEL_QUOTA_WARNINGS = "quota_warnings"
     private const val CHANNEL_APP_BLOCKED = "app_blocked"
+    private const val CHANNEL_SCHEDULE = "schedule_warnings"
 
     private const val NOTIFICATION_ID_QUOTA_25 = 1001
     private const val NOTIFICATION_ID_QUOTA_10 = 1002
     private const val NOTIFICATION_ID_BLOCKED = 1003
+    private const val NOTIFICATION_ID_SCHEDULE = 1004
   }
 
   init {
@@ -52,8 +54,20 @@ class NotificationHelper(private val context: Context) {
                         enableVibration(true)
                       }
 
+      val scheduleChannel =
+              NotificationChannel(
+                              CHANNEL_SCHEDULE,
+                              "Horarios de Bloqueo",
+                              NotificationManager.IMPORTANCE_DEFAULT
+                      )
+                      .apply {
+                        description = "Notificaciones sobre bloqueos programados"
+                        enableVibration(true)
+                      }
+
       notificationManager.createNotificationChannel(quotaChannel)
       notificationManager.createNotificationChannel(blockedChannel)
+      notificationManager.createNotificationChannel(scheduleChannel)
     }
   }
 
@@ -132,6 +146,7 @@ class NotificationHelper(private val context: Context) {
             when (reason) {
               BlockReason.QUOTA_EXCEEDED -> "Cuota diaria consumida. Se desbloqueará a medianoche."
               BlockReason.WIFI_BLOCKED -> "Bloqueada en esta red WiFi."
+              BlockReason.SCHEDULE_BLOCKED -> "Bloqueada por horario programado."
               BlockReason.MANUAL -> "Bloqueada manualmente."
             }
 
@@ -148,6 +163,34 @@ class NotificationHelper(private val context: Context) {
     notificationManager.notify(NOTIFICATION_ID_BLOCKED, notification)
   }
 
+  fun notifyScheduleUpcoming(appName: String, minutes: Int) {
+    if (!prefs.scheduleEnabled) return
+
+    val intent =
+            Intent(context, MainActivity::class.java).apply {
+              flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            }
+    val pendingIntent =
+            PendingIntent.getActivity(
+                    context,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+    val notification =
+            NotificationCompat.Builder(context, CHANNEL_SCHEDULE)
+                    .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                    .setContentTitle("⏰ Bloqueo próximo")
+                    .setContentText("$appName se bloqueará en ${minutes}m")
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setContentIntent(pendingIntent)
+                    .setAutoCancel(true)
+                    .build()
+
+    notificationManager.notify(NOTIFICATION_ID_SCHEDULE, notification)
+  }
+
   fun cancelAll() {
     notificationManager.cancelAll()
   }
@@ -155,6 +198,7 @@ class NotificationHelper(private val context: Context) {
   enum class BlockReason {
     QUOTA_EXCEEDED,
     WIFI_BLOCKED,
+    SCHEDULE_BLOCKED,
     MANUAL
   }
 }

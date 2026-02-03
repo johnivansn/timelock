@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:timelock/theme/app_theme.dart';
 
 class WifiPickerDialog extends StatefulWidget {
   const WifiPickerDialog({
@@ -84,183 +85,161 @@ class _WifiPickerDialogState extends State<WifiPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      type: MaterialType.transparency,
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        child: Container(
-          color: const Color(0xFF1A1A2E),
-          child: DraggableScrollableSheet(
-            initialChildSize: 0.55,
-            minChildSize: 0.4,
-            maxChildSize: 0.8,
-            builder: (_, scroll) {
-              return Column(
+    return SingleChildScrollView(
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Row(
                 children: [
-                  const SizedBox(height: 8),
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2A2A3E),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Bloqueo por WiFi',
-                                style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white),
-                              ),
-                              Text(
-                                widget.appName,
-                                style: const TextStyle(
-                                    fontSize: 13, color: Colors.white38),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (_currentWifi != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0x1A27AE60),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.wifi,
-                                    color: Color(0xFF27AE60), size: 14),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _currentWifi!,
-                                  style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Color(0xFF27AE60),
-                                      fontWeight: FontWeight.w500),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 14),
-                            controller: TextEditingController(text: _manual),
-                            onChanged: (v) => setState(() => _manual = v),
-                            onSubmitted: (_) => _addManual(),
-                            decoration: InputDecoration(
-                              hintText: 'Nombre de red manual...',
-                              hintStyle: const TextStyle(
-                                  color: Colors.white38, fontSize: 13),
-                              prefixIcon: const Icon(Icons.wifi_outlined,
-                                  color: Colors.white38, size: 20),
-                              filled: true,
-                              fillColor: const Color(0xFF2A2A3E),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 10),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: _addManual,
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6C5CE7),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Center(
-                              child: Icon(Icons.add,
-                                  color: Colors.white, size: 20),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   Expanded(
-                    child: _loading
-                        ? const Center(
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : _available.isEmpty
-                            ? const Center(
-                                child: Text(
-                                  'No se encontraron redes guardadas.\nAgrega una manualmente.',
-                                  style: TextStyle(
-                                      color: Colors.white38, fontSize: 13),
-                                  textAlign: TextAlign.center,
-                                ),
-                              )
-                            : ListView.builder(
-                                controller: scroll,
-                                itemCount: _available.length,
-                                itemBuilder: (_, i) =>
-                                    _networkTile(_available[i]),
-                              ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: ElevatedButton(
-                        onPressed: _save,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF6C5CE7),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                          elevation: 0,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Bloqueo por WiFi',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
-                        child: Text(
-                          _selected.isEmpty
-                              ? 'Guardar (sin redes)'
-                              : 'Guardar — ${_selected.length} red${_selected.length == 1 ? '' : 'es'}',
+                        Text(
+                          widget.appName,
                           style: const TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.w600),
+                            fontSize: 14,
+                            color: AppColors.textTertiary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
+                      ],
+                    ),
+                  ),
+                  if (_currentWifi != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.xs,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.wifi_rounded,
+                              color: AppColors.success, size: 16),
+                          const SizedBox(width: AppSpacing.xs),
+                          Text(
+                            _currentWifi!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: TextEditingController(text: _manual),
+                      onChanged: (v) => setState(() => _manual = v),
+                      onSubmitted: (_) => _addManual(),
+                      decoration: const InputDecoration(
+                        hintText: 'Agregar red manualmente...',
+                        prefixIcon: Icon(Icons.wifi_outlined, size: 22),
                       ),
                     ),
                   ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
+                  const SizedBox(width: AppSpacing.sm),
+                  IconButton(
+                    onPressed: _addManual,
+                    icon: const Icon(Icons.add_rounded),
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                    ),
+                  ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.4,
+                  ),
+                  child: _loading
+                      ? const Center(
+                          child: CircularProgressIndicator(strokeWidth: 3))
+                      : _available.isEmpty
+                          ? const Center(
+                              child: Text(
+                                'No hay redes guardadas\nAgrega una manualmente',
+                                style: TextStyle(
+                                  color: AppColors.textTertiary,
+                                  fontSize: 14,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.lg),
+                              itemCount: _available.length,
+                              itemBuilder: (_, i) =>
+                                  _networkTile(_available[i]),
+                            ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: _save,
+                      child: Text(
+                        _selected.isEmpty
+                            ? 'Guardar sin redes'
+                            : 'Guardar ${_selected.length} red${_selected.length == 1 ? '' : 'es'}',
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+      )
     );
   }
 
@@ -268,67 +247,79 @@ class _WifiPickerDialogState extends State<WifiPickerDialog> {
     final isSelected = _selected.contains(ssid);
     final isCurrent = ssid == _currentWifi;
 
-    return InkWell(
-      onTap: () => _toggle(ssid),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: InkWell(
+        onTap: () => _toggle(ssid),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0x1A6C5CE7) : null,
-            border: isSelected
-                ? Border.all(color: const Color(0xFF6C5CE7), width: 1)
-                : null,
-            borderRadius: BorderRadius.circular(12),
-          ),
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: isSelected
+              ? BoxDecoration(
+                  border: Border.all(color: AppColors.primary, width: 2),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                )
+              : null,
           child: Row(
             children: [
               Icon(
-                Icons.wifi,
-                color: isCurrent ? const Color(0xFF27AE60) : Colors.white38,
-                size: 20,
+                Icons.wifi_rounded,
+                color: isCurrent ? AppColors.success : AppColors.textSecondary,
+                size: 22,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Text(
-                        ssid,
-                        style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            ssid,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isCurrent) ...[
+                          const SizedBox(width: AppSpacing.sm),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.success.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'ACTUAL',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.success,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    if (isCurrent) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0x1A27AE60),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'actual',
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: Color(0xFF27AE60),
-                              fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Icon(
-                isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-                color: isSelected ? const Color(0xFF6C5CE7) : Colors.white24,
-                size: 22,
+                isSelected
+                    ? Icons.check_circle_rounded
+                    : Icons.radio_button_unchecked_rounded,
+                color: isSelected ? AppColors.primary : AppColors.textTertiary,
+                size: 24,
               ),
             ],
           ),

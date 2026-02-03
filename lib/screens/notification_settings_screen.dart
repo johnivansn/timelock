@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:timelock/theme/app_theme.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -52,7 +53,6 @@ class _NotificationSettingsScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Configuración guardada'),
-            backgroundColor: Color(0xFF27AE60),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -63,51 +63,44 @@ class _NotificationSettingsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
       body: CustomScrollView(
         slivers: [
-          SliverAppBar(
+          const SliverAppBar(
             pinned: true,
-            backgroundColor: const Color(0xFF0F0F1A),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new,
-                  color: Colors.white70, size: 20),
-              onPressed: () => Navigator.pop(context),
-            ),
-            title: const Text(
-              'Notificaciones',
-              style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white),
-            ),
+            title: Text('Notificaciones'),
           ),
           if (_loading)
             const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              child: Center(child: CircularProgressIndicator(strokeWidth: 3)),
             )
           else ...[
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                ),
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   decoration: BoxDecoration(
-                    color: const Color(0x1A6C5CE7),
-                    border:
-                        Border.all(color: const Color(0xFF6C5CE7), width: 1),
-                    borderRadius: BorderRadius.circular(16),
+                    color: AppColors.info.withValues(alpha: 0.1),
+                    border: Border.all(color: AppColors.info, width: 1),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.info_outline,
-                          color: Color(0xFF6C5CE7), size: 24),
-                      SizedBox(width: 12),
+                      Icon(Icons.info_outline_rounded,
+                          color: AppColors.info, size: 24),
+                      SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Text(
                           'Configura qué notificaciones quieres recibir',
-                          style:
-                              TextStyle(color: Color(0xFF6C5CE7), fontSize: 13),
+                          style: TextStyle(
+                            color: AppColors.info,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ],
@@ -117,75 +110,77 @@ class _NotificationSettingsScreenState
             ),
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 24, 16, 4),
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.xl,
+                  AppSpacing.lg,
+                  AppSpacing.xs,
+                ),
                 child: Text(
                   'ADVERTENCIAS DE CUOTA',
                   style: TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white38,
-                    letterSpacing: 1.0,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textTertiary,
+                    letterSpacing: 1.2,
                   ),
                 ),
               ),
             ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _notificationToggle(
-                  icon: Icons.warning_amber_outlined,
-                  title: 'Queda 25% de tiempo',
-                  description:
-                      'Notificación cuando consumes el 75% de tu cuota diaria',
-                  value: _quota25Enabled,
-                  onChanged: (val) {
-                    setState(() => _quota25Enabled = val);
-                    _saveSettings();
-                  },
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _notificationToggle(
-                  icon: Icons.error_outline,
-                  title: 'Últimos minutos (10%)',
-                  description:
-                      'Notificación cuando consumes el 90% de tu cuota diaria',
-                  value: _quota10Enabled,
-                  onChanged: (val) {
-                    setState(() => _quota10Enabled = val);
-                    _saveSettings();
-                  },
-                ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _notificationToggle(
+                    icon: Icons.warning_amber_rounded,
+                    title: 'Queda 25% de tiempo',
+                    description: 'Cuando consumes el 75% de tu cuota diaria',
+                    value: _quota25Enabled,
+                    onChanged: (val) {
+                      setState(() => _quota25Enabled = val);
+                      _saveSettings();
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _notificationToggle(
+                    icon: Icons.error_outline_rounded,
+                    title: 'Últimos minutos (10%)',
+                    description: 'Cuando consumes el 90% de tu cuota diaria',
+                    value: _quota10Enabled,
+                    onChanged: (val) {
+                      setState(() => _quota10Enabled = val);
+                      _saveSettings();
+                    },
+                  ),
+                ]),
               ),
             ),
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 24, 16, 4),
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.xl,
+                  AppSpacing.lg,
+                  AppSpacing.xs,
+                ),
                 child: Text(
                   'BLOQUEOS',
                   style: TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white38,
-                    letterSpacing: 1.0,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textTertiary,
+                    letterSpacing: 1.2,
                   ),
                 ),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: _notificationToggle(
-                  icon: Icons.lock_outline,
+                  icon: Icons.lock_outline_rounded,
                   title: 'App bloqueada',
-                  description:
-                      'Notificación cuando una app es bloqueada automáticamente',
+                  description: 'Cuando una app es bloqueada automáticamente',
                   value: _blockedEnabled,
                   onChanged: (val) {
                     setState(() => _blockedEnabled = val);
@@ -194,7 +189,7 @@ class _NotificationSettingsScreenState
                 ),
               ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
           ],
         ],
       ),
@@ -208,64 +203,59 @@ class _NotificationSettingsScreenState
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: value ? const Color(0x1A27AE60) : const Color(0xFF2A2A3E),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: value
+                    ? AppColors.success.withValues(alpha: 0.15)
+                    : AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
               child: Icon(
                 icon,
-                size: 22,
-                color: value ? const Color(0xFF27AE60) : Colors.white38,
+                size: 24,
+                color: value ? AppColors.success : AppColors.textTertiary,
               ),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.white38,
-                    height: 1.4,
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textTertiary,
+                      height: 1.4,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeThumbColor: const Color(0xFF27AE60),
-            inactiveThumbColor: Colors.white38,
-            inactiveTrackColor: const Color(0xFF2A2A3E),
-          ),
-        ],
+            const SizedBox(width: AppSpacing.md),
+            Switch(
+              value: value,
+              onChanged: onChanged,
+            ),
+          ],
+        ),
       ),
     );
   }

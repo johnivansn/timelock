@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_container" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@drawable/widget_background" android:orientation="vertical" android:padding="16dp">
+
+  <TextView android:id="@+id/widget_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Apps monitoreadas" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" android:layout_marginBottom="12dp"/>
+
+  <LinearLayout android:id="@+id/app_list_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+
+    <LinearLayout android:id="@+id/app1_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="8dp">
+
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+
+        <TextView android:id="@+id/app1_name" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="App Name" android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold" android:singleLine="true" android:ellipsize="end"/>
+
+        <TextView android:id="@+id/app1_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="30m" android:textColor="#CCCCCC" android:textSize="11sp"/>
+      </LinearLayout>
+
+      <ProgressBar android:id="@+id/app1_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="4dp" android:progressTint="#6C5CE7" android:progressBackgroundTint="#2A2A3E" android:layout_marginTop="4dp"/>
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/app2_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="8dp">
+
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+
+        <TextView android:id="@+id/app2_name" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="App Name" android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold" android:singleLine="true" android:ellipsize="end"/>
+
+        <TextView android:id="@+id/app2_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="30m" android:textColor="#CCCCCC" android:textSize="11sp"/>
+      </LinearLayout>
+
+      <ProgressBar android:id="@+id/app2_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="4dp" android:progressTint="#6C5CE7" android:progressBackgroundTint="#2A2A3E" android:layout_marginTop="4dp"/>
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/app3_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+
+        <TextView android:id="@+id/app3_name" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="App Name" android:textColor="#FFFFFF" android:textSize="13sp" android:textStyle="bold" android:singleLine="true" android:ellipsize="end"/>
+
+        <TextView android:id="@+id/app3_time" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="30m" android:textColor="#CCCCCC" android:textSize="11sp"/>
+      </LinearLayout>
+
+      <ProgressBar android:id="@+id/app3_progress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="4dp" android:progressTint="#6C5CE7" android:progressBackgroundTint="#2A2A3E" android:layout_marginTop="4dp"/>
+    </LinearLayout>
+
+  </LinearLayout>
+
+</LinearLayout>

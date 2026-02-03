@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:timelock/theme/app_theme.dart';
 
 class PinSetupScreen extends StatefulWidget {
   const PinSetupScreen({super.key});
@@ -52,9 +53,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
   void _onConfirmTap() {
     if (_pinFilledCount < _minDigits) return;
-    setState(() {
-      _confirming = true;
-    });
+    setState(() => _confirming = true);
   }
 
   void _onBack() {
@@ -112,47 +111,63 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F1A),
-      body: Column(
-        children: [
-          const SizedBox(height: 64),
-          IconButton(
-            alignment: Alignment.centerLeft,
-            icon: const Icon(Icons.arrow_back_ios_new,
-                color: Colors.white70, size: 20),
-            onPressed: _onBack,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  onPressed: _onBack,
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                ),
+              ),
+              const Spacer(),
+              Icon(
+                _confirming ? Icons.lock_rounded : Icons.lock_open_rounded,
+                color: AppColors.primary,
+                size: 56,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                _confirming ? 'Confirma tu PIN' : 'Crea tu PIN',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                _confirming
+                    ? 'Ingresa el mismo PIN para confirmar'
+                    : 'Entre 4 y 6 dígitos',
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xxl),
+              _dotIndicator(),
+              const SizedBox(height: AppSpacing.md),
+              if (_error != null)
+                Text(
+                  _error!,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.error,
+                    fontWeight: FontWeight.w500,
+                  ),
+                )
+              else
+                const SizedBox(height: 20),
+              const Spacer(),
+              _numpad(),
+              const SizedBox(height: AppSpacing.lg),
+            ],
           ),
-          const SizedBox(height: 32),
-          Icon(
-            _confirming ? Icons.lock_outline : Icons.lock_open_outlined,
-            color: const Color(0xFF6C5CE7),
-            size: 48,
-          ),
-          const SizedBox(height: 20),
-          Text(
-            _confirming ? 'Confirma tu PIN' : 'Crea tu PIN',
-            style: const TextStyle(
-                fontSize: 22, fontWeight: FontWeight.w600, color: Colors.white),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _confirming
-                ? 'Ingresa el mismo PIN para confirmar'
-                : 'Selecciona entre 4 y 6 dígitos',
-            style: const TextStyle(fontSize: 14, color: Colors.white38),
-          ),
-          const SizedBox(height: 40),
-          _dotIndicator(),
-          const SizedBox(height: 12),
-          if (_error != null)
-            Text(_error!,
-                style: const TextStyle(fontSize: 13, color: Color(0xFFE74C3C)))
-          else
-            const SizedBox(height: 18),
-          const Spacer(),
-          _numpad(),
-          const SizedBox(height: 40),
-        ],
+        ),
       ),
     );
   }
@@ -167,20 +182,19 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         final isFilled = i < filled;
         final isFocus = i == filled;
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            width: 16,
-            height: 16,
+            duration: const Duration(milliseconds: 200),
+            width: 18,
+            height: 18,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color:
-                  isFilled ? const Color(0xFF6C5CE7) : const Color(0xFF1A1A2E),
+              color: isFilled ? AppColors.primary : AppColors.surface,
               border: Border.all(
                 color: isFocus && !isFilled
-                    ? const Color(0xFF6C5CE7)
-                    : const Color(0xFF2A2A3E),
-                width: 1.5,
+                    ? AppColors.primary
+                    : AppColors.surfaceVariant,
+                width: 2,
               ),
             ),
           ),
@@ -190,83 +204,75 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
   }
 
   Widget _numpad() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 60),
-      child: Column(
-        children: [
-          _numRow([1, 2, 3]),
-          const SizedBox(height: 12),
-          _numRow([4, 5, 6]),
-          const SizedBox(height: 12),
-          _numRow([7, 8, 9]),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _numButton(0),
-              _backspaceButton(),
-            ],
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: _saving
-                  ? null
-                  : (_confirming
-                      ? (_canSave ? _onSave : null)
-                      : (_canConfirm ? _onConfirmTap : null)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF6C5CE7),
-                disabledBackgroundColor: const Color(0xFF2A2A3E),
-                foregroundColor: Colors.white,
-                disabledForegroundColor: Colors.white38,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                elevation: 0,
-              ),
-              child: _saving
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : Text(
-                      _confirming ? 'Guardar PIN' : 'Siguiente',
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w600),
+    return Column(
+      children: [
+        _numRow([1, 2, 3]),
+        const SizedBox(height: AppSpacing.md),
+        _numRow([4, 5, 6]),
+        const SizedBox(height: AppSpacing.md),
+        _numRow([7, 8, 9]),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            const SizedBox(width: 72, height: 72),
+            _numButton(0),
+            _backspaceButton(),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: FilledButton(
+            onPressed: _saving
+                ? null
+                : (_confirming
+                    ? (_canSave ? _onSave : null)
+                    : (_canConfirm ? _onConfirmTap : null)),
+            child: _saving
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
                     ),
-            ),
+                  )
+                : Text(_confirming ? 'Guardar PIN' : 'Siguiente'),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _numRow(List<int> digits) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: digits.map((d) => _numButton(d)).toList(),
     );
   }
 
   Widget _numButton(int digit) {
-    return GestureDetector(
+    return InkWell(
       onTap: () => _onDigit(digit),
+      customBorder: const CircleBorder(),
       child: Container(
-        width: 64,
-        height: 64,
+        width: 72,
+        height: 72,
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A2E),
+          color: AppColors.surface,
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFF2A2A3E), width: 1),
+          border: Border.all(color: AppColors.surfaceVariant, width: 1),
         ),
         child: Center(
           child: Text(
             digit.toString(),
             style: const TextStyle(
-                fontSize: 24, fontWeight: FontWeight.w500, color: Colors.white),
+              fontSize: 28,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
           ),
         ),
       ),
@@ -274,19 +280,23 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
   }
 
   Widget _backspaceButton() {
-    return GestureDetector(
+    return InkWell(
       onTap: _onBackspace,
+      customBorder: const CircleBorder(),
       child: Container(
-        width: 64,
-        height: 64,
+        width: 72,
+        height: 72,
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A2E),
+          color: AppColors.surface,
           shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFF2A2A3E), width: 1),
+          border: Border.all(color: AppColors.surfaceVariant, width: 1),
         ),
         child: const Center(
-          child:
-              Icon(Icons.backspace_outlined, color: Colors.white70, size: 22),
+          child: Icon(
+            Icons.backspace_outlined,
+            color: AppColors.textSecondary,
+            size: 24,
+          ),
         ),
       ),
     );

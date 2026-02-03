@@ -32,18 +32,53 @@ class UsageStatsMonitor(private val context: Context) {
     val startTime = calendar.timeInMillis
     val endTime = System.currentTimeMillis()
 
-    val stats =
-            usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
-                    ?: run {
-                      Log.w(
-                              "UsageStatsMonitor",
-                              "queryUsageStats returned null - permission not granted?"
-                      )
-                      return 0L
-                    }
+    val events = usageStatsManager.queryEvents(startTime, endTime)
+    if (events == null) {
+      Log.w(TAG, "queryEvents devolvió null - permiso denegado")
+      return 0L
+    }
 
-    val appStats = stats.find { it.packageName == packageName }
-    return appStats?.totalTimeInForeground ?: 0L
+    var appInForeground = false
+    var lastForegroundTime = 0L
+    var totalTime = 0L
+
+    while (events.hasNextEvent()) {
+      val event = android.app.usage.UsageEvents.Event()
+      events.getNextEvent(event)
+
+      if (event.packageName == packageName) {
+        when (event.eventType) {
+          android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED,
+          android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+            if (!appInForeground) {
+              appInForeground = true
+              lastForegroundTime = event.timeStamp
+            }
+          }
+          android.app.usage.UsageEvents.Event.ACTIVITY_PAUSED,
+          android.app.usage.UsageEvents.Event.ACTIVITY_STOPPED,
+          android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+            if (appInForeground) {
+              val sessionTime = event.timeStamp - lastForegroundTime
+              if (sessionTime > 0) {
+                totalTime += sessionTime
+              }
+              appInForeground = false
+            }
+          }
+        }
+      }
+    }
+
+    if (appInForeground && lastForegroundTime > 0) {
+      val currentSessionTime = endTime - lastForegroundTime
+      if (currentSessionTime > 0) {
+        totalTime += currentSessionTime
+      }
+    }
+
+    Log.d(TAG, "$packageName: ${totalTime}ms total (${totalTime/60000} min)")
+    return totalTime
   }
 
   fun updateAllUsage() {
@@ -51,15 +86,15 @@ class UsageStatsMonitor(private val context: Context) {
       val restrictions = database.appRestrictionDao().getEnabled()
       val today = dateFormat.format(Date())
 
-      Log.d("UsageStatsMonitor", "Updating usage for ${restrictions.size} apps")
+      Log.d(TAG, "Actualizando uso para ${restrictions.size} apps")
 
       for (restriction in restrictions) {
         val usageMillis = getUsageToday(restriction.packageName)
         val usageMinutes = (usageMillis / 60000).toInt()
 
         Log.d(
-                "UsageStatsMonitor",
-                "${restriction.packageName}: $usageMinutes min used today (quota: ${restriction.dailyQuotaMinutes} min)"
+                TAG,
+                "${restriction.packageName}: $usageMinutes min usados hoy (cuota: ${restriction.dailyQuotaMinutes} min)"
         )
 
         var dailyUsage = database.dailyUsageDao().getUsage(restriction.packageName, today)
@@ -75,6 +110,7 @@ class UsageStatsMonitor(private val context: Context) {
                           lastUpdated = System.currentTimeMillis()
                   )
           database.dailyUsageDao().insert(dailyUsage)
+          Log.d(TAG, "Creado nuevo registro de uso para ${restriction.packageName}")
         } else {
           dailyUsage =
                   dailyUsage.copy(
@@ -82,6 +118,7 @@ class UsageStatsMonitor(private val context: Context) {
                           lastUpdated = System.currentTimeMillis()
                   )
           database.dailyUsageDao().update(dailyUsage)
+          Log.d(TAG, "Actualizado registro de uso para ${restriction.packageName}")
         }
 
         checkAndNotifyQuota(
@@ -98,9 +135,23 @@ class UsageStatsMonitor(private val context: Context) {
                   restriction.appName,
                   NotificationHelper.BlockReason.QUOTA_EXCEEDED
           )
-          Log.i("UsageStatsMonitor", "${restriction.packageName} BLOCKED - quota reached")
+          Log.i(TAG, "${restriction.packageName} BLOQUEADA - cuota alcanzada")
+
+          sendBlockSignal(restriction.packageName)
         }
       }
+    }
+  }
+
+  private fun sendBlockSignal(packageName: String) {
+    try {
+      val intent = android.content.Intent("com.example.timelock.BLOCK_APP")
+      intent.putExtra("packageName", packageName)
+      intent.setPackage("com.example.timelock")
+      context.sendBroadcast(intent)
+      Log.i(TAG, "Señal de bloqueo enviada para $packageName")
+    } catch (e: Exception) {
+      Log.e(TAG, "Error enviando señal de bloqueo", e)
     }
   }
 
@@ -117,12 +168,12 @@ class UsageStatsMonitor(private val context: Context) {
       percentageUsed >= 90 && !notified10Percent.contains(packageName) -> {
         notificationHelper.notifyQuota10(appName, remainingMinutes)
         notified10Percent.add(packageName)
-        Log.i("UsageStatsMonitor", "Notified 10% remaining for $packageName")
+        Log.i(TAG, "Notificado 10% restante para $packageName")
       }
       percentageUsed >= 75 && !notified25Percent.contains(packageName) -> {
         notificationHelper.notifyQuota25(appName, remainingMinutes)
         notified25Percent.add(packageName)
-        Log.i("UsageStatsMonitor", "Notified 25% remaining for $packageName")
+        Log.i(TAG, "Notificado 25% restante para $packageName")
       }
     }
   }
@@ -130,6 +181,10 @@ class UsageStatsMonitor(private val context: Context) {
   fun resetNotificationFlags() {
     notified25Percent.clear()
     notified10Percent.clear()
-    Log.i("UsageStatsMonitor", "Notification flags reset")
+    Log.i(TAG, "Flags de notificación reseteadas")
+  }
+
+  companion object {
+    private const val TAG = "UsageStatsMonitor"
   }
 }
