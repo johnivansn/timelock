@@ -147,8 +147,44 @@ class MainActivity : FlutterActivity() {
           }
         }
         "getCurrentWifi" -> {
+          Log.d("MainActivity", "🔍 getCurrentWifi llamado")
+
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val hasFineLocation =
+                    checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+                            PackageManager.PERMISSION_GRANTED
+            Log.d("MainActivity", "  Permiso FINE_LOCATION: $hasFineLocation")
+
+            if (!hasFineLocation) {
+              Log.w("MainActivity", "⚠️ Permiso FINE_LOCATION falta - solicitando")
+              requestPermissions(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), 1003)
+              result.error("NO_PERMISSION", "Se necesita permiso de ubicación", null)
+              return@setMethodCallHandler
+            }
+
+            val locationManager =
+                    getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+            val locationEnabled =
+                    locationManager.isProviderEnabled(
+                            android.location.LocationManager.GPS_PROVIDER
+                    ) ||
+                            locationManager.isProviderEnabled(
+                                    android.location.LocationManager.NETWORK_PROVIDER
+                            )
+
+            Log.d("MainActivity", "  Ubicación activada: $locationEnabled")
+
+            if (!locationEnabled) {
+              Log.w("MainActivity", "⚠️ Ubicación del dispositivo desactivada")
+              result.error("LOCATION_DISABLED", "Active la ubicación del dispositivo", null)
+              return@setMethodCallHandler
+            }
+          }
+
           val nm = NetworkMonitor(this, CoroutineScope(Dispatchers.IO + Job()))
-          result.success(nm.getCurrentSSID())
+          val ssid = nm.getCurrentSSID()
+          Log.d("MainActivity", "📡 SSID obtenido: $ssid")
+          result.success(ssid)
         }
         "getSavedWifiNetworks" -> {
           scope.launch {
@@ -707,57 +743,90 @@ class MainActivity : FlutterActivity() {
   }
 
   private suspend fun getSavedWifiNetworks(): List<String> {
+    Log.d("MainActivity", "🔍 getSavedWifiNetworks iniciado")
+
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       val hasPermission =
               checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) ==
                       PackageManager.PERMISSION_GRANTED
+      Log.d("MainActivity", "  Permiso LOCATION: $hasPermission")
 
       if (!hasPermission) {
+        Log.w("MainActivity", "⚠️ Solicitando permiso de ubicación")
         requestPermissions(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), 1002)
       }
     }
 
     val cached = wifiCacheManager.getCachedNetworks()
     if (cached != null) {
+      Log.d("MainActivity", "📦 Retornando ${cached.size} redes desde cache")
       return cached
     }
 
-    val wifiManager =
-            applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-                    ?: return emptyList()
+    Log.d("MainActivity", "🔄 Cache miss - obteniendo redes frescas")
+
+    val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+
+    if (wifiManager == null) {
+      Log.e("MainActivity", "❌ WifiManager es null")
+      return emptyList()
+    }
 
     val allSSIDs = mutableSetOf<String>()
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      Log.d("MainActivity", "📱 Android Q+ - obteniendo red actual")
+
       val connectivityManager =
               getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
       val network = connectivityManager.activeNetwork
       val capabilities = connectivityManager.getNetworkCapabilities(network)
 
+      Log.d("MainActivity", "  activeNetwork: $network")
+      Log.d("MainActivity", "  capabilities: $capabilities")
+      Log.d(
+              "MainActivity",
+              "  hasWiFi: ${capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)}"
+      )
+
       if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
         @Suppress("DEPRECATION")
         val currentSSID = wifiManager.connectionInfo?.ssid?.removeSurrounding("\"")
+        Log.d("MainActivity", "  SSID actual: $currentSSID")
+
         if (!currentSSID.isNullOrEmpty() && currentSSID != "<unknown ssid>") {
           allSSIDs.add(currentSSID)
+          Log.d("MainActivity", "✅ Agregado SSID actual: $currentSSID")
         }
       }
     } else {
+      Log.d("MainActivity", "📱 Android pre-Q - obteniendo redes configuradas")
+
       @Suppress("DEPRECATION") val configs = wifiManager.configuredNetworks ?: emptyList()
+      Log.d("MainActivity", "  Redes configuradas: ${configs.size}")
+
       configs
               .mapNotNull { it.SSID?.removeSurrounding("\"") }
               .filter { it.isNotEmpty() && it != "<unknown ssid>" }
-              .forEach { allSSIDs.add(it) }
+              .forEach {
+                allSSIDs.add(it)
+                Log.d("MainActivity", "  ✅ Agregado: $it")
+              }
     }
 
     val historySSIDs = database.wifiHistoryDao().getAll().map { it.ssid }
+    Log.d("MainActivity", "📜 Historial WiFi: ${historySSIDs.size} redes")
     historySSIDs.forEach { allSSIDs.add(it) }
 
     val restricted = database.appRestrictionDao().getAll()
-    restricted.flatMap { it.getBlockedWifiList() }.filter { it.isNotEmpty() }.forEach {
-      allSSIDs.add(it)
-    }
+    val restrictedSSIDs = restricted.flatMap { it.getBlockedWifiList() }.filter { it.isNotEmpty() }
+    Log.d("MainActivity", "🚫 SSIDs en restricciones: ${restrictedSSIDs.size}")
+    restrictedSSIDs.forEach { allSSIDs.add(it) }
 
     val result = allSSIDs.sorted()
+    Log.d("MainActivity", "✅ Total SSIDs únicos: ${result.size}")
+    result.forEach { Log.d("MainActivity", "    - $it") }
+
     wifiCacheManager.cacheNetworks(result)
     return result
   }

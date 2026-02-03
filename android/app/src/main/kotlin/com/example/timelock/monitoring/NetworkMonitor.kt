@@ -70,52 +70,120 @@ class NetworkMonitor(private val context: Context, private val scope: CoroutineS
   fun getCurrentSSID(): String? {
   val now = System.currentTimeMillis()
   if (now - lastWifiCheckTime < wifiCheckInterval && currentSSID != null) {
+    Log.d("NetworkMonitor", "📦 Retornando SSID cacheado: $currentSSID")
     return currentSSID
   }
   lastWifiCheckTime = now
 
   return try {
+    Log.d("NetworkMonitor", "🔍 Intentando obtener SSID actual...")
+
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+      val hasFineLocation =
+              context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) ==
+                      android.content.pm.PackageManager.PERMISSION_GRANTED
+      Log.d("NetworkMonitor", "  Permiso FINE_LOCATION: $hasFineLocation")
+
+      if (!hasFineLocation) {
+        Log.e("NetworkMonitor", "❌ Permiso FINE_LOCATION falta - no se puede obtener SSID")
+        return null
+      }
+
+      val locationManager =
+              context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+      val locationEnabled =
+              locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) ||
+                      locationManager.isProviderEnabled(
+                              android.location.LocationManager.NETWORK_PROVIDER
+                      )
+
+      Log.d("NetworkMonitor", "  Ubicación activada: $locationEnabled")
+
+      if (!locationEnabled) {
+        Log.e("NetworkMonitor", "❌ Ubicación del dispositivo desactivada")
+        return null
+      }
+    }
+
     val activeNetwork = connectivityManager.activeNetwork
+    Log.d("NetworkMonitor", "  activeNetwork: $activeNetwork")
+
     val caps = connectivityManager.getNetworkCapabilities(activeNetwork)
+    Log.d("NetworkMonitor", "  NetworkCapabilities: $caps")
+
+    val hasWifi = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    Log.d("NetworkMonitor", "  hasTransport(WIFI): $hasWifi")
 
     if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) != true) {
-      Log.d("NetworkMonitor", "No hay conexión WiFi")
+      Log.d("NetworkMonitor", "❌ No hay conexión WiFi activa")
       return null
     }
 
     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+      Log.d("NetworkMonitor", "📱 Android Q+ detectado")
+
       @Suppress("DEPRECATION") val wifiInfo = wifiManager.connectionInfo
+      Log.d("NetworkMonitor", "  WifiInfo: $wifiInfo")
+      Log.d("NetworkMonitor", "  SSID raw: ${wifiInfo?.ssid}")
+      Log.d("NetworkMonitor", "  NetworkId: ${wifiInfo?.networkId}")
+      Log.d("NetworkMonitor", "  BSSID: ${wifiInfo?.bssid}")
+
       val ssid = wifiInfo?.ssid?.removeSurrounding("\"")
+      Log.d("NetworkMonitor", "  SSID limpio: $ssid")
 
       if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>" && ssid != "0x") {
-        Log.d("NetworkMonitor", "WiFi SSID obtenido: $ssid")
+        Log.d("NetworkMonitor", "✅ WiFi SSID obtenido: $ssid")
+        currentSSID = ssid
         return ssid
       }
 
+      val bssid = wifiInfo?.bssid
+      if (!bssid.isNullOrEmpty() && bssid != "02:00:00:00:00:00") {
+        val bssidId = "WiFi_${bssid.replace(":", "").takeLast(8)}"
+        Log.d("NetworkMonitor", "⚠️ Usando BSSID como ID: $bssidId")
+        currentSSID = bssidId
+        return bssidId
+      }
+
       val networkId = wifiInfo?.networkId ?: -1
+      Log.d("NetworkMonitor", "  networkId final: $networkId")
+
       if (networkId != -1) {
         val stableId = "WiFi_Network_$networkId"
-        Log.d("NetworkMonitor", "Usando ID estable: $stableId")
+        Log.d("NetworkMonitor", "⚠️ Usando ID estable: $stableId")
+        currentSSID = stableId
         return stableId
       }
     } else {
+      Log.d("NetworkMonitor", "📱 Android pre-Q detectado")
+
       @Suppress("DEPRECATION") val wifiInfo = wifiManager.connectionInfo
+      Log.d("NetworkMonitor", "  WifiInfo: $wifiInfo")
+      Log.d("NetworkMonitor", "  SSID raw: ${wifiInfo?.ssid}")
+
       val ssid = wifiInfo?.ssid?.removeSurrounding("\"")
+      Log.d("NetworkMonitor", "  SSID limpio: $ssid")
 
       if (!ssid.isNullOrEmpty() && ssid != "<unknown ssid>") {
-        Log.d("NetworkMonitor", "WiFi SSID obtenido: $ssid")
+        Log.d("NetworkMonitor", "✅ WiFi SSID obtenido: $ssid")
+        currentSSID = ssid
         return ssid
       }
     }
 
-    Log.d("NetworkMonitor", "No se pudo obtener SSID")
+    Log.w("NetworkMonitor", "⚠️ No se pudo obtener SSID - todas las opciones fallaron")
+    currentSSID = null
+    null
+  } catch (e: SecurityException) {
+    Log.e("NetworkMonitor", "❌ SecurityException - falta permiso de ubicación", e)
+    currentSSID = null
     null
   } catch (e: Exception) {
-    Log.e("NetworkMonitor", "Error obteniendo SSID", e)
+    Log.e("NetworkMonitor", "❌ Error obteniendo SSID", e)
+    currentSSID = null
     null
   }
 }
-
 
   private fun refreshSSID() {
     val ssid = getCurrentSSID()
