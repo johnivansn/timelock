@@ -32,77 +32,52 @@ class UsageStatsMonitor(private val context: Context) {
     val startTime = calendar.timeInMillis
     val endTime = System.currentTimeMillis()
 
-    Log.d(TAG, "Consultando uso de $packageName desde $startTime hasta $endTime")
-
-    val statsList =
-            usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_BEST, startTime, endTime)
-
-    if (statsList == null || statsList.isEmpty()) {
-      Log.w(TAG, "queryUsageStats devolvió null o vacío - ¿permiso denegado?")
+    val events = usageStatsManager.queryEvents(startTime, endTime)
+    if (events == null) {
+      Log.w(TAG, "queryEvents devolvió null - permiso denegado")
       return 0L
     }
 
-    Log.d(TAG, "Total de eventos en stats: ${statsList.size}")
-
+    var appInForeground = false
+    var lastForegroundTime = 0L
     var totalTime = 0L
-    var eventCount = 0
 
-    for (usageStats in statsList) {
-      if (usageStats.packageName == packageName) {
-        totalTime += usageStats.totalTimeInForeground
-        eventCount++
-      }
-    }
+    while (events.hasNextEvent()) {
+      val event = android.app.usage.UsageEvents.Event()
+      events.getNextEvent(event)
 
-    Log.d(TAG, "Stats para $packageName:")
-    Log.d(TAG, "  - Eventos encontrados: $eventCount")
-    Log.d(TAG, "  - Tiempo total acumulado: ${totalTime}ms (${totalTime/60000} min)")
-
-    if (totalTime == 0L && eventCount > 0) {
-      Log.w(TAG, "  ⚠️ Se encontraron eventos pero tiempo=0, probando método alternativo...")
-
-      val events = usageStatsManager.queryEvents(startTime, endTime)
-      var appInForeground = false
-      var lastForegroundTime = 0L
-      var calculatedTime = 0L
-
-      while (events.hasNextEvent()) {
-        val event = android.app.usage.UsageEvents.Event()
-        events.getNextEvent(event)
-
-        if (event.packageName == packageName) {
-          when (event.eventType) {
-            android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED -> {
+      if (event.packageName == packageName) {
+        when (event.eventType) {
+          android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED,
+          android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+            if (!appInForeground) {
               appInForeground = true
               lastForegroundTime = event.timeStamp
-              Log.v(TAG, "    App en foreground: ${event.timeStamp}")
             }
-            android.app.usage.UsageEvents.Event.ACTIVITY_PAUSED,
-            android.app.usage.UsageEvents.Event.ACTIVITY_STOPPED -> {
-              if (appInForeground) {
-                val sessionTime = event.timeStamp - lastForegroundTime
-                calculatedTime += sessionTime
-                appInForeground = false
-                Log.v(TAG, "    App pausada, sesión: ${sessionTime}ms")
+          }
+          android.app.usage.UsageEvents.Event.ACTIVITY_PAUSED,
+          android.app.usage.UsageEvents.Event.ACTIVITY_STOPPED,
+          android.app.usage.UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+            if (appInForeground) {
+              val sessionTime = event.timeStamp - lastForegroundTime
+              if (sessionTime > 0) {
+                totalTime += sessionTime
               }
+              appInForeground = false
             }
           }
         }
       }
-
-      if (appInForeground) {
-        val sessionTime = endTime - lastForegroundTime
-        calculatedTime += sessionTime
-        Log.v(TAG, "    App aún en foreground, sesión actual: ${sessionTime}ms")
-      }
-
-      Log.i(
-              TAG,
-              "  ✓ Tiempo calculado por eventos: ${calculatedTime}ms (${calculatedTime/60000} min)"
-      )
-      return calculatedTime
     }
 
+    if (appInForeground && lastForegroundTime > 0) {
+      val currentSessionTime = endTime - lastForegroundTime
+      if (currentSessionTime > 0) {
+        totalTime += currentSessionTime
+      }
+    }
+
+    Log.d(TAG, "$packageName: ${totalTime}ms total (${totalTime/60000} min)")
     return totalTime
   }
 

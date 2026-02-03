@@ -95,17 +95,13 @@ class AppBlockAccessibilityService : AccessibilityService() {
     val packageName = event.packageName?.toString() ?: return
 
     if (packageName in IGNORED_PACKAGES) {
-      if (currentBlockedPackage != null) {
+      if (currentBlockedPackage != null && !packageName.equals(currentBlockedPackage)) {
         cleanupOverlay()
       }
       return
     }
 
     if (currentBlockedPackage == packageName && overlayShown) {
-      if (System.currentTimeMillis() - blockStartTime > 5000) {
-        Log.w(TAG, "Usuario persistente en $packageName, reforzando bloqueo")
-        forceHomeScreen()
-      }
       return
     }
 
@@ -113,7 +109,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
       val shouldBlock = blockingEngine.shouldBlock(packageName)
       if (shouldBlock) {
         handler.post { blockApp(packageName) }
-      } else if (currentBlockedPackage == packageName) {
+      } else if (currentBlockedPackage != null && currentBlockedPackage != packageName) {
         handler.post { cleanupOverlay() }
       }
     }
@@ -130,10 +126,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
       Log.i(TAG, "Bloqueando app: $packageName")
 
       showBlockOverlay(packageName)
-
-      handler.postDelayed({ forceHomeScreen() }, 1500)
-
-      handler.postDelayed({ cleanupOverlay() }, 2500)
+      forceHomeScreen()
     } catch (e: Exception) {
       Log.e(TAG, "Error blocking app", e)
       cleanupOverlay()
@@ -203,38 +196,37 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
   private fun forceHomeScreen() {
     try {
-      performGlobalAction(GLOBAL_ACTION_HOME)
-      Log.i(TAG, "Ejecutado GLOBAL_ACTION_HOME")
+      val homeIntent =
+              Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags =
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_ACTIVITY_CLEAR_TASK or
+                                Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+              }
+      startActivity(homeIntent)
+      Log.i(TAG, "Intent HOME enviado")
 
       handler.postDelayed(
               {
-                try {
-                  val homeIntent =
-                          Intent(Intent.ACTION_MAIN).apply {
-                            addCategory(Intent.CATEGORY_HOME)
-                            flags =
-                                    Intent.FLAG_ACTIVITY_NEW_TASK or
-                                            Intent.FLAG_ACTIVITY_CLEAR_TASK or
-                                            Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
-                          }
-                  startActivity(homeIntent)
-                  Log.i(TAG, "Lanzado Intent HOME como backup")
-                } catch (e: Exception) {
-                  Log.e(TAG, "Error lanzando Intent HOME", e)
-                }
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                Log.i(TAG, "GLOBAL_ACTION_HOME ejecutado como refuerzo")
               },
               100
       )
-    } catch (e: Exception) {
-      Log.e(TAG, "Error ejecutando GLOBAL_ACTION_HOME", e)
 
-      try {
-        val homeIntent =
-                Intent(Intent.ACTION_MAIN).apply {
-                  addCategory(Intent.CATEGORY_HOME)
-                  flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+      handler.postDelayed(
+              {
+                if (overlayShown) {
+                  hideBlockOverlay()
                 }
-        startActivity(homeIntent)
+              },
+              1000
+      )
+    } catch (e: Exception) {
+      Log.e(TAG, "Error forzando home", e)
+      try {
+        performGlobalAction(GLOBAL_ACTION_HOME)
       } catch (e2: Exception) {
         Log.e(TAG, "Error crítico al forzar home", e2)
       }
