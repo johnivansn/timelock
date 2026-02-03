@@ -12,6 +12,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.widget.TextView
 import com.example.timelock.R
 import com.example.timelock.blocking.BlockingEngine
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +34,9 @@ class AppBlockAccessibilityService : AccessibilityService() {
   private var lastEventTime = 0L
   private var overlayState = OverlayState.HIDDEN
   private var blockReceiver: android.content.BroadcastReceiver? = null
+  private var countdownRunnable: Runnable? = null
+  private var countdownSeconds = 5
+  private var overlayShownTime = 0L
 
   private enum class OverlayState {
     HIDDEN,
@@ -203,12 +207,15 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
       windowManager?.addView(overlayView, params)
       overlayState = OverlayState.VISIBLE
-      Log.i(TAG, "  ✅ Overlay VISIBLE")
+      overlayShownTime = System.currentTimeMillis()
+      Log.i(TAG, "  ✅ Overlay VISIBLE (timestamp: $overlayShownTime)")
+
+      startCountdown()
 
       handler.postDelayed({
-        Log.d(TAG, "⏰ Timer overlay - auto-ocultando")
+        Log.d(TAG, "⏰ Timer overlay (5s) - auto-ocultando")
         hideOverlay()
-      }, 1500)
+      }, 5000)
 
     } catch (e: Exception) {
       Log.e(TAG, "❌ ERROR mostrando overlay", e)
@@ -224,7 +231,14 @@ class AppBlockAccessibilityService : AccessibilityService() {
     }
 
     overlayState = OverlayState.HIDING
-    Log.i(TAG, "👁️ OCULTANDO OVERLAY")
+
+    val visibleDuration = if (overlayShownTime > 0) {
+      System.currentTimeMillis() - overlayShownTime
+    } else 0
+
+    Log.i(TAG, "👁️ OCULTANDO OVERLAY (duración visible: ${visibleDuration}ms = ${visibleDuration/1000.0}s)")
+
+    stopCountdown()
 
     try {
       if (overlayView != null) {
@@ -239,7 +253,36 @@ class AppBlockAccessibilityService : AccessibilityService() {
     } finally {
       overlayView = null
       overlayState = OverlayState.HIDDEN
+      overlayShownTime = 0
     }
+  }
+
+  private fun startCountdown() {
+    countdownSeconds = 5
+    updateCountdownText()
+
+    countdownRunnable = object : Runnable {
+      override fun run() {
+        countdownSeconds--
+        if (countdownSeconds >= 0) {
+          updateCountdownText()
+          handler.postDelayed(this, 1000)
+        }
+      }
+    }
+    handler.postDelayed(countdownRunnable!!, 1000)
+  }
+
+  private fun stopCountdown() {
+    countdownRunnable?.let {
+      handler.removeCallbacks(it)
+      countdownRunnable = null
+    }
+  }
+
+  private fun updateCountdownText() {
+    overlayView?.findViewById<android.widget.TextView>(R.id.countdown_text)?.text =
+      countdownSeconds.toString()
   }
 
   private fun cleanupOverlay() {
