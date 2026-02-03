@@ -37,6 +37,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
   private var countdownRunnable: Runnable? = null
   private var countdownSeconds = 5
   private var overlayShownTime = 0L
+  private var overlayDismissRunnable: Runnable? = null
 
   private enum class OverlayState {
     HIDDEN,
@@ -49,13 +50,15 @@ class AppBlockAccessibilityService : AccessibilityService() {
     private const val TAG = "AccessibilityService"
     private const val BLOCK_COOLDOWN_MS = 2000L
     private const val EVENT_COOLDOWN_MS = 500L
-    private val IGNORED_PACKAGES = setOf(
-      "com.example.timelock",
-      "com.android.systemui",
-      "android",
-      "com.android.launcher",
-      "com.android.launcher3"
-    )
+    private val IGNORED_PACKAGES =
+            setOf(
+                    "com.example.timelock",
+                    "com.android.systemui",
+                    "android",
+                    "com.android.launcher",
+                    "com.android.launcher3",
+                    "com.transsion.hilauncher"
+            )
   }
 
   override fun onServiceConnected() {
@@ -67,17 +70,21 @@ class AppBlockAccessibilityService : AccessibilityService() {
   }
 
   private fun setupBlockReceiver() {
-    blockReceiver = object : android.content.BroadcastReceiver() {
-      override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
-        if (intent?.action == "com.example.timelock.BLOCK_APP") {
-          val packageName = intent.getStringExtra("packageName")
-          if (packageName != null) {
-            Log.w(TAG, "📡 Broadcast recibido: bloquear $packageName")
-            handler.post { forceBlockNow(packageName) }
-          }
-        }
-      }
-    }
+    blockReceiver =
+            object : android.content.BroadcastReceiver() {
+              override fun onReceive(
+                      context: android.content.Context?,
+                      intent: android.content.Intent?
+              ) {
+                if (intent?.action == "com.example.timelock.BLOCK_APP") {
+                  val packageName = intent.getStringExtra("packageName")
+                  if (packageName != null) {
+                    Log.w(TAG, "📡 Broadcast recibido: bloquear $packageName")
+                    handler.post { forceBlockNow(packageName) }
+                  }
+                }
+              }
+            }
 
     val filter = android.content.IntentFilter("com.example.timelock.BLOCK_APP")
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -113,14 +120,31 @@ class AppBlockAccessibilityService : AccessibilityService() {
     }
     lastEventTime = now
 
-    Log.d(TAG, "🔔 Evento: $packageName | Estado overlay: $overlayState | Bloqueado actual: $currentBlockedPackage")
+    Log.d(
+            TAG,
+            "🔔 Evento: $packageName | Estado overlay: $overlayState | Bloqueado actual: $currentBlockedPackage"
+    )
 
-    if (packageName in IGNORED_PACKAGES) {
-      Log.d(TAG, "  ⏭️ Paquete ignorado (sistema)")
-      if (currentBlockedPackage != null) {
-        Log.i(TAG, "  🧹 Limpiando overlay (cambio a sistema)")
-        cleanupOverlay()
+    val isLauncher =
+            packageName in IGNORED_PACKAGES ||
+                    packageName.contains("launcher", ignoreCase = true) ||
+                    packageName.contains("home", ignoreCase = true)
+
+    if (isLauncher) {
+      Log.d(TAG, "  ⏭️ Paquete ignorado (sistema/launcher)")
+
+      if (currentBlockedPackage != null && overlayState == OverlayState.HIDDEN) {
+        Log.i(TAG, "  🧹 Limpiando estado (overlay ya oculto)")
+        currentBlockedPackage = null
+      } else if (currentBlockedPackage != null && overlayState == OverlayState.VISIBLE) {
+        Log.d(TAG, "  ⏳ Overlay visible - dejando que expire naturalmente")
       }
+      return
+    }
+
+    if (currentBlockedPackage == packageName && overlayState == OverlayState.VISIBLE) {
+      Log.d(TAG, "  🔄 Usuario intentando regresar a app bloqueada - forzando HOME de nuevo")
+      handler.post { forceHomeScreen() }
       return
     }
 
@@ -140,7 +164,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
         }
       } else if (currentBlockedPackage != null && currentBlockedPackage != packageName) {
         handler.post {
-          Log.i(TAG, "  🧹 Limpiando overlay (app permitida)")
+          Log.i(TAG, "  🧹 Usuario abrió app REAL permitida - limpiando overlay")
           cleanupOverlay()
         }
       }
@@ -188,22 +212,25 @@ class AppBlockAccessibilityService : AccessibilityService() {
       val inflater = getSystemService(LAYOUT_INFLATER_SERVICE) as LayoutInflater
       overlayView = inflater.inflate(R.layout.block_overlay, null)
 
-      val params = WindowManager.LayoutParams().apply {
-        type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-          WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-          @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
-        }
-        format = PixelFormat.TRANSLUCENT
-        flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_FULLSCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-        width = WindowManager.LayoutParams.MATCH_PARENT
-        height = WindowManager.LayoutParams.MATCH_PARENT
-        gravity = Gravity.CENTER
-      }
+      val params =
+              WindowManager.LayoutParams().apply {
+                type =
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                          WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                        } else {
+                          @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
+                        }
+                format = PixelFormat.TRANSLUCENT
+                flags =
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                                WindowManager.LayoutParams.FLAG_FULLSCREEN or
+                                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                width = WindowManager.LayoutParams.MATCH_PARENT
+                height = WindowManager.LayoutParams.MATCH_PARENT
+                gravity = Gravity.CENTER
+              }
 
       windowManager?.addView(overlayView, params)
       overlayState = OverlayState.VISIBLE
@@ -212,11 +239,11 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
       startCountdown()
 
-      handler.postDelayed({
+      overlayDismissRunnable = Runnable {
         Log.d(TAG, "⏰ Timer overlay (5s) - auto-ocultando")
         hideOverlay()
-      }, 5000)
-
+      }
+      handler.postDelayed(overlayDismissRunnable!!, 5000)
     } catch (e: Exception) {
       Log.e(TAG, "❌ ERROR mostrando overlay", e)
       overlayView = null
@@ -232,11 +259,15 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
     overlayState = OverlayState.HIDING
 
-    val visibleDuration = if (overlayShownTime > 0) {
-      System.currentTimeMillis() - overlayShownTime
-    } else 0
+    val visibleDuration =
+            if (overlayShownTime > 0) {
+              System.currentTimeMillis() - overlayShownTime
+            } else 0
 
-    Log.i(TAG, "👁️ OCULTANDO OVERLAY (duración visible: ${visibleDuration}ms = ${visibleDuration/1000.0}s)")
+    Log.i(
+            TAG,
+            "👁️ OCULTANDO OVERLAY (duración visible: ${visibleDuration}ms = ${visibleDuration/1000.0}s)"
+    )
 
     stopCountdown()
 
@@ -254,6 +285,8 @@ class AppBlockAccessibilityService : AccessibilityService() {
       overlayView = null
       overlayState = OverlayState.HIDDEN
       overlayShownTime = 0
+      currentBlockedPackage = null
+      Log.d(TAG, "  🧹 Estado limpiado después de ocultar")
     }
   }
 
@@ -261,15 +294,16 @@ class AppBlockAccessibilityService : AccessibilityService() {
     countdownSeconds = 5
     updateCountdownText()
 
-    countdownRunnable = object : Runnable {
-      override fun run() {
-        countdownSeconds--
-        if (countdownSeconds >= 0) {
-          updateCountdownText()
-          handler.postDelayed(this, 1000)
-        }
-      }
-    }
+    countdownRunnable =
+            object : Runnable {
+              override fun run() {
+                countdownSeconds--
+                if (countdownSeconds >= 0) {
+                  updateCountdownText()
+                  handler.postDelayed(this, 1000)
+                }
+              }
+            }
     handler.postDelayed(countdownRunnable!!, 1000)
   }
 
@@ -282,12 +316,18 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
   private fun updateCountdownText() {
     overlayView?.findViewById<android.widget.TextView>(R.id.countdown_text)?.text =
-      countdownSeconds.toString()
+            countdownSeconds.toString()
   }
 
   private fun cleanupOverlay() {
     Log.i(TAG, "🧹 === CLEANUP COMPLETO ===")
-    handler.removeCallbacksAndMessages(null)
+
+    overlayDismissRunnable?.let {
+      handler.removeCallbacks(it)
+      overlayDismissRunnable = null
+    }
+
+    stopCountdown()
     hideOverlay()
     currentBlockedPackage = null
     Log.i(TAG, "  ✅ Cleanup completado")
@@ -297,24 +337,28 @@ class AppBlockAccessibilityService : AccessibilityService() {
     Log.w(TAG, "🏠 Forzando HOME")
 
     try {
-      val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-        addCategory(Intent.CATEGORY_HOME)
-        flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                Intent.FLAG_ACTIVITY_CLEAR_TASK or
-                Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
-      }
+      val homeIntent =
+              Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                flags =
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                                Intent.FLAG_ACTIVITY_CLEAR_TASK or
+                                Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+              }
       startActivity(homeIntent)
       Log.i(TAG, "  ✅ Intent HOME enviado")
 
-      handler.postDelayed({
-        try {
-          performGlobalAction(GLOBAL_ACTION_HOME)
-          Log.i(TAG, "  ✅ GLOBAL_ACTION_HOME ejecutado")
-        } catch (e: Exception) {
-          Log.e(TAG, "  ❌ Error en GLOBAL_ACTION", e)
-        }
-      }, 150)
-
+      handler.postDelayed(
+              {
+                try {
+                  performGlobalAction(GLOBAL_ACTION_HOME)
+                  Log.i(TAG, "  ✅ GLOBAL_ACTION_HOME ejecutado")
+                } catch (e: Exception) {
+                  Log.e(TAG, "  ❌ Error en GLOBAL_ACTION", e)
+                }
+              },
+              150
+      )
     } catch (e: Exception) {
       Log.e(TAG, "❌ Error forzando home", e)
       try {
