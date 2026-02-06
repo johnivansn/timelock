@@ -24,6 +24,7 @@ class _AppListScreenState extends State<AppListScreen> {
   bool _loading = true;
   bool _permissionsOk = false;
   bool _adminEnabled = false;
+  bool _deviceOwnerEnabled = false;
 
   @override
   void initState() {
@@ -33,22 +34,29 @@ class _AppListScreenState extends State<AppListScreen> {
 
   Future<void> _init() async {
     await _startMonitoring();
-    await _checkPermissions();
+    final deviceOwner = await _checkPermissions();
+    if (deviceOwner) {
+      await NativeService.setUninstallBlocked(true);
+    }
     await _loadRestrictions();
   }
 
-  Future<void> _checkPermissions() async {
+  Future<bool> _checkPermissions() async {
     try {
       final usage = await NativeService.checkUsagePermission();
       final acc = await NativeService.checkAccessibilityPermission();
       final admin = await NativeService.isAdminEnabled();
+      final deviceOwner = await NativeService.isDeviceOwner();
       if (mounted) {
         setState(() {
           _permissionsOk = usage && acc;
           _adminEnabled = admin;
+          _deviceOwnerEnabled = deviceOwner;
         });
       }
+      return deviceOwner;
     } catch (_) {}
+    return false;
   }
 
   Future<void> _startMonitoring() async {
@@ -144,6 +152,10 @@ class _AppListScreenState extends State<AppListScreen> {
   }
 
   void _openAddFlow() async {
+    if (!_deviceOwnerEnabled) {
+      final proceed = await _confirmWithoutDeviceOwner();
+      if (!proceed || !mounted) return;
+    }
     final existing =
         _restrictions.map((r) => r['packageName'] as String).toSet();
 
@@ -166,6 +178,31 @@ class _AppListScreenState extends State<AppListScreen> {
         app['packageName']! as String, app['appName']! as String, minutes);
   }
 
+  Future<bool> _confirmWithoutDeviceOwner() async {
+    if (!mounted) return false;
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Protección incompleta'),
+        content: const Text(
+          'Sin Device Owner la app no puede bloquear la desinstalación. '
+          '¿Deseas continuar igual?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Continuar'),
+          ),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
   double _progressFor(Map<String, dynamic> r) {
     final used = (r['usedMinutes'] as int).toDouble();
     final quota = (r['dailyQuotaMinutes'] as int).toDouble();
@@ -184,6 +221,14 @@ class _AppListScreenState extends State<AppListScreen> {
                 padding: const EdgeInsets.fromLTRB(
                     AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xs),
                 child: _permissionsBanner(),
+              ),
+            ),
+          if (_permissionsOk && !_deviceOwnerEnabled)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xs),
+                child: _deviceOwnerBanner(),
               ),
             ),
           if (_loading)
@@ -331,6 +376,41 @@ class _AppListScreenState extends State<AppListScreen> {
           const Expanded(
             child: Text(
               'Faltan permisos necesarios',
+              style: TextStyle(
+                color: AppColors.warning,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PermissionsScreen()),
+            ).then((_) => _checkPermissions()),
+            child: const Text('Configurar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _deviceOwnerBanner() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.1),
+        border: Border.all(color: AppColors.warning, width: 1),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.verified_user_rounded,
+              color: AppColors.warning, size: 24),
+          const SizedBox(width: AppSpacing.md),
+          const Expanded(
+            child: Text(
+              'Para protección total contra desinstalación, configura Device Owner',
               style: TextStyle(
                 color: AppColors.warning,
                 fontSize: 14,

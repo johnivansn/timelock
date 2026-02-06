@@ -303,6 +303,13 @@ class MainActivity : FlutterActivity() {
         "isDeviceAdminEnabled" -> {
           result.success(isDeviceAdminEnabled())
         }
+        "isDeviceOwner" -> {
+          result.success(isDeviceOwner())
+        }
+        "setUninstallBlocked" -> {
+          val enabled = call.arguments as? Boolean ?: false
+          result.success(setUninstallBlocked(enabled))
+        }
         else -> {
           handleMethodCallPart2(call, result)
         }
@@ -989,6 +996,24 @@ class MainActivity : FlutterActivity() {
     val adminComponent =
             ComponentName(this, com.example.timelock.admin.DeviceAdminManager::class.java)
     return dpm.isAdminActive(adminComponent)
+  }
+
+  private fun isDeviceOwner(): Boolean {
+    val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    return dpm.isDeviceOwnerApp(packageName)
+  }
+
+  private fun setUninstallBlocked(enabled: Boolean): Boolean {
+    return try {
+      val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+      val adminComponent =
+              ComponentName(this, com.example.timelock.admin.DeviceAdminManager::class.java)
+      if (!dpm.isDeviceOwnerApp(packageName)) return false
+      dpm.setUninstallBlocked(adminComponent, packageName, enabled)
+      true
+    } catch (_: Exception) {
+      false
+    }
   }
 
   companion object {

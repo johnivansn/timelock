@@ -158,4 +158,13 @@ class NativeService {
   static Future<void> enableDeviceAdmin() async {
     await _channel.invokeMethod('enableDeviceAdmin');
   }
+
+  static Future<bool> isDeviceOwner() async {
+    return await _channel.invokeMethod<bool>('isDeviceOwner') ?? false;
+  }
+
+  static Future<bool> setUninstallBlocked(bool enabled) async {
+    return await _channel.invokeMethod<bool>('setUninstallBlocked', enabled) ??
+        false;
+  }
 }
