@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:timelock/theme/app_theme.dart';
@@ -32,21 +33,14 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
   Future<void> _loadApps() async {
     try {
-      print('DEBUG: Iniciando carga de apps desde $CHANNEL');
       final raw =
           await _ch.invokeMethod<List<dynamic>>('getInstalledApps') ?? [];
-
-      print('DEBUG: Recibidas ${raw.length} apps de Android');
-      for (int i = 0; i < (raw.length > 3 ? 3 : raw.length); i++) {
-        print('DEBUG: App $i: ${raw[i]}');
-      }
 
       final allApps = raw
           .map((e) {
             try {
               return Map<String, dynamic>.from(e as Map);
             } catch (ex) {
-              print('ERROR mapeando: $ex');
               return <String, dynamic>{};
             }
           })
@@ -54,8 +48,6 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
               a.isNotEmpty &&
               !widget.excludedPackages.contains(a['packageName']))
           .toList();
-
-      print('DEBUG: Apps válidas: ${allApps.length}');
 
       final installed = <Map<String, dynamic>>[];
       final system = <Map<String, dynamic>>[];
@@ -67,8 +59,6 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
           installed.add(app);
         }
       }
-
-      print('DEBUG: ${installed.length} instaladas, ${system.length} sistema');
 
       installed.sort((a, b) => (a['appName'] ?? '')
           .toString()
@@ -90,7 +80,6 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
         });
       }
     } catch (e) {
-      print('ERROR loading apps: $e');
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -275,6 +264,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
   Widget _appTile(Map<String, dynamic> app) {
     final appName = (app['appName'] ?? app['packageName'] ?? '?').toString();
     final firstChar = appName.isNotEmpty ? appName[0].toUpperCase() : '?';
+    final iconBytes = app['icon'] as Uint8List?;
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -285,24 +275,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Center(
-                  child: Text(
-                    firstChar,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ),
+              _buildAppIcon(iconBytes, firstChar),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
@@ -339,10 +312,41 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
       ),
     );
   }
-}
 
-extension _ListSort<T> on List<T> {
-  void sortBy(Comparable Function(T) key) {
-    sort((a, b) => key(a).compareTo(key(b)));
+  Widget _buildAppIcon(Uint8List? iconBytes, String fallbackChar) {
+    if (iconBytes != null && iconBytes.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Image.memory(
+          iconBytes,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildFallbackIcon(fallbackChar),
+        ),
+      );
+    }
+    return _buildFallbackIcon(fallbackChar);
+  }
+
+  Widget _buildFallbackIcon(String char) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Center(
+        child: Text(
+          char,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
+    );
   }
 }
