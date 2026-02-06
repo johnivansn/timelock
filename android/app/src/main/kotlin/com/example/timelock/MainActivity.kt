@@ -667,10 +667,22 @@ class MainActivity : FlutterActivity() {
                         appInfo.packageName
                       }
 
+              val iconBytes =
+                      try {
+                        val drawable = appInfo.loadIcon(pm)
+                        val bitmap = drawableToBitmap(drawable)
+                        val stream = java.io.ByteArrayOutputStream()
+                        bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
+                        stream.toByteArray()
+                      } catch (_: Exception) {
+                        null
+                      }
+
               mapOf<String, Any>(
                       "packageName" to appInfo.packageName,
                       "appName" to appName,
-                      "isSystem" to isSystem
+                      "isSystem" to isSystem,
+                      "icon" to (iconBytes ?: byteArrayOf())
               )
             }
             .sortedWith(
@@ -679,6 +691,25 @@ class MainActivity : FlutterActivity() {
                             { it["appName"]?.toString()?.lowercase() ?: "" }
                     )
             )
+  }
+
+  private fun drawableToBitmap(
+          drawable: android.graphics.drawable.Drawable
+  ): android.graphics.Bitmap {
+    if (drawable is android.graphics.drawable.BitmapDrawable) {
+      return drawable.bitmap
+    }
+
+    val bitmap =
+            android.graphics.Bitmap.createBitmap(
+                    drawable.intrinsicWidth.coerceAtLeast(1),
+                    drawable.intrinsicHeight.coerceAtLeast(1),
+                    android.graphics.Bitmap.Config.ARGB_8888
+            )
+    val canvas = android.graphics.Canvas(bitmap)
+    drawable.setBounds(0, 0, canvas.width, canvas.height)
+    drawable.draw(canvas)
+    return bitmap
   }
 
   private suspend fun getOptimizationStats(): Map<String, Any> {

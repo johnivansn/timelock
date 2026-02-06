@@ -5,12 +5,19 @@
 
   <LinearLayout android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="24dp">
 
-    <FrameLayout android:layout_width="140dp" android:layout_height="140dp" android:layout_marginBottom="32dp" android:background="@drawable/circle_background" android:gravity="center">
+    <FrameLayout android:layout_width="160dp" android:layout_height="160dp" android:layout_marginBottom="24dp">
 
-      <ImageView android:layout_width="70dp" android:layout_height="70dp" android:layout_gravity="center" android:src="@android:drawable/ic_lock_idle_lock" android:tint="#FF6B6B" />
+      <FrameLayout android:layout_width="140dp" android:layout_height="140dp" android:layout_gravity="center" android:background="@drawable/circle_background">
+
+        <ImageView android:id="@+id/block_app_icon" android:layout_width="100dp" android:layout_height="100dp" android:layout_gravity="center" android:scaleType="fitCenter"/>
+      </FrameLayout>
+
+      <ImageView android:layout_width="56dp" android:layout_height="56dp" android:layout_gravity="bottom|end" android:background="@drawable/lock_badge_background" android:padding="12dp" android:src="@android:drawable/ic_lock_idle_lock" android:tint="#FF6B6B" />
     </FrameLayout>
 
-    <TextView android:id="@+id/block_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginBottom="16dp" android:gravity="center" android:text="🚫 Aplicación Bloqueada" android:textColor="#FFFFFF" android:textSize="28sp" android:textStyle="bold" />
+    <TextView android:id="@+id/block_app_name" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginBottom="8dp" android:gravity="center" android:maxLines="2" android:ellipsize="end" android:text="Aplicación" android:textColor="#FFFFFF" android:textSize="24sp" android:textStyle="bold" />
+
+    <TextView android:id="@+id/block_title" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginBottom="16dp" android:gravity="center" android:text="🚫 Bloqueada" android:textColor="#FF6B6B" android:textSize="20sp" android:textStyle="bold" />
 
     <TextView android:id="@+id/block_reason" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" android:gravity="center" android:text="Has alcanzado el límite de tiempo" android:textColor="#FFCA28" android:textSize="14sp" android:textStyle="bold" />
 

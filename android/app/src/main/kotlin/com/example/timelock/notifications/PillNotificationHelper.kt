@@ -28,24 +28,28 @@ class PillNotificationHelper(private val context: Context) {
     private const val ANIMATION_DURATION_MS = 300L
   }
 
-  fun notifyQuota50(appName: String, remainingMinutes: Int) {
+  fun notifyQuota50(appName: String, packageName: String, remainingMinutes: Int) {
     if (!prefs.quota50Enabled) return
     val timeText = formatTimeShort(remainingMinutes)
-    show(appName, "$timeText restantes")
+    show(appName, packageName, "$timeText restantes")
   }
 
-  fun notifyQuota75(appName: String, remainingMinutes: Int) {
+  fun notifyQuota75(appName: String, packageName: String, remainingMinutes: Int) {
     if (!prefs.quota75Enabled) return
     val timeText = formatTimeShort(remainingMinutes)
-    show(appName, "$timeText restantes")
+    show(appName, packageName, "$timeText restantes")
   }
 
-  fun notifyLastMinute(appName: String) {
+  fun notifyLastMinute(appName: String, packageName: String) {
     if (!prefs.lastMinuteEnabled) return
-    show(appName, "Último minuto")
+    show(appName, packageName, "Último minuto")
   }
 
-  fun notifyAppBlocked(appName: String, reason: NotificationHelper.BlockReason) {
+  fun notifyAppBlocked(
+          appName: String,
+          packageName: String,
+          reason: NotificationHelper.BlockReason
+  ) {
     if (!prefs.blockedEnabled) return
 
     val text =
@@ -56,16 +60,16 @@ class PillNotificationHelper(private val context: Context) {
               NotificationHelper.BlockReason.MANUAL -> "Bloqueada"
             }
 
-    show(appName, text)
+    show(appName, packageName, text)
   }
 
-  fun notifyScheduleUpcoming(appName: String, minutes: Int) {
+  fun notifyScheduleUpcoming(appName: String, packageName: String, minutes: Int) {
     if (!prefs.scheduleEnabled) return
     val timeText = if (minutes == 1) "1 min" else "$minutes min"
-    show(appName, "Se pausará en $timeText")
+    show(appName, packageName, "Se pausará en $timeText")
   }
 
-  private fun show(appName: String, message: String) {
+  private fun show(appName: String, packageName: String, message: String) {
     handler.post {
       try {
         dismiss()
@@ -78,9 +82,10 @@ class PillNotificationHelper(private val context: Context) {
 
         try {
           val pm = context.packageManager
-          val drawable = pm.getApplicationIcon(appName)
+          val drawable = pm.getApplicationIcon(packageName)
           appIcon.setImageDrawable(drawable)
         } catch (e: Exception) {
+          Log.e(TAG, "Error loading icon for $packageName", e)
           appIcon.setImageResource(android.R.drawable.ic_lock_idle_lock)
         }
 

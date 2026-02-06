@@ -91,14 +91,22 @@ class BlockingEngine(private val context: Context) {
 
     database.dailyUsageDao().update(usage.copy(isBlocked = true))
 
-    val notificationReason = when (reason) {
-      BlockReason.TimeQuota -> com.example.timelock.notifications.NotificationHelper.BlockReason.QUOTA_EXCEEDED
-      BlockReason.WifiBlocked -> com.example.timelock.notifications.NotificationHelper.BlockReason.WIFI_BLOCKED
-      BlockReason.ScheduleBlocked -> com.example.timelock.notifications.NotificationHelper.BlockReason.SCHEDULE_BLOCKED
-      BlockReason.Combined -> com.example.timelock.notifications.NotificationHelper.BlockReason.QUOTA_EXCEEDED
-    }
+    val notificationReason =
+            when (reason) {
+              BlockReason.TimeQuota ->
+                      com.example.timelock.notifications.NotificationHelper.BlockReason
+                              .QUOTA_EXCEEDED
+              BlockReason.WifiBlocked ->
+                      com.example.timelock.notifications.NotificationHelper.BlockReason.WIFI_BLOCKED
+              BlockReason.ScheduleBlocked ->
+                      com.example.timelock.notifications.NotificationHelper.BlockReason
+                              .SCHEDULE_BLOCKED
+              BlockReason.Combined ->
+                      com.example.timelock.notifications.NotificationHelper.BlockReason
+                              .QUOTA_EXCEEDED
+            }
 
-    pillNotification.notifyAppBlocked(restriction.appName, notificationReason)
+    pillNotification.notifyAppBlocked(restriction.appName, packageName, notificationReason)
     Log.i(TAG, "$packageName blocked - reason: $reason")
     return true
   }

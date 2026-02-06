@@ -12,6 +12,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.widget.ImageView
 import android.widget.TextView
 import com.example.timelock.R
 import com.example.timelock.blocking.BlockingEngine
@@ -212,6 +213,23 @@ class AppBlockAccessibilityService : AccessibilityService() {
       val inflater = getSystemService(LAYOUT_INFLATER_SERVICE) as LayoutInflater
       overlayView = inflater.inflate(R.layout.block_overlay, null)
 
+      val appIcon = overlayView?.findViewById<ImageView>(R.id.block_app_icon)
+      val appNameText = overlayView?.findViewById<TextView>(R.id.block_app_name)
+
+      try {
+        val pm = packageManager
+        val appInfo = pm.getApplicationInfo(packageName, 0)
+        val appName = pm.getApplicationLabel(appInfo).toString()
+        val drawable = pm.getApplicationIcon(packageName)
+
+        appIcon?.setImageDrawable(drawable)
+        appNameText?.text = appName
+      } catch (e: Exception) {
+        Log.e(TAG, "Error cargando info de app: $packageName", e)
+        appIcon?.setImageResource(android.R.drawable.ic_menu_info_details)
+        appNameText?.text = "Aplicación"
+      }
+
       val params =
               WindowManager.LayoutParams().apply {
                 type =
@@ -315,8 +333,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
   }
 
   private fun updateCountdownText() {
-    overlayView?.findViewById<android.widget.TextView>(R.id.countdown_text)?.text =
-            countdownSeconds.toString()
+    overlayView?.findViewById<TextView>(R.id.countdown_text)?.text = countdownSeconds.toString()
   }
 
   private fun cleanupOverlay() {

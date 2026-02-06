@@ -134,6 +134,7 @@ class UsageStatsMonitor(private val context: Context) {
           database.dailyUsageDao().update(dailyUsage)
           pillNotification.notifyAppBlocked(
                   restriction.appName,
+                  restriction.packageName,
                   com.example.timelock.notifications.NotificationHelper.BlockReason.QUOTA_EXCEEDED
           )
           Log.i(TAG, "${restriction.packageName} BLOQUEADA - cuota alcanzada")
@@ -166,21 +167,21 @@ class UsageStatsMonitor(private val context: Context) {
 
     when {
       remainingMinutes == 1 && !notifiedLastMinute.contains(packageName) -> {
-        pillNotification.notifyLastMinute(appName)
+        pillNotification.notifyLastMinute(appName, packageName)
         notifiedLastMinute.add(packageName)
         Log.i(TAG, "Notificado último minuto para $packageName")
       }
       usedMinutes >= (quotaMinutes * 0.75).toInt() &&
               remainingMinutes > 1 &&
               !notified75Percent.contains(packageName) -> {
-        pillNotification.notifyQuota75(appName, remainingMinutes)
+        pillNotification.notifyQuota75(appName, packageName, remainingMinutes)
         notified75Percent.add(packageName)
         Log.i(TAG, "Notificado 75% para $packageName")
       }
       usedMinutes >= (quotaMinutes * 0.5).toInt() &&
               usedMinutes < (quotaMinutes * 0.75).toInt() &&
               !notified50Percent.contains(packageName) -> {
-        pillNotification.notifyQuota50(appName, remainingMinutes)
+        pillNotification.notifyQuota50(appName, packageName, remainingMinutes)
         notified50Percent.add(packageName)
         Log.i(TAG, "Notificado 50% para $packageName")
       }
