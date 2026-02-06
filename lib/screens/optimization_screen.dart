@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:timelock/extensions/context_extensions.dart';
+import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 
 class OptimizationScreen extends StatefulWidget {
@@ -10,8 +11,6 @@ class OptimizationScreen extends StatefulWidget {
 }
 
 class _OptimizationScreenState extends State<OptimizationScreen> {
-  static const _ch = MethodChannel('app.restriction/config');
-
   bool _batterySaverEnabled = false;
   bool _loading = true;
   Map<String, dynamic>? _stats;
@@ -24,15 +23,13 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
 
   Future<void> _loadSettings() async {
     try {
-      final enabled =
-          await _ch.invokeMethod<bool>('isBatterySaverEnabled') ?? false;
-      final stats =
-          await _ch.invokeMethod<Map<dynamic, dynamic>>('getOptimizationStats');
+      final enabled = await NativeService.isBatterySaverEnabled();
+      final stats = await NativeService.getOptimizationStats();
 
       if (mounted) {
         setState(() {
           _batterySaverEnabled = enabled;
-          _stats = stats?.map((k, v) => MapEntry(k.toString(), v));
+          _stats = stats;
           _loading = false;
         });
       }
@@ -43,46 +40,37 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
 
   Future<void> _toggleBatterySaver(bool value) async {
     try {
-      await _ch.invokeMethod('setBatterySaverMode', value);
+      await NativeService.setBatterySaverMode(value);
       setState(() => _batterySaverEnabled = value);
-      _showSnack(
-        value
-            ? 'Modo ahorro activado (actualización cada 2 min)'
-            : 'Modo normal (actualización cada 30s)',
-      );
+      if (mounted) {
+        context.showSnack(
+          value
+              ? 'Modo ahorro activado (actualización cada 2 min)'
+              : 'Modo normal (actualización cada 30s)',
+        );
+      }
       await _loadSettings();
     } catch (_) {}
   }
 
   Future<void> _invalidateCache() async {
     try {
-      await _ch.invokeMethod('invalidateCache');
-      _showSnack('Cache limpiado correctamente');
+      await NativeService.invalidateCache();
+      if (mounted) context.showSnack('Cache limpiado correctamente');
       await _loadSettings();
     } catch (_) {
-      _showSnack('Error al limpiar cache', isError: true);
+      if (mounted) context.showSnack('Error al limpiar cache', isError: true);
     }
   }
 
   Future<void> _forceCleanup() async {
     try {
-      await _ch.invokeMethod('forceCleanup');
-      _showSnack('Limpieza completada');
+      await NativeService.forceCleanup();
+      if (mounted) context.showSnack('Limpieza completada');
       await _loadSettings();
     } catch (_) {
-      _showSnack('Error en limpieza', isError: true);
+      if (mounted) context.showSnack('Error en limpieza', isError: true);
     }
-  }
-
-  void _showSnack(String msg, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? AppColors.error : AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override

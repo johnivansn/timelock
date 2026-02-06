@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 
 class WifiPickerDialog extends StatefulWidget {
@@ -19,8 +19,6 @@ class WifiPickerDialog extends StatefulWidget {
 }
 
 class _WifiPickerDialogState extends State<WifiPickerDialog> {
-  static const _ch = MethodChannel('app.restriction/config');
-
   List<String> _available = [];
   Set<String> _selected = {};
   String? _currentWifi;
@@ -36,12 +34,11 @@ class _WifiPickerDialogState extends State<WifiPickerDialog> {
 
   Future<void> _load() async {
     try {
-      final networks =
-          await _ch.invokeMethod<List<dynamic>>('getSavedWifiNetworks') ?? [];
-      final current = await _ch.invokeMethod<String?>('getCurrentWifi');
+      final networks = await NativeService.getSavedWifiNetworks();
+      final current = await NativeService.getCurrentWifi();
       if (mounted) {
         setState(() {
-          _available = networks.map((e) => e.toString()).toList();
+          _available = networks;
           _currentWifi = current;
           _loading = false;
         });
@@ -73,7 +70,7 @@ class _WifiPickerDialogState extends State<WifiPickerDialog> {
 
   Future<void> _save() async {
     try {
-      await _ch.invokeMethod('updateRestrictionWifi', {
+      await NativeService.updateRestrictionWifi({
         'packageName': widget.packageName,
         'blockedWifiSSIDs': _selected.toList(),
       });
@@ -105,8 +102,7 @@ class _WifiPickerDialogState extends State<WifiPickerDialog> {
             ),
             const SizedBox(height: AppSpacing.lg),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
                 children: [
                   Expanded(
@@ -167,8 +163,7 @@ class _WifiPickerDialogState extends State<WifiPickerDialog> {
             ),
             const SizedBox(height: AppSpacing.lg),
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
                 children: [
                   Expanded(
@@ -192,54 +187,53 @@ class _WifiPickerDialogState extends State<WifiPickerDialog> {
                       padding: const EdgeInsets.all(AppSpacing.md),
                     ),
                   ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight: MediaQuery.of(context).size.height * 0.4,
-                  ),
-                  child: _loading
-                      ? const Center(
-                          child: CircularProgressIndicator(strokeWidth: 3))
-                      : _available.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'No hay redes guardadas\nAgrega una manualmente',
-                                style: TextStyle(
-                                  color: AppColors.textTertiary,
-                                  fontSize: 14,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.lg),
-                              itemCount: _available.length,
-                              itemBuilder: (_, i) =>
-                                  _networkTile(_available[i]),
-                            ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: FilledButton(
-                      onPressed: _save,
-                      child: Text(
-                        _selected.isEmpty
-                            ? 'Guardar sin redes'
-                            : 'Guardar ${_selected.length} red${_selected.length == 1 ? '' : 'es'}',
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-      )
+            const SizedBox(height: AppSpacing.md),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.4,
+              ),
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(strokeWidth: 3))
+                  : _available.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No hay redes guardadas\nAgrega una manualmente',
+                            style: TextStyle(
+                              color: AppColors.textTertiary,
+                              fontSize: 14,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.lg),
+                          itemCount: _available.length,
+                          itemBuilder: (_, i) => _networkTile(_available[i]),
+                        ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  onPressed: _save,
+                  child: Text(
+                    _selected.isEmpty
+                        ? 'Guardar sin redes'
+                        : 'Guardar ${_selected.length} red${_selected.length == 1 ? '' : 'es'}',
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 
 class PinVerifyScreen extends StatefulWidget {
@@ -13,7 +13,6 @@ class PinVerifyScreen extends StatefulWidget {
 
 class _PinVerifyScreenState extends State<PinVerifyScreen>
     with SingleTickerProviderStateMixin {
-  static const _ch = MethodChannel('app.restriction/config');
   static const _pinLength = 6;
 
   final List<int?> _pin = List.filled(_pinLength, null);
@@ -48,9 +47,8 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
 
   Future<void> _checkLockStatus() async {
     try {
-      final res =
-          await _ch.invokeMethod<Map<dynamic, dynamic>>('verifyAdminPin', '');
-      if (res == null || !mounted) return;
+      final res = await NativeService.verifyAdminPin('');
+      if (!mounted) return;
       final status = res['status'] as String;
       if (status == 'locked') {
         setState(() {
@@ -68,9 +66,8 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
 
     setState(() => _verifying = true);
     try {
-      final res = await _ch.invokeMethod<Map<dynamic, dynamic>>(
-          'verifyAdminPin', pinStr);
-      if (res == null || !mounted) return;
+      final res = await NativeService.verifyAdminPin(pinStr);
+      if (!mounted) return;
 
       final status = res['status'] as String;
       switch (status) {

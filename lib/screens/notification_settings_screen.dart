@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
@@ -12,8 +12,6 @@ class NotificationSettingsScreen extends StatefulWidget {
 
 class _NotificationSettingsScreenState
     extends State<NotificationSettingsScreen> {
-  static const _ch = MethodChannel('app.restriction/config');
-
   bool _quota50Enabled = true;
   bool _quota75Enabled = true;
   bool _lastMinuteEnabled = true;
@@ -30,8 +28,8 @@ class _NotificationSettingsScreenState
 
   Future<void> _loadSettings() async {
     try {
-      final prefs = await _ch.invokeMethod<Map<dynamic, dynamic>>(
-          'getSharedPreferences', 'notification_prefs');
+      final prefs =
+          await NativeService.getSharedPreferences('notification_prefs');
       if (prefs != null && mounted) {
         setState(() {
           _quota50Enabled = prefs['notify_quota_50'] as bool? ?? true;
@@ -51,7 +49,7 @@ class _NotificationSettingsScreenState
 
   Future<void> _saveSetting(String key, bool value) async {
     try {
-      await _ch.invokeMethod('saveSharedPreference', {
+      await NativeService.saveSharedPreference({
         'prefsName': 'notification_prefs',
         'key': key,
         'value': value,

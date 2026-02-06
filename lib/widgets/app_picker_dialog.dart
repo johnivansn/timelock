@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 
 class AppPickerDialog extends StatefulWidget {
@@ -13,9 +13,6 @@ class AppPickerDialog extends StatefulWidget {
 }
 
 class _AppPickerDialogState extends State<AppPickerDialog> {
-  static const _ch = MethodChannel('app.restriction/config');
-  static const String CHANNEL = 'app.restriction/config';
-
   List<Map<String, dynamic>> _allApps = [];
   List<Map<String, dynamic>> _installedApps = [];
   List<Map<String, dynamic>> _systemApps = [];
@@ -33,17 +30,9 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
   Future<void> _loadApps() async {
     try {
-      final raw =
-          await _ch.invokeMethod<List<dynamic>>('getInstalledApps') ?? [];
+      final raw = await NativeService.getInstalledApps();
 
       final allApps = raw
-          .map((e) {
-            try {
-              return Map<String, dynamic>.from(e as Map);
-            } catch (ex) {
-              return <String, dynamic>{};
-            }
-          })
           .where((a) =>
               a.isNotEmpty &&
               !widget.excludedPackages.contains(a['packageName']))

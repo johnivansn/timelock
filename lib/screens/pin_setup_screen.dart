@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 
 class PinSetupScreen extends StatefulWidget {
@@ -10,7 +10,6 @@ class PinSetupScreen extends StatefulWidget {
 }
 
 class _PinSetupScreenState extends State<PinSetupScreen> {
-  static const _ch = MethodChannel('app.restriction/config');
   static const _maxDigits = 6;
   static const _minDigits = 4;
 
@@ -82,8 +81,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
     setState(() => _saving = true);
     try {
-      final success =
-          await _ch.invokeMethod<bool>('setupAdminPin', pinStr) ?? false;
+      final success = await NativeService.setupAdminPin(pinStr);
       if (success && mounted) {
         Navigator.pop(context, true);
       } else if (mounted) {

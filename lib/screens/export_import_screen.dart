@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:timelock/extensions/context_extensions.dart';
+import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'dart:convert';
 
@@ -11,8 +13,6 @@ class ExportImportScreen extends StatefulWidget {
 }
 
 class _ExportImportScreenState extends State<ExportImportScreen> {
-  static const _ch = MethodChannel('app.restriction/config');
-
   bool _exporting = false;
   bool _importing = false;
   String? _lastExportJson;
@@ -20,19 +20,19 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
   Future<void> _export() async {
     setState(() => _exporting = true);
     try {
-      final json = await _ch.invokeMethod<String>('exportConfig');
+      final json = await NativeService.exportConfig();
       if (json != null && mounted) {
         setState(() {
           _lastExportJson = json;
           _exporting = false;
         });
         await Clipboard.setData(ClipboardData(text: json));
-        _showSnack('Configuración copiada al portapapeles');
+        if (mounted) context.showSnack('Configuración copiada al portapapeles');
       }
     } catch (e) {
       if (mounted) {
         setState(() => _exporting = false);
-        _showSnack('Error al exportar', isError: true);
+        context.showSnack('Error al exportar', isError: true);
       }
     }
   }
@@ -41,22 +41,21 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text?.trim();
     if (text == null || text.isEmpty) {
-      _showSnack('Portapapeles vacío', isError: true);
+      if (mounted) context.showSnack('Portapapeles vacío', isError: true);
       return;
     }
 
     try {
       jsonDecode(text);
     } catch (_) {
-      _showSnack('JSON inválido', isError: true);
+      if (mounted) context.showSnack('JSON inválido', isError: true);
       return;
     }
 
     setState(() => _importing = true);
     try {
-      final res =
-          await _ch.invokeMethod<Map<dynamic, dynamic>>('importConfig', text);
-      if (res == null || !mounted) return;
+      final res = await NativeService.importConfig(text);
+      if (!mounted) return;
       setState(() => _importing = false);
 
       final success = res['success'] as bool? ?? false;
@@ -64,32 +63,21 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
         final imported = res['imported'] as int? ?? 0;
         final skipped = res['skipped'] as int? ?? 0;
         if (skipped > 0) {
-          _showSnack('Importadas: $imported | Ya existían: $skipped');
+          context.showSnack('Importadas: $imported | Ya existían: $skipped');
         } else {
-          _showSnack(
+          context.showSnack(
               'Importadas $imported restricción${imported == 1 ? '' : 'es'}');
         }
       } else {
-        _showSnack(res['error'] as String? ?? 'Error desconocido',
+        context.showSnack(res['error'] as String? ?? 'Error desconocido',
             isError: true);
       }
     } catch (_) {
       if (mounted) {
         setState(() => _importing = false);
-        _showSnack('Error al importar', isError: true);
+        context.showSnack('Error al importar', isError: true);
       }
     }
-  }
-
-  void _showSnack(String msg, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? AppColors.error : AppColors.success,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   @override

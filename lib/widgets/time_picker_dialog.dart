@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:timelock/theme/app_theme.dart';
+import 'package:timelock/utils/app_utils.dart';
 
 class QuotaTimePicker extends StatefulWidget {
   const QuotaTimePicker({super.key});
@@ -32,15 +33,6 @@ class _QuotaTimePickerState extends State<QuotaTimePicker> {
   int get _value => _useCustom ? _custom : (_selected ?? _custom);
 
   bool get _valid => _value >= 5 && _value <= 480;
-
-  String _label(int m) {
-    if (m >= 60) {
-      final h = m ~/ 60;
-      final rem = m % 60;
-      return rem == 0 ? '${h}h' : '${h}h ${rem}m';
-    }
-    return '${m}m';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +87,7 @@ class _QuotaTimePickerState extends State<QuotaTimePicker> {
               height: 52,
               child: FilledButton(
                 onPressed: _valid ? () => Navigator.pop(context, _value) : null,
-                child: Text('Confirmar — ${_label(_value)}'),
+                child: Text('Confirmar — ${AppUtils.formatTime(_value)}'),
               ),
             ),
           ],
@@ -107,7 +99,7 @@ class _QuotaTimePickerState extends State<QuotaTimePicker> {
   Widget _presetChip(int minutes) {
     final isActive = !_useCustom && _selected == minutes;
     return FilterChip(
-      label: Text(_label(minutes)),
+      label: Text(AppUtils.formatTime(minutes)),
       selected: isActive,
       onSelected: (_) => _pick(minutes),
       backgroundColor: AppColors.surfaceVariant,
