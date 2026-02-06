@@ -14,6 +14,7 @@ import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
 import android.widget.TextView
 import com.example.timelock.R
+import com.example.timelock.utils.AppUtils
 
 class PillNotificationHelper(private val context: Context) {
   private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -28,15 +29,22 @@ class PillNotificationHelper(private val context: Context) {
     private const val ANIMATION_DURATION_MS = 300L
   }
 
+  enum class BlockReason {
+    QUOTA_EXCEEDED,
+    WIFI_BLOCKED,
+    SCHEDULE_BLOCKED,
+    MANUAL
+  }
+
   fun notifyQuota50(appName: String, packageName: String, remainingMinutes: Int) {
     if (!prefs.quota50Enabled) return
-    val timeText = formatTimeShort(remainingMinutes)
+    val timeText = AppUtils.formatTime(remainingMinutes)
     show(appName, packageName, "$timeText restantes")
   }
 
   fun notifyQuota75(appName: String, packageName: String, remainingMinutes: Int) {
     if (!prefs.quota75Enabled) return
-    val timeText = formatTimeShort(remainingMinutes)
+    val timeText = AppUtils.formatTime(remainingMinutes)
     show(appName, packageName, "$timeText restantes")
   }
 
@@ -45,19 +53,15 @@ class PillNotificationHelper(private val context: Context) {
     show(appName, packageName, "Último minuto")
   }
 
-  fun notifyAppBlocked(
-          appName: String,
-          packageName: String,
-          reason: NotificationHelper.BlockReason
-  ) {
+  fun notifyAppBlocked(appName: String, packageName: String, reason: BlockReason) {
     if (!prefs.blockedEnabled) return
 
     val text =
             when (reason) {
-              NotificationHelper.BlockReason.QUOTA_EXCEEDED -> "Límite alcanzado"
-              NotificationHelper.BlockReason.WIFI_BLOCKED -> "Bloqueada en WiFi"
-              NotificationHelper.BlockReason.SCHEDULE_BLOCKED -> "Fuera de horario"
-              NotificationHelper.BlockReason.MANUAL -> "Bloqueada"
+              BlockReason.QUOTA_EXCEEDED -> "Límite alcanzado"
+              BlockReason.WIFI_BLOCKED -> "Bloqueada en WiFi"
+              BlockReason.SCHEDULE_BLOCKED -> "Fuera de horario"
+              BlockReason.MANUAL -> "Bloqueada"
             }
 
     show(appName, packageName, text)
@@ -149,17 +153,6 @@ class PillNotificationHelper(private val context: Context) {
                 currentView = null
               }
               .start()
-    }
-  }
-
-  private fun formatTimeShort(minutes: Int): String {
-    return when {
-      minutes >= 60 -> {
-        val hours = minutes / 60
-        val mins = minutes % 60
-        if (mins == 0) "${hours}h" else "${hours}h ${mins}m"
-      }
-      else -> "${minutes}m"
     }
   }
 

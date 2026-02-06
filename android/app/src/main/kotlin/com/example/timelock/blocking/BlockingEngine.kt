@@ -93,17 +93,10 @@ class BlockingEngine(private val context: Context) {
 
     val notificationReason =
             when (reason) {
-              BlockReason.TimeQuota ->
-                      com.example.timelock.notifications.NotificationHelper.BlockReason
-                              .QUOTA_EXCEEDED
-              BlockReason.WifiBlocked ->
-                      com.example.timelock.notifications.NotificationHelper.BlockReason.WIFI_BLOCKED
-              BlockReason.ScheduleBlocked ->
-                      com.example.timelock.notifications.NotificationHelper.BlockReason
-                              .SCHEDULE_BLOCKED
-              BlockReason.Combined ->
-                      com.example.timelock.notifications.NotificationHelper.BlockReason
-                              .QUOTA_EXCEEDED
+              BlockReason.TimeQuota -> PillNotificationHelper.BlockReason.QUOTA_EXCEEDED
+              BlockReason.WifiBlocked -> PillNotificationHelper.BlockReason.WIFI_BLOCKED
+              BlockReason.ScheduleBlocked -> PillNotificationHelper.BlockReason.SCHEDULE_BLOCKED
+              BlockReason.Combined -> PillNotificationHelper.BlockReason.QUOTA_EXCEEDED
             }
 
     pillNotification.notifyAppBlocked(restriction.appName, packageName, notificationReason)

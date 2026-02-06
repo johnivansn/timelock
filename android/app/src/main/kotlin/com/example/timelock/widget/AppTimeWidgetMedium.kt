@@ -10,6 +10,7 @@ import android.widget.RemoteViews
 import com.example.timelock.MainActivity
 import com.example.timelock.R
 import com.example.timelock.database.AppDatabase
+import com.example.timelock.utils.AppUtils
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.CoroutineScope
@@ -65,7 +66,7 @@ class AppTimeWidgetMedium : AppWidgetProvider() {
             val progress = ((used.toFloat() / quota.toFloat()) * 100).toInt().coerceIn(0, 100)
 
             views.setTextViewText(appNameId, restriction.appName)
-            views.setTextViewText(appTimeId, "${formatTime(remaining)} restantes")
+            views.setTextViewText(appTimeId, "${AppUtils.formatTime(remaining)} restantes")
             views.setProgressBar(appProgressId, 100, progress, false)
             views.setViewVisibility(appContainerId, android.view.View.VISIBLE)
           } else {
@@ -121,16 +122,6 @@ class AppTimeWidgetMedium : AppWidgetProvider() {
       1 -> R.id.app2_container
       2 -> R.id.app3_container
       else -> R.id.app1_container
-    }
-  }
-
-  private fun formatTime(minutes: Int): String {
-    return if (minutes >= 60) {
-      val h = minutes / 60
-      val m = minutes % 60
-      if (m == 0) "${h}h" else "${h}h ${m}m"
-    } else {
-      "${minutes}m"
     }
   }
 

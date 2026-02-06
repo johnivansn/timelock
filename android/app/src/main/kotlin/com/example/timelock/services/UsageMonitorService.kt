@@ -69,9 +69,7 @@ class UsageMonitorService : Service() {
 
     scope.launch {
       monitoredAppsCount = database.appRestrictionDao().getEnabled().size
-      withContext(Dispatchers.Main) {
-        startForeground(NOTIFICATION_ID, buildServiceNotification())
-      }
+      withContext(Dispatchers.Main) { startForeground(NOTIFICATION_ID, buildServiceNotification()) }
     }
 
     scheduleDailyReset()
@@ -113,11 +111,7 @@ class UsageMonitorService : Service() {
                       }
 
       val silentChannel =
-              NotificationChannel(
-                              CHANNEL_ID_SILENT,
-                              "Servicio",
-                              NotificationManager.IMPORTANCE_MIN
-                      )
+              NotificationChannel(CHANNEL_ID_SILENT, "Servicio", NotificationManager.IMPORTANCE_MIN)
                       .apply {
                         description = "Servicio de fondo"
                         setShowBadge(false)

@@ -135,7 +135,7 @@ class UsageStatsMonitor(private val context: Context) {
           pillNotification.notifyAppBlocked(
                   restriction.appName,
                   restriction.packageName,
-                  com.example.timelock.notifications.NotificationHelper.BlockReason.QUOTA_EXCEEDED
+                  PillNotificationHelper.BlockReason.QUOTA_EXCEEDED
           )
           Log.i(TAG, "${restriction.packageName} BLOQUEADA - cuota alcanzada")
 

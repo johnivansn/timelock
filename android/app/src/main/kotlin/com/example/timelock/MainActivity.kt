@@ -24,6 +24,7 @@ import com.example.timelock.optimization.DataCleanupManager
 import com.example.timelock.optimization.WifiCacheManager
 import com.example.timelock.services.AppBlockAccessibilityService
 import com.example.timelock.services.UsageMonitorService
+import com.example.timelock.utils.AppUtils
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -670,7 +671,7 @@ class MainActivity : FlutterActivity() {
               val iconBytes =
                       try {
                         val drawable = appInfo.loadIcon(pm)
-                        val bitmap = drawableToBitmap(drawable)
+                        val bitmap = AppUtils.drawableToBitmap(drawable)
                         val stream = java.io.ByteArrayOutputStream()
                         bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
                         stream.toByteArray()
@@ -691,25 +692,6 @@ class MainActivity : FlutterActivity() {
                             { it["appName"]?.toString()?.lowercase() ?: "" }
                     )
             )
-  }
-
-  private fun drawableToBitmap(
-          drawable: android.graphics.drawable.Drawable
-  ): android.graphics.Bitmap {
-    if (drawable is android.graphics.drawable.BitmapDrawable) {
-      return drawable.bitmap
-    }
-
-    val bitmap =
-            android.graphics.Bitmap.createBitmap(
-                    drawable.intrinsicWidth.coerceAtLeast(1),
-                    drawable.intrinsicHeight.coerceAtLeast(1),
-                    android.graphics.Bitmap.Config.ARGB_8888
-            )
-    val canvas = android.graphics.Canvas(bitmap)
-    drawable.setBounds(0, 0, canvas.width, canvas.height)
-    drawable.draw(canvas)
-    return bitmap
   }
 
   private suspend fun getOptimizationStats(): Map<String, Any> {
