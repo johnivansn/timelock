@@ -8,7 +8,6 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.example.timelock.MainActivity
-import com.example.timelock.R
 
 class NotificationHelper(private val context: Context) {
   private val notificationManager =
@@ -16,15 +15,11 @@ class NotificationHelper(private val context: Context) {
   private val prefs = com.example.timelock.preferences.NotificationPreferences(context)
 
   companion object {
-    private const val CHANNEL_QUOTA_50 = "quota_50_warning"
-    private const val CHANNEL_QUOTA_75 = "quota_75_warning"
-    private const val CHANNEL_LAST_MINUTE = "last_minute_warning"
+    private const val CHANNEL_QUOTA_WARNINGS = "quota_warnings"
     private const val CHANNEL_APP_BLOCKED = "app_blocked"
     private const val CHANNEL_SCHEDULE = "schedule_warnings"
 
-    private const val NOTIFICATION_ID_QUOTA_50 = 1005
-    private const val NOTIFICATION_ID_QUOTA_75 = 1006
-    private const val NOTIFICATION_ID_LAST_MINUTE = 1007
+    private const val NOTIFICATION_ID_QUOTA = 1005
     private const val NOTIFICATION_ID_BLOCKED = 1003
     private const val NOTIFICATION_ID_SCHEDULE = 1004
   }
@@ -35,74 +30,61 @@ class NotificationHelper(private val context: Context) {
 
   private fun createNotificationChannels() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val quota50Channel =
+      val quotaChannel =
               NotificationChannel(
-                              CHANNEL_QUOTA_50,
-                              "Advertencia 50% consumido",
+                              CHANNEL_QUOTA_WARNINGS,
+                              "Recordatorios de tiempo",
                               NotificationManager.IMPORTANCE_HIGH
                       )
                       .apply {
-                        description = "Notificación cuando has usado la mitad de tu tiempo"
-                        enableVibration(true)
-                      }
-
-      val quota75Channel =
-              NotificationChannel(
-                              CHANNEL_QUOTA_75,
-                              "Advertencia 75% consumido",
-                              NotificationManager.IMPORTANCE_HIGH
-                      )
-                      .apply {
-                        description = "Notificación cuando queda poco tiempo disponible"
-                        enableVibration(true)
-                      }
-
-      val lastMinuteChannel =
-              NotificationChannel(
-                              CHANNEL_LAST_MINUTE,
-                              "Último minuto",
-                              NotificationManager.IMPORTANCE_HIGH
-                      )
-                      .apply {
-                        description = "Notificación en el último minuto disponible"
-                        enableVibration(true)
+                        description = "Alertas de uso de apps"
+                        setShowBadge(false)
+                        enableVibration(false)
+                        setSound(null, null)
+                        enableLights(false)
                       }
 
       val blockedChannel =
               NotificationChannel(
                               CHANNEL_APP_BLOCKED,
-                              "Aplicaciones Bloqueadas",
+                              "Apps bloqueadas",
                               NotificationManager.IMPORTANCE_HIGH
                       )
                       .apply {
-                        description = "Notificaciones cuando una app es bloqueada"
-                        enableVibration(true)
+                        description = "Notificaciones de bloqueo"
+                        setShowBadge(false)
+                        enableVibration(false)
+                        setSound(null, null)
+                        enableLights(false)
                       }
 
       val scheduleChannel =
               NotificationChannel(
                               CHANNEL_SCHEDULE,
-                              "Horarios de Bloqueo",
+                              "Horarios programados",
                               NotificationManager.IMPORTANCE_DEFAULT
                       )
                       .apply {
-                        description = "Notificaciones sobre bloqueos programados"
-                        enableVibration(true)
+                        description = "Pausas programadas"
+                        setShowBadge(false)
+                        enableVibration(false)
+                        setSound(null, null)
+                        enableLights(false)
                       }
 
-      notificationManager.createNotificationChannel(quota50Channel)
-      notificationManager.createNotificationChannel(quota75Channel)
-      notificationManager.createNotificationChannel(lastMinuteChannel)
-      notificationManager.createNotificationChannel(blockedChannel)
-      notificationManager.createNotificationChannel(scheduleChannel)
+      notificationManager.apply {
+        createNotificationChannel(quotaChannel)
+        createNotificationChannel(blockedChannel)
+        createNotificationChannel(scheduleChannel)
+      }
     }
   }
 
-  private fun createHeadsUpNotification(channelId: String): NotificationCompat.Builder {
-    val intent =
-            Intent(context, MainActivity::class.java).apply {
-              flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            }
+  private fun createChipNotification(
+          channelId: String,
+          importance: Int = NotificationCompat.PRIORITY_HIGH
+  ): NotificationCompat.Builder {
+    val intent = Intent(context, MainActivity::class.java)
     val pendingIntent =
             PendingIntent.getActivity(
                     context,
@@ -112,113 +94,98 @@ class NotificationHelper(private val context: Context) {
             )
 
     return NotificationCompat.Builder(context, channelId)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setPriority(importance)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
+            .setShowWhen(false)
+            .setLocalOnly(true)
+            .setTimeoutAfter(4000)
   }
 
   fun notifyQuota50(appName: String, remainingMinutes: Int) {
     if (!prefs.quota50Enabled) return
 
+    val timeText = formatTimeShort(remainingMinutes)
+
     val notification =
-            createHeadsUpNotification(CHANNEL_QUOTA_50)
-                    .setSmallIcon(android.R.drawable.ic_dialog_info)
-                    .setContentTitle("⏳ Mitad del tiempo usado")
-                    .setContentText("$appName: 50% consumido, quedan ${remainingMinutes}m")
+            createChipNotification(CHANNEL_QUOTA_WARNINGS)
+                    .setContentText("$appName: quedan $timeText")
                     .build()
 
-    notificationManager.notify(NOTIFICATION_ID_QUOTA_50, notification)
+    notificationManager.notify(NOTIFICATION_ID_QUOTA + appName.hashCode(), notification)
   }
 
   fun notifyQuota75(appName: String, remainingMinutes: Int) {
     if (!prefs.quota75Enabled) return
 
+    val timeText = formatTimeShort(remainingMinutes)
+
     val notification =
-            createHeadsUpNotification(CHANNEL_QUOTA_75)
-                    .setSmallIcon(android.R.drawable.ic_dialog_alert)
-                    .setContentTitle("⚠️ Quedan pocos minutos")
-                    .setContentText("$appName: 75% consumido, quedan ${remainingMinutes}m")
+            createChipNotification(CHANNEL_QUOTA_WARNINGS)
+                    .setContentText("$appName: quedan $timeText")
                     .build()
 
-    notificationManager.notify(NOTIFICATION_ID_QUOTA_75, notification)
+    notificationManager.notify(NOTIFICATION_ID_QUOTA + appName.hashCode(), notification)
   }
 
   fun notifyLastMinute(appName: String) {
     if (!prefs.lastMinuteEnabled) return
 
     val notification =
-            createHeadsUpNotification(CHANNEL_LAST_MINUTE)
-                    .setSmallIcon(android.R.drawable.ic_dialog_alert)
-                    .setContentTitle("🚨 Último minuto disponible")
-                    .setContentText("$appName: Solo queda 1 minuto")
+            createChipNotification(CHANNEL_QUOTA_WARNINGS)
+                    .setContentText("$appName: último minuto")
                     .build()
 
-    notificationManager.notify(NOTIFICATION_ID_LAST_MINUTE, notification)
+    notificationManager.notify(NOTIFICATION_ID_QUOTA + appName.hashCode(), notification)
   }
 
   fun notifyAppBlocked(appName: String, reason: BlockReason) {
     if (!prefs.blockedEnabled) return
 
-    val intent =
-            Intent(context, MainActivity::class.java).apply {
-              flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            }
-    val pendingIntent =
-            PendingIntent.getActivity(
-                    context,
-                    0,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-
-    val message =
+    val text =
             when (reason) {
-              BlockReason.QUOTA_EXCEEDED -> "Cuota diaria consumida. Se desbloqueará a medianoche."
-              BlockReason.WIFI_BLOCKED -> "Bloqueada en esta red WiFi."
-              BlockReason.SCHEDULE_BLOCKED -> "Bloqueada por horario programado."
-              BlockReason.MANUAL -> "Bloqueada manualmente."
+              BlockReason.QUOTA_EXCEEDED -> "$appName: límite alcanzado"
+              BlockReason.WIFI_BLOCKED -> "$appName: bloqueada en WiFi"
+              BlockReason.SCHEDULE_BLOCKED -> "$appName: fuera de horario"
+              BlockReason.MANUAL -> "$appName: bloqueada"
             }
 
     val notification =
-            NotificationCompat.Builder(context, CHANNEL_APP_BLOCKED)
+            createChipNotification(CHANNEL_APP_BLOCKED)
                     .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
-                    .setContentTitle("🔒 $appName bloqueada")
-                    .setContentText(message)
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
-                    .setContentIntent(pendingIntent)
-                    .setAutoCancel(true)
+                    .setContentText(text)
                     .build()
 
-    notificationManager.notify(NOTIFICATION_ID_BLOCKED, notification)
+    notificationManager.notify(NOTIFICATION_ID_BLOCKED + appName.hashCode(), notification)
   }
 
   fun notifyScheduleUpcoming(appName: String, minutes: Int) {
     if (!prefs.scheduleEnabled) return
 
-    val intent =
-            Intent(context, MainActivity::class.java).apply {
-              flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            }
-    val pendingIntent =
-            PendingIntent.getActivity(
-                    context,
-                    0,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
+    val timeText = if (minutes == 1) "1 min" else "${minutes} min"
 
     val notification =
-            NotificationCompat.Builder(context, CHANNEL_SCHEDULE)
+            createChipNotification(CHANNEL_SCHEDULE, NotificationCompat.PRIORITY_DEFAULT)
                     .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                    .setContentTitle("⏰ Bloqueo próximo")
-                    .setContentText("$appName se bloqueará en ${minutes}m")
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .setContentIntent(pendingIntent)
-                    .setAutoCancel(true)
+                    .setContentText("$appName se pausará en $timeText")
                     .build()
 
-    notificationManager.notify(NOTIFICATION_ID_SCHEDULE, notification)
+    notificationManager.notify(NOTIFICATION_ID_SCHEDULE + appName.hashCode(), notification)
+  }
+
+  private fun formatTimeShort(minutes: Int): String {
+    return when {
+      minutes >= 60 -> {
+        val hours = minutes / 60
+        val mins = minutes % 60
+        if (mins == 0) "${hours}h" else "${hours}h ${mins}m"
+      }
+      else -> "${minutes}m"
+    }
   }
 
   fun cancelAll() {
