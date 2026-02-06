@@ -12,7 +12,6 @@ class PermissionsScreen extends StatefulWidget {
 }
 
 class _PermissionsScreenState extends State<PermissionsScreen> {
-  bool _location = false;
   bool _usage = false;
   bool _accessibility = false;
   bool _overlay = false;
@@ -32,7 +31,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       final u = await NativeService.checkUsagePermission();
       final a = await NativeService.checkAccessibilityPermission();
       final o = await NativeService.checkOverlayPermission();
-      final loc = await NativeService.checkLocationPermission();
       final admin = await NativeService.isAdminEnabled();
       final deviceAdmin = await NativeService.isDeviceAdminEnabled();
       final deviceOwner = await NativeService.isDeviceOwner();
@@ -41,7 +39,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
           _usage = u;
           _accessibility = a;
           _overlay = o;
-          _location = loc;
           _adminEnabled = admin;
           _deviceAdmin = deviceAdmin;
           _deviceOwner = deviceOwner;
@@ -51,14 +48,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  Future<void> _requestLocation() async {
-    try {
-      await NativeService.requestLocationPermission();
-      await Future.delayed(const Duration(seconds: 2));
-      await _refresh();
-    } catch (_) {}
   }
 
   Future<void> _requestDeviceAdmin() async {
@@ -119,7 +108,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     );
   }
 
-  bool get _allOk => _usage && _accessibility && _overlay && _location;
+  bool get _allOk => _usage && _accessibility && _overlay;
 
   @override
   Widget build(BuildContext context) {
@@ -177,16 +166,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                     granted: _accessibility,
                     critical: true,
                     onRequest: _requestAccessibility,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _permissionCard(
-                    icon: Icons.location_on_outlined,
-                    title: 'Ubicación',
-                    description:
-                        'Necesario para detectar redes WiFi en Android 10+',
-                    granted: _location,
-                    critical: true,
-                    onRequest: _requestLocation,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   _permissionCard(
@@ -256,10 +235,10 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Column(
                   children: [
-                    _permissionCard(
-                      icon: Icons.verified_user_rounded,
-                      title: 'Protección total (Device Owner)',
-                      description:
+                  _permissionCard(
+                    icon: Icons.verified_user_rounded,
+                    title: 'Protección total (Device Owner)',
+                    description:
                           'Bloquea la desinstalación cuando la app es Device Owner',
                       granted: _deviceOwner,
                       critical: false,

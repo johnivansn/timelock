@@ -11,9 +11,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -23,11 +20,9 @@ import android.util.Log
 import com.example.timelock.admin.AdminManager
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.AppRestriction
-import com.example.timelock.monitoring.NetworkMonitor
 import com.example.timelock.optimization.AppCacheManager
 import com.example.timelock.optimization.BatteryModeManager
 import com.example.timelock.optimization.DataCleanupManager
-import com.example.timelock.optimization.WifiCacheManager
 import com.example.timelock.services.AppBlockAccessibilityService
 import com.example.timelock.services.UsageMonitorService
 import com.example.timelock.utils.AppUtils
@@ -50,7 +45,6 @@ class MainActivity : FlutterActivity() {
   private lateinit var database: AppDatabase
   private lateinit var adminManager: AdminManager
   private lateinit var appCacheManager: AppCacheManager
-  private lateinit var wifiCacheManager: WifiCacheManager
   private lateinit var batteryModeManager: BatteryModeManager
   private lateinit var dataCleanupManager: DataCleanupManager
   private val scope = CoroutineScope(Dispatchers.Main + Job())
@@ -69,7 +63,6 @@ class MainActivity : FlutterActivity() {
     database = AppDatabase.getDatabase(this)
     adminManager = AdminManager(this)
     appCacheManager = AppCacheManager(this)
-    wifiCacheManager = WifiCacheManager(this)
     batteryModeManager = BatteryModeManager(this)
     dataCleanupManager = DataCleanupManager(this)
 
@@ -150,69 +143,6 @@ class MainActivity : FlutterActivity() {
             } catch (e: Exception) {
               Log.e("MainActivity", "Error getting usage", e)
               withContext(Dispatchers.Main) { result.error("GET_USAGE_ERROR", e.message, null) }
-            }
-          }
-        }
-        "getCurrentWifi" -> {
-          Log.d("MainActivity", "🔍 getCurrentWifi llamado")
-
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val hasFineLocation =
-                    checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) ==
-                            PackageManager.PERMISSION_GRANTED
-            Log.d("MainActivity", "  Permiso FINE_LOCATION: $hasFineLocation")
-
-            if (!hasFineLocation) {
-              Log.w("MainActivity", "⚠️ Permiso FINE_LOCATION falta - solicitando")
-              requestPermissions(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), 1003)
-              result.error("NO_PERMISSION", "Se necesita permiso de ubicación", null)
-              return@setMethodCallHandler
-            }
-
-            val locationManager =
-                    getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
-            val locationEnabled =
-                    locationManager.isProviderEnabled(
-                            android.location.LocationManager.GPS_PROVIDER
-                    ) ||
-                            locationManager.isProviderEnabled(
-                                    android.location.LocationManager.NETWORK_PROVIDER
-                            )
-
-            Log.d("MainActivity", "  Ubicación activada: $locationEnabled")
-
-            if (!locationEnabled) {
-              Log.w("MainActivity", "⚠️ Ubicación del dispositivo desactivada")
-              result.error("LOCATION_DISABLED", "Active la ubicación del dispositivo", null)
-              return@setMethodCallHandler
-            }
-          }
-
-          val nm = NetworkMonitor(this, CoroutineScope(Dispatchers.IO + Job()))
-          val ssid = nm.getCurrentSSID()
-          Log.d("MainActivity", "📡 SSID obtenido: $ssid")
-          result.success(ssid)
-        }
-        "getSavedWifiNetworks" -> {
-          scope.launch {
-            try {
-              val networks = getSavedWifiNetworks()
-              withContext(Dispatchers.Main) { result.success(networks) }
-            } catch (e: Exception) {
-              Log.e("MainActivity", "Error getting saved wifi", e)
-              withContext(Dispatchers.Main) { result.error("GET_WIFI_ERROR", e.message, null) }
-            }
-          }
-        }
-        "updateRestrictionWifi" -> {
-          val args = call.arguments as Map<*, *>
-          scope.launch {
-            try {
-              updateRestrictionWifi(args)
-              withContext(Dispatchers.Main) { result.success(null) }
-            } catch (e: Exception) {
-              Log.e("MainActivity", "Error updating wifi", e)
-              withContext(Dispatchers.Main) { result.error("UPDATE_WIFI_ERROR", e.message, null) }
             }
           }
         }
@@ -402,7 +332,6 @@ class MainActivity : FlutterActivity() {
         scope.launch {
           try {
             appCacheManager.invalidateCache()
-            wifiCacheManager.invalidateCache()
             withContext(Dispatchers.Main) { result.success(null) }
           } catch (e: Exception) {
             withContext(Dispatchers.Main) { result.error("CACHE_ERROR", e.message, null) }
@@ -418,13 +347,6 @@ class MainActivity : FlutterActivity() {
             withContext(Dispatchers.Main) { result.error("CLEANUP_ERROR", e.message, null) }
           }
         }
-      }
-      "checkLocationPermission" -> {
-        result.success(hasLocationPermission())
-      }
-      "requestLocationPermission" -> {
-        requestLocationPermission()
-        result.success(null)
       }
       "getSharedPreferences" -> {
         val prefsName = call.arguments as String
@@ -478,21 +400,6 @@ class MainActivity : FlutterActivity() {
   override fun onDestroy() {
     super.onDestroy()
     scope.cancel()
-  }
-
-  private fun hasLocationPermission(): Boolean {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) ==
-              PackageManager.PERMISSION_GRANTED
-    } else {
-      true
-    }
-  }
-
-  private fun requestLocationPermission() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      requestPermissions(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), 1002)
-    }
   }
 
   private suspend fun getSchedules(packageName: String): List<Map<String, Any>> {
@@ -568,8 +475,7 @@ class MainActivity : FlutterActivity() {
                       "packageName" to r.packageName,
                       "appName" to r.appName,
                       "dailyQuotaMinutes" to r.dailyQuotaMinutes,
-                      "isEnabled" to r.isEnabled,
-                      "blockedWifiSSIDs" to r.getBlockedWifiList()
+                      "isEnabled" to r.isEnabled
               )
             }
 
@@ -615,9 +521,6 @@ class MainActivity : FlutterActivity() {
         continue
       }
 
-      @Suppress("UNCHECKED_CAST")
-      val wifiList = (item["blockedWifiSSIDs"] as? List<String>) ?: emptyList()
-
       val restriction =
               AppRestriction(
                       id = java.util.UUID.randomUUID().toString(),
@@ -625,7 +528,6 @@ class MainActivity : FlutterActivity() {
                       appName = item["appName"] as? String ?: pkg,
                       dailyQuotaMinutes = (item["dailyQuotaMinutes"] as? Number)?.toInt() ?: 60,
                       isEnabled = item["isEnabled"] as? Boolean ?: true,
-                      blockedWifiSSIDs = wifiList.joinToString(","),
                       createdAt = System.currentTimeMillis()
               )
       database.appRestrictionDao().insert(restriction)
@@ -812,111 +714,11 @@ class MainActivity : FlutterActivity() {
             "cacheSizeKB" to (cacheSize / 1024),
             "databaseSizeMB" to cleanupStats["databaseSizeMB"]!!,
             "usageRecordCount" to cleanupStats["usageRecordCount"]!!,
-            "wifiHistoryCount" to cleanupStats["wifiHistoryCount"]!!,
             "lastCleanup" to cleanupStats["lastCleanup"]!!
     )
   }
 
-  private suspend fun getSavedWifiNetworks(): List<String> {
-    Log.d("MainActivity", "🔍 getSavedWifiNetworks iniciado")
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      val hasPermission =
-              checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) ==
-                      PackageManager.PERMISSION_GRANTED
-      Log.d("MainActivity", "  Permiso LOCATION: $hasPermission")
-
-      if (!hasPermission) {
-        Log.w("MainActivity", "⚠️ Solicitando permiso de ubicación")
-        requestPermissions(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), 1002)
-      }
-    }
-
-    val cached = wifiCacheManager.getCachedNetworks()
-    if (cached != null) {
-      Log.d("MainActivity", "📦 Retornando ${cached.size} redes desde cache")
-      return cached
-    }
-
-    Log.d("MainActivity", "🔄 Cache miss - obteniendo redes frescas")
-
-    val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-
-    if (wifiManager == null) {
-      Log.e("MainActivity", "❌ WifiManager es null")
-      return emptyList()
-    }
-
-    val allSSIDs = mutableSetOf<String>()
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-      Log.d("MainActivity", "📱 Android Q+ - obteniendo red actual")
-
-      val connectivityManager =
-              getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-      val network = connectivityManager.activeNetwork
-      val capabilities = connectivityManager.getNetworkCapabilities(network)
-
-      Log.d("MainActivity", "  activeNetwork: $network")
-      Log.d("MainActivity", "  capabilities: $capabilities")
-      Log.d(
-              "MainActivity",
-              "  hasWiFi: ${capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)}"
-      )
-
-      if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
-        @Suppress("DEPRECATION")
-        val currentSSID = wifiManager.connectionInfo?.ssid?.removeSurrounding("\"")
-        Log.d("MainActivity", "  SSID actual: $currentSSID")
-
-        if (!currentSSID.isNullOrEmpty() && currentSSID != "<unknown ssid>") {
-          allSSIDs.add(currentSSID)
-          Log.d("MainActivity", "✅ Agregado SSID actual: $currentSSID")
-        }
-      }
-    } else {
-      Log.d("MainActivity", "📱 Android pre-Q - obteniendo redes configuradas")
-
-      @Suppress("DEPRECATION") val configs = wifiManager.configuredNetworks ?: emptyList()
-      Log.d("MainActivity", "  Redes configuradas: ${configs.size}")
-
-      configs
-              .mapNotNull { it.SSID?.removeSurrounding("\"") }
-              .filter { it.isNotEmpty() && it != "<unknown ssid>" }
-              .forEach {
-                allSSIDs.add(it)
-                Log.d("MainActivity", "  ✅ Agregado: $it")
-              }
-    }
-
-    val historySSIDs = database.wifiHistoryDao().getAll().map { it.ssid }
-    Log.d("MainActivity", "📜 Historial WiFi: ${historySSIDs.size} redes")
-    historySSIDs.forEach { allSSIDs.add(it) }
-
-    val restricted = database.appRestrictionDao().getAll()
-    val restrictedSSIDs = restricted.flatMap { it.getBlockedWifiList() }.filter { it.isNotEmpty() }
-    Log.d("MainActivity", "🚫 SSIDs en restricciones: ${restrictedSSIDs.size}")
-    restrictedSSIDs.forEach { allSSIDs.add(it) }
-
-    val result = allSSIDs.sorted()
-    Log.d("MainActivity", "✅ Total SSIDs únicos: ${result.size}")
-    result.forEach { Log.d("MainActivity", "    - $it") }
-
-    wifiCacheManager.cacheNetworks(result)
-    return result
-  }
-
-  private suspend fun updateRestrictionWifi(args: Map<*, *>) {
-    val packageName = args["packageName"] as String
-    val ssids = (args["blockedWifiSSIDs"] as? List<*>)?.map { it.toString() } ?: emptyList()
-    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return
-    database.appRestrictionDao()
-            .update(restriction.copy(blockedWifiSSIDs = ssids.joinToString(",")))
-    Log.i("MainActivity", "Updated WiFi blocks for $packageName: $ssids")
-  }
-
   private suspend fun addRestriction(args: Map<*, *>) {
-    val wifiList = (args["blockedWifiSSIDs"] as? List<*>)?.map { it.toString() } ?: emptyList()
     val restriction =
             AppRestriction(
                     id = UUID.randomUUID().toString(),
@@ -924,7 +726,6 @@ class MainActivity : FlutterActivity() {
                     appName = args["appName"] as String,
                     dailyQuotaMinutes = args["dailyQuotaMinutes"] as Int,
                     isEnabled = args["isEnabled"] as Boolean,
-                    blockedWifiSSIDs = wifiList.joinToString(","),
                     createdAt = System.currentTimeMillis()
             )
     database.appRestrictionDao().insert(restriction)
@@ -943,8 +744,7 @@ class MainActivity : FlutterActivity() {
               "packageName" to restriction.packageName,
               "appName" to restriction.appName,
               "dailyQuotaMinutes" to restriction.dailyQuotaMinutes,
-              "isEnabled" to restriction.isEnabled,
-              "blockedWifiSSIDs" to restriction.getBlockedWifiList()
+              "isEnabled" to restriction.isEnabled
       )
     }
   }

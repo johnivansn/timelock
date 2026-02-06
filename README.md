@@ -6,7 +6,6 @@
 
 * Tracking de apps
 * Bloqueo por cuota diaria
-* Bloqueo por WiFi
 * Reset diario
 * PIN admin
 * Notificaciones
@@ -48,14 +47,7 @@ Que la app sea **confiable y difícil de evadir** en uso real.
    * Excluir solo apps core (Settings, System UI, etc.)
    * Lista consistente en todos los Android soportados
 
-2. **Detección automática de WiFi**
-
-   * Android 10+: detección dinámica
-   * Versiones antiguas: redes guardadas
-   * Red actual siempre visible
-   * Historial simple de redes usadas
-
-3. **Protección contra desinstalación**
+2. **Protección contra desinstalación**
 
    * DeviceAdminReceiver
    * Requiere desactivar admin antes de desinstalar
@@ -80,7 +72,6 @@ Notas:
 #### Criterios de aceptación
 
 * ✅ ≥95% de apps visibles
-* ✅ WiFi actual siempre detectable
 * ✅ No se puede desinstalar por accidente
 * ✅ Sin crashes Android 10–13+
 
@@ -110,7 +101,7 @@ UI **moderna, limpia y profesional**, sin agregar complejidad funcional.
 * Permissions
 * Settings
 * Export / Import
-* Diálogos (App, WiFi, Time)
+* Diálogos (App, Time)
 
 #### Criterios de aceptación
 
@@ -139,7 +130,6 @@ Evitar distracciones en **momentos clave**, no solo por tiempo total.
 * Integrado con:
 
   * Cuota diaria
-  * WiFi blocking
 
 #### Notificaciones
 
@@ -216,7 +206,6 @@ App **ligera, rápida y estable** a largo plazo.
 
    * Apps instaladas
    * Íconos
-   * Redes WiFi
 
 3. **Limpieza de datos**
 

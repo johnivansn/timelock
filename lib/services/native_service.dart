@@ -36,14 +36,6 @@ class NativeService {
     await _channel.invokeMethod('requestOverlayPermission');
   }
 
-  static Future<bool> checkLocationPermission() async {
-    return await _channel.invokeMethod<bool>('checkLocationPermission') ??
-        false;
-  }
-
-  static Future<void> requestLocationPermission() async {
-    await _channel.invokeMethod('requestLocationPermission');
-  }
 
   static Future<List<Map<String, dynamic>>> getInstalledApps() async {
     final raw =
@@ -88,21 +80,6 @@ class NativeService {
 
   static Future<bool> disableAdmin() async {
     return await _channel.invokeMethod<bool>('disableAdmin') ?? false;
-  }
-
-  static Future<List<String>> getSavedWifiNetworks() async {
-    final result =
-        await _channel.invokeMethod<List<dynamic>>('getSavedWifiNetworks') ??
-            [];
-    return result.map((e) => e.toString()).toList();
-  }
-
-  static Future<String?> getCurrentWifi() async {
-    return await _channel.invokeMethod<String?>('getCurrentWifi');
-  }
-
-  static Future<void> updateRestrictionWifi(Map<String, dynamic> data) async {
-    await _channel.invokeMethod('updateRestrictionWifi', data);
   }
 
   static Future<String?> exportConfig() async {

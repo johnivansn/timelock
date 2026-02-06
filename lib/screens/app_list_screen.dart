@@ -10,7 +10,6 @@ import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
 import 'package:timelock/widgets/app_picker_dialog.dart';
 import 'package:timelock/widgets/time_picker_dialog.dart';
-import 'package:timelock/widgets/wifi_picker_dialog.dart';
 
 class AppListScreen extends StatefulWidget {
   const AppListScreen({super.key});
@@ -98,7 +97,6 @@ class _AppListScreenState extends State<AppListScreen> {
         'appName': name,
         'dailyQuotaMinutes': minutes,
         'isEnabled': true,
-        'blockedWifiSSIDs': [],
       });
       await _loadRestrictions();
     } catch (e) {
@@ -123,31 +121,6 @@ class _AppListScreenState extends State<AppListScreen> {
     } catch (_) {
       _restrictions.removeWhere((x) => x['packageName'] == r['packageName']);
       if (mounted) setState(() {});
-    }
-  }
-
-  Future<void> _openWifiPicker(Map<String, dynamic> r) async {
-    final allowed =
-        await _requireAdmin('Ingresa tu PIN para modificar bloqueos por WiFi');
-    if (!allowed || !mounted) return;
-
-    final current = (r['blockedWifiSSIDs'] as List<dynamic>?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        [];
-
-    final result = await showModalBottomSheet<List<String>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => WifiPickerDialog(
-        appName: r['appName'],
-        packageName: r['packageName'],
-        currentSSIDs: current,
-      ),
-    );
-    if (result != null) {
-      await _loadRestrictions();
     }
   }
 
@@ -602,82 +575,10 @@ class _AppListScreenState extends State<AppListScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.md),
-                const Divider(height: 1),
-                const SizedBox(height: AppSpacing.md),
-                _wifiRow(r),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _wifiRow(Map<String, dynamic> r) {
-    final ssids = (r['blockedWifiSSIDs'] as List<dynamic>?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        [];
-
-    return SizedBox(
-      width: double.infinity,
-      child: Row(
-        children: [
-          const Icon(Icons.wifi_outlined,
-              color: AppColors.textTertiary, size: 20),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: ssids.isEmpty
-                ? const Text(
-                    'Sin redes bloqueadas',
-                    style:
-                        TextStyle(fontSize: 13, color: AppColors.textTertiary),
-                  )
-                : SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: ssids
-                          .map((ssid) => Padding(
-                                padding:
-                                    const EdgeInsets.only(right: AppSpacing.xs),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.sm,
-                                    vertical: AppSpacing.xs,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary
-                                        .withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    ssid,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          IconButton(
-            onPressed: () => _openWifiPicker(r),
-            icon: const Icon(Icons.settings_outlined, size: 20),
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.surfaceVariant,
-              padding: const EdgeInsets.all(AppSpacing.sm),
-            ),
-          ),
-        ],
       ),
     );
   }

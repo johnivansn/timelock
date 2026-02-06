@@ -31,7 +31,6 @@ class PillNotificationHelper(private val context: Context) {
 
   enum class BlockReason {
     QUOTA_EXCEEDED,
-    WIFI_BLOCKED,
     SCHEDULE_BLOCKED,
     MANUAL
   }
@@ -59,7 +58,6 @@ class PillNotificationHelper(private val context: Context) {
     val text =
             when (reason) {
               BlockReason.QUOTA_EXCEEDED -> "Límite alcanzado"
-              BlockReason.WIFI_BLOCKED -> "Bloqueada en WiFi"
               BlockReason.SCHEDULE_BLOCKED -> "Fuera de horario"
               BlockReason.MANUAL -> "Bloqueada"
             }
