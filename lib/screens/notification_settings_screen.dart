@@ -30,17 +30,17 @@ class _NotificationSettingsScreenState
 
   Future<void> _loadSettings() async {
     try {
-      final settings = await _ch
-          .invokeMethod<Map<dynamic, dynamic>>('getNotificationSettings');
-      if (settings != null && mounted) {
+      final prefs = await _ch.invokeMethod<Map<dynamic, dynamic>>(
+          'getSharedPreferences', 'notification_prefs');
+      if (prefs != null && mounted) {
         setState(() {
-          _quota50Enabled = settings['quota50'] as bool? ?? true;
-          _quota75Enabled = settings['quota75'] as bool? ?? true;
-          _lastMinuteEnabled = settings['lastMinute'] as bool? ?? true;
-          _blockedEnabled = settings['blocked'] as bool? ?? true;
-          _scheduleEnabled = settings['schedule'] as bool? ?? true;
+          _quota50Enabled = prefs['notify_quota_50'] as bool? ?? true;
+          _quota75Enabled = prefs['notify_quota_75'] as bool? ?? true;
+          _lastMinuteEnabled = prefs['notify_last_minute'] as bool? ?? true;
+          _blockedEnabled = prefs['notify_blocked'] as bool? ?? true;
+          _scheduleEnabled = prefs['notify_schedule'] as bool? ?? true;
           _serviceNotificationEnabled =
-              settings['serviceNotification'] as bool? ?? true;
+              prefs['notify_service_status'] as bool? ?? true;
           _loading = false;
         });
       }
@@ -49,21 +49,19 @@ class _NotificationSettingsScreenState
     }
   }
 
-  Future<void> _saveSettings() async {
+  Future<void> _saveSetting(String key, bool value) async {
     try {
-      await _ch.invokeMethod('saveNotificationSettings', {
-        'quota50': _quota50Enabled,
-        'quota75': _quota75Enabled,
-        'lastMinute': _lastMinuteEnabled,
-        'blocked': _blockedEnabled,
-        'schedule': _scheduleEnabled,
-        'serviceNotification': _serviceNotificationEnabled,
+      await _ch.invokeMethod('saveSharedPreference', {
+        'prefsName': 'notification_prefs',
+        'key': key,
+        'value': value,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Configuración guardada'),
             behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -106,7 +104,7 @@ class _NotificationSettingsScreenState
                       SizedBox(width: AppSpacing.md),
                       Expanded(
                         child: Text(
-                          'Configura qué notificaciones quieres recibir',
+                          'Las notificaciones aparecen como píldoras flotantes en la parte superior de la pantalla',
                           style: TextStyle(
                             color: AppColors.info,
                             fontSize: 14,
@@ -148,7 +146,7 @@ class _NotificationSettingsScreenState
                     value: _quota50Enabled,
                     onChanged: (val) {
                       setState(() => _quota50Enabled = val);
-                      _saveSettings();
+                      _saveSetting('notify_quota_50', val);
                     },
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -159,7 +157,7 @@ class _NotificationSettingsScreenState
                     value: _quota75Enabled,
                     onChanged: (val) {
                       setState(() => _quota75Enabled = val);
-                      _saveSettings();
+                      _saveSetting('notify_quota_75', val);
                     },
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -170,7 +168,7 @@ class _NotificationSettingsScreenState
                     value: _lastMinuteEnabled,
                     onChanged: (val) {
                       setState(() => _lastMinuteEnabled = val);
-                      _saveSettings();
+                      _saveSetting('notify_last_minute', val);
                     },
                   ),
                 ]),
@@ -206,7 +204,7 @@ class _NotificationSettingsScreenState
                     value: _blockedEnabled,
                     onChanged: (val) {
                       setState(() => _blockedEnabled = val);
-                      _saveSettings();
+                      _saveSetting('notify_blocked', val);
                     },
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -217,7 +215,7 @@ class _NotificationSettingsScreenState
                     value: _scheduleEnabled,
                     onChanged: (val) {
                       setState(() => _scheduleEnabled = val);
-                      _saveSettings();
+                      _saveSetting('notify_schedule', val);
                     },
                   ),
                 ]),
@@ -253,7 +251,7 @@ class _NotificationSettingsScreenState
                   value: _serviceNotificationEnabled,
                   onChanged: (val) {
                     setState(() => _serviceNotificationEnabled = val);
-                    _saveSettings();
+                    _saveSetting('notify_service_status', val);
                   },
                 ),
               ),

@@ -414,6 +414,51 @@ class MainActivity : FlutterActivity() {
         requestLocationPermission()
         result.success(null)
       }
+      "getSharedPreferences" -> {
+        val prefsName = call.arguments as String
+        scope.launch {
+          try {
+            val prefs = getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+            val map = prefs.all.mapValues { (_, v) -> v }
+            withContext(Dispatchers.Main) { result.success(map) }
+          } catch (e: Exception) {
+            withContext(Dispatchers.Main) { result.error("PREFS_ERROR", e.message, null) }
+          }
+        }
+      }
+      "saveSharedPreference" -> {
+        val args = call.arguments as Map<*, *>
+        val prefsName = args["prefsName"] as String
+        val key = args["key"] as String
+        val value = args["value"]
+
+        scope.launch {
+          try {
+            val prefs = getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+            prefs.edit().apply {
+              when (value) {
+                is Boolean -> putBoolean(key, value)
+                is String -> putString(key, value)
+                is Int -> putInt(key, value)
+                is Long -> putLong(key, value)
+                is Float -> putFloat(key, value)
+                else -> remove(key)
+              }
+              apply()
+            }
+
+            if (prefsName == "notification_prefs") {
+              val intent = Intent(this@MainActivity, UsageMonitorService::class.java)
+              intent.action = UsageMonitorService.ACTION_UPDATE_NOTIFICATION
+              startService(intent)
+            }
+
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            withContext(Dispatchers.Main) { result.error("PREFS_ERROR", e.message, null) }
+          }
+        }
+      }
       else -> result.notImplemented()
     }
   }
