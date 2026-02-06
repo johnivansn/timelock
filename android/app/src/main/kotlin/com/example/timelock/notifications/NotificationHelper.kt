@@ -16,12 +16,15 @@ class NotificationHelper(private val context: Context) {
   private val prefs = com.example.timelock.preferences.NotificationPreferences(context)
 
   companion object {
-    private const val CHANNEL_QUOTA_WARNINGS = "quota_warnings"
+    private const val CHANNEL_QUOTA_50 = "quota_50_warning"
+    private const val CHANNEL_QUOTA_75 = "quota_75_warning"
+    private const val CHANNEL_LAST_MINUTE = "last_minute_warning"
     private const val CHANNEL_APP_BLOCKED = "app_blocked"
     private const val CHANNEL_SCHEDULE = "schedule_warnings"
 
-    private const val NOTIFICATION_ID_QUOTA_25 = 1001
-    private const val NOTIFICATION_ID_QUOTA_10 = 1002
+    private const val NOTIFICATION_ID_QUOTA_50 = 1005
+    private const val NOTIFICATION_ID_QUOTA_75 = 1006
+    private const val NOTIFICATION_ID_LAST_MINUTE = 1007
     private const val NOTIFICATION_ID_BLOCKED = 1003
     private const val NOTIFICATION_ID_SCHEDULE = 1004
   }
@@ -32,14 +35,36 @@ class NotificationHelper(private val context: Context) {
 
   private fun createNotificationChannels() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val quotaChannel =
+      val quota50Channel =
               NotificationChannel(
-                              CHANNEL_QUOTA_WARNINGS,
-                              "Advertencias de Cuota",
-                              NotificationManager.IMPORTANCE_DEFAULT
+                              CHANNEL_QUOTA_50,
+                              "Advertencia 50% consumido",
+                              NotificationManager.IMPORTANCE_HIGH
                       )
                       .apply {
-                        description = "Notificaciones cuando te queda poco tiempo disponible"
+                        description = "Notificación cuando has usado la mitad de tu tiempo"
+                        enableVibration(true)
+                      }
+
+      val quota75Channel =
+              NotificationChannel(
+                              CHANNEL_QUOTA_75,
+                              "Advertencia 75% consumido",
+                              NotificationManager.IMPORTANCE_HIGH
+                      )
+                      .apply {
+                        description = "Notificación cuando queda poco tiempo disponible"
+                        enableVibration(true)
+                      }
+
+      val lastMinuteChannel =
+              NotificationChannel(
+                              CHANNEL_LAST_MINUTE,
+                              "Último minuto",
+                              NotificationManager.IMPORTANCE_HIGH
+                      )
+                      .apply {
+                        description = "Notificación en el último minuto disponible"
                         enableVibration(true)
                       }
 
@@ -65,15 +90,15 @@ class NotificationHelper(private val context: Context) {
                         enableVibration(true)
                       }
 
-      notificationManager.createNotificationChannel(quotaChannel)
+      notificationManager.createNotificationChannel(quota50Channel)
+      notificationManager.createNotificationChannel(quota75Channel)
+      notificationManager.createNotificationChannel(lastMinuteChannel)
       notificationManager.createNotificationChannel(blockedChannel)
       notificationManager.createNotificationChannel(scheduleChannel)
     }
   }
 
-  fun notifyQuota25(appName: String, remainingMinutes: Int) {
-    if (!prefs.quota25Enabled) return
-
+  private fun createHeadsUpNotification(channelId: String): NotificationCompat.Builder {
     val intent =
             Intent(context, MainActivity::class.java).apply {
               flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -86,45 +111,50 @@ class NotificationHelper(private val context: Context) {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-    val notification =
-            NotificationCompat.Builder(context, CHANNEL_QUOTA_WARNINGS)
-                    .setSmallIcon(android.R.drawable.ic_dialog_info)
-                    .setContentTitle("⚠️ Queda 25% de tiempo")
-                    .setContentText("$appName: ${remainingMinutes}m restantes hoy")
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .setContentIntent(pendingIntent)
-                    .setAutoCancel(true)
-                    .build()
-
-    notificationManager.notify(NOTIFICATION_ID_QUOTA_25, notification)
+    return NotificationCompat.Builder(context, channelId)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
   }
 
-  fun notifyQuota10(appName: String, remainingMinutes: Int) {
-    if (!prefs.quota10Enabled) return
-
-    val intent =
-            Intent(context, MainActivity::class.java).apply {
-              flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            }
-    val pendingIntent =
-            PendingIntent.getActivity(
-                    context,
-                    0,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
+  fun notifyQuota50(appName: String, remainingMinutes: Int) {
+    if (!prefs.quota50Enabled) return
 
     val notification =
-            NotificationCompat.Builder(context, CHANNEL_QUOTA_WARNINGS)
-                    .setSmallIcon(android.R.drawable.ic_dialog_alert)
-                    .setContentTitle("🚨 Últimos minutos disponibles")
-                    .setContentText("$appName: solo ${remainingMinutes}m restantes")
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
-                    .setContentIntent(pendingIntent)
-                    .setAutoCancel(true)
+            createHeadsUpNotification(CHANNEL_QUOTA_50)
+                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .setContentTitle("⏳ Mitad del tiempo usado")
+                    .setContentText("$appName: 50% consumido, quedan ${remainingMinutes}m")
                     .build()
 
-    notificationManager.notify(NOTIFICATION_ID_QUOTA_10, notification)
+    notificationManager.notify(NOTIFICATION_ID_QUOTA_50, notification)
+  }
+
+  fun notifyQuota75(appName: String, remainingMinutes: Int) {
+    if (!prefs.quota75Enabled) return
+
+    val notification =
+            createHeadsUpNotification(CHANNEL_QUOTA_75)
+                    .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                    .setContentTitle("⚠️ Quedan pocos minutos")
+                    .setContentText("$appName: 75% consumido, quedan ${remainingMinutes}m")
+                    .build()
+
+    notificationManager.notify(NOTIFICATION_ID_QUOTA_75, notification)
+  }
+
+  fun notifyLastMinute(appName: String) {
+    if (!prefs.lastMinuteEnabled) return
+
+    val notification =
+            createHeadsUpNotification(CHANNEL_LAST_MINUTE)
+                    .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                    .setContentTitle("🚨 Último minuto disponible")
+                    .setContentText("$appName: Solo queda 1 minuto")
+                    .build()
+
+    notificationManager.notify(NOTIFICATION_ID_LAST_MINUTE, notification)
   }
 
   fun notifyAppBlocked(appName: String, reason: BlockReason) {

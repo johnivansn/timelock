@@ -20,8 +20,9 @@ class UsageStatsMonitor(private val context: Context) {
   private val scope = CoroutineScope(Dispatchers.IO)
   private val notificationHelper = NotificationHelper(context)
 
-  private val notified25Percent = mutableSetOf<String>()
-  private val notified10Percent = mutableSetOf<String>()
+  private val notified50Percent = mutableSetOf<String>()
+  private val notified75Percent = mutableSetOf<String>()
+  private val notifiedLastMinute = mutableSetOf<String>()
 
   fun getUsageToday(packageName: String): Long {
     val calendar = Calendar.getInstance()
@@ -162,25 +163,34 @@ class UsageStatsMonitor(private val context: Context) {
           quotaMinutes: Int
   ) {
     val remainingMinutes = quotaMinutes - usedMinutes
-    val percentageUsed = (usedMinutes.toFloat() / quotaMinutes.toFloat()) * 100
 
     when {
-      percentageUsed >= 90 && !notified10Percent.contains(packageName) -> {
-        notificationHelper.notifyQuota10(appName, remainingMinutes)
-        notified10Percent.add(packageName)
-        Log.i(TAG, "Notificado 10% restante para $packageName")
+      remainingMinutes == 1 && !notifiedLastMinute.contains(packageName) -> {
+        notificationHelper.notifyLastMinute(appName)
+        notifiedLastMinute.add(packageName)
+        Log.i(TAG, "Notificado último minuto para $packageName")
       }
-      percentageUsed >= 75 && !notified25Percent.contains(packageName) -> {
-        notificationHelper.notifyQuota25(appName, remainingMinutes)
-        notified25Percent.add(packageName)
-        Log.i(TAG, "Notificado 25% restante para $packageName")
+      usedMinutes >= (quotaMinutes * 0.75).toInt() &&
+              remainingMinutes > 1 &&
+              !notified75Percent.contains(packageName) -> {
+        notificationHelper.notifyQuota75(appName, remainingMinutes)
+        notified75Percent.add(packageName)
+        Log.i(TAG, "Notificado 75% para $packageName")
+      }
+      usedMinutes >= (quotaMinutes * 0.5).toInt() &&
+              usedMinutes < (quotaMinutes * 0.75).toInt() &&
+              !notified50Percent.contains(packageName) -> {
+        notificationHelper.notifyQuota50(appName, remainingMinutes)
+        notified50Percent.add(packageName)
+        Log.i(TAG, "Notificado 50% para $packageName")
       }
     }
   }
 
   fun resetNotificationFlags() {
-    notified25Percent.clear()
-    notified10Percent.clear()
+    notified50Percent.clear()
+    notified75Percent.clear()
+    notifiedLastMinute.clear()
     Log.i(TAG, "Flags de notificación reseteadas")
   }
 

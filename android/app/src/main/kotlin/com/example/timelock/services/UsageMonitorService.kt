@@ -6,6 +6,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Handler
@@ -17,7 +18,6 @@ import com.example.timelock.database.AppDatabase
 import com.example.timelock.monitoring.NetworkMonitor
 import com.example.timelock.monitoring.ScheduleMonitor
 import com.example.timelock.monitoring.UsageStatsMonitor
-import com.example.timelock.notifications.PersistentNotification
 import com.example.timelock.optimization.BatteryModeManager
 import com.example.timelock.optimization.DataCleanupManager
 import com.example.timelock.receivers.DailyResetReceiver
@@ -35,7 +35,6 @@ class UsageMonitorService : Service() {
   private lateinit var usageStatsMonitor: UsageStatsMonitor
   private lateinit var networkMonitor: NetworkMonitor
   private lateinit var scheduleMonitor: ScheduleMonitor
-  private lateinit var persistentNotification: PersistentNotification
   private lateinit var database: AppDatabase
   private lateinit var batteryModeManager: BatteryModeManager
   private lateinit var dataCleanupManager: DataCleanupManager
@@ -49,7 +48,6 @@ class UsageMonitorService : Service() {
               usageStatsMonitor.updateAllUsage()
               updateNotification()
               updateWidgets()
-              updatePersistentNotification()
 
               scope.launch { dataCleanupManager.performCleanupIfNeeded() }
 
@@ -64,20 +62,22 @@ class UsageMonitorService : Service() {
     usageStatsMonitor = UsageStatsMonitor(this)
     networkMonitor = NetworkMonitor(this, scope)
     scheduleMonitor = ScheduleMonitor(this)
-    persistentNotification = PersistentNotification(this)
     batteryModeManager = BatteryModeManager(this)
     dataCleanupManager = DataCleanupManager(this)
-    createNotificationChannel()
+    createNotificationChannels()
     startForeground(NOTIFICATION_ID, createNotification())
     scheduleDailyReset()
     networkMonitor.start()
-    persistentNotification.show()
 
     scope.launch { dataCleanupManager.performCleanupIfNeeded() }
   }
 
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-    handler.post(updateRunnable)
+    if (intent?.action == ACTION_UPDATE_NOTIFICATION) {
+      updateNotification()
+    } else {
+      handler.post(updateRunnable)
+    }
     return START_STICKY
   }
 
@@ -87,7 +87,6 @@ class UsageMonitorService : Service() {
     super.onDestroy()
     handler.removeCallbacks(updateRunnable)
     networkMonitor.stop()
-    persistentNotification.hide()
     scope.cancel()
   }
 
@@ -123,42 +122,92 @@ class UsageMonitorService : Service() {
     Log.i("UsageMonitorService", "Daily reset scheduled for ${midnight.time}")
   }
 
-  private fun createNotificationChannel() {
+  private fun createNotificationChannels() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val channel =
+      val visibleChannel =
               NotificationChannel(
-                              CHANNEL_ID,
+                              CHANNEL_ID_VISIBLE,
                               "Monitoreo de Uso",
                               NotificationManager.IMPORTANCE_LOW
                       )
-                      .apply { description = "Monitoreo continuo de uso de aplicaciones" }
-      getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+                      .apply {
+                        description = "Monitoreo continuo de uso de aplicaciones"
+                        setShowBadge(false)
+                      }
+
+      val minimalChannel =
+              NotificationChannel(
+                              CHANNEL_ID_MINIMAL,
+                              "Servicio en segundo plano",
+                              NotificationManager.IMPORTANCE_MIN
+                      )
+                      .apply {
+                        description = "Servicio de monitoreo (oculto)"
+                        setShowBadge(false)
+                      }
+
+      getSystemService(NotificationManager::class.java).apply {
+        createNotificationChannel(visibleChannel)
+        createNotificationChannel(minimalChannel)
+      }
     }
   }
 
+  private fun isServiceNotificationEnabled(): Boolean {
+    val prefs = getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+    return prefs.getBoolean("notify_service_status", true)
+  }
+
   private fun createNotification(): Notification {
-    return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("AppTimeControl activo")
-            .setContentText("Iniciando monitoreo...")
-            .setSmallIcon(android.R.drawable.ic_menu_info_details)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
+    val enabled = isServiceNotificationEnabled()
+
+    return if (enabled) {
+      NotificationCompat.Builder(this, CHANNEL_ID_VISIBLE)
+              .setContentTitle("AppTimeControl activo")
+              .setContentText("Iniciando monitoreo...")
+              .setSmallIcon(android.R.drawable.ic_menu_info_details)
+              .setPriority(NotificationCompat.PRIORITY_LOW)
+              .setOngoing(true)
+              .build()
+    } else {
+      NotificationCompat.Builder(this, CHANNEL_ID_MINIMAL)
+              .setContentTitle("")
+              .setContentText("")
+              .setSmallIcon(android.R.drawable.ic_menu_info_details)
+              .setPriority(NotificationCompat.PRIORITY_MIN)
+              .setOngoing(true)
+              .build()
+    }
   }
 
   private fun updateNotification() {
     scope.launch {
+      val enabled = isServiceNotificationEnabled()
       monitoredAppsCount = database.appRestrictionDao().getEnabled().size
+
       val notification =
-              NotificationCompat.Builder(this@UsageMonitorService, CHANNEL_ID)
-                      .setContentTitle("AppTimeControl activo")
-                      .setContentText(
-                              "Monitoreando $monitoredAppsCount ${
-                        if (monitoredAppsCount == 1) "aplicación" else "aplicaciones"
-                    }"
-                      )
-                      .setSmallIcon(android.R.drawable.ic_menu_info_details)
-                      .setPriority(NotificationCompat.PRIORITY_LOW)
-                      .build()
+              if (enabled) {
+                NotificationCompat.Builder(this@UsageMonitorService, CHANNEL_ID_VISIBLE)
+                        .setContentTitle("AppTimeControl activo")
+                        .setContentText(
+                                "Monitoreando $monitoredAppsCount ${
+                          if (monitoredAppsCount == 1) "aplicación" else "aplicaciones"
+                      }"
+                        )
+                        .setSmallIcon(android.R.drawable.ic_menu_info_details)
+                        .setPriority(NotificationCompat.PRIORITY_LOW)
+                        .setOngoing(true)
+                        .build()
+              } else {
+                NotificationCompat.Builder(this@UsageMonitorService, CHANNEL_ID_MINIMAL)
+                        .setContentTitle("")
+                        .setContentText("")
+                        .setSmallIcon(android.R.drawable.ic_menu_info_details)
+                        .setPriority(NotificationCompat.PRIORITY_MIN)
+                        .setOngoing(true)
+                        .build()
+              }
+
       withContext(Dispatchers.Main) {
         getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
       }
@@ -170,12 +219,10 @@ class UsageMonitorService : Service() {
     AppTimeWidgetMedium.updateWidget(this)
   }
 
-  private fun updatePersistentNotification() {
-    persistentNotification.show()
-  }
-
   companion object {
-    private const val CHANNEL_ID = "usage_monitor_channel"
+    private const val CHANNEL_ID_VISIBLE = "usage_monitor_channel"
+    private const val CHANNEL_ID_MINIMAL = "usage_monitor_minimal"
     private const val NOTIFICATION_ID = 1
+    const val ACTION_UPDATE_NOTIFICATION = "com.example.timelock.UPDATE_SERVICE_NOTIFICATION"
   }
 }

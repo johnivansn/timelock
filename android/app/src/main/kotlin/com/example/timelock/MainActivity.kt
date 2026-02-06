@@ -275,11 +275,19 @@ class MainActivity : FlutterActivity() {
           val prefs = com.example.timelock.preferences.NotificationPreferences(this)
           val settings =
                   mapOf(
-                          "quota25" to (args["quota25"] as Boolean),
-                          "quota10" to (args["quota10"] as Boolean),
-                          "blocked" to (args["blocked"] as Boolean)
+                          "quota50" to (args["quota50"] as Boolean),
+                          "quota75" to (args["quota75"] as Boolean),
+                          "lastMinute" to (args["lastMinute"] as Boolean),
+                          "blocked" to (args["blocked"] as Boolean),
+                          "schedule" to (args["schedule"] as Boolean),
+                          "serviceNotification" to (args["serviceNotification"] as Boolean)
                   )
           prefs.saveAll(settings)
+
+          val intent = Intent(this, UsageMonitorService::class.java)
+          intent.action = UsageMonitorService.ACTION_UPDATE_NOTIFICATION
+          startService(intent)
+
           result.success(null)
         }
         "exportConfig" -> {
@@ -312,144 +320,123 @@ class MainActivity : FlutterActivity() {
         "isDeviceAdminEnabled" -> {
           result.success(isDeviceAdminEnabled())
         }
-        "getSchedules" -> {
-          val packageName = call.arguments as String
-          scope.launch {
-            try {
-              val schedules = getSchedules(packageName)
-              withContext(Dispatchers.Main) { result.success(schedules) }
-            } catch (e: Exception) {
-              Log.e("MainActivity", "Error getting schedules", e)
-              withContext(Dispatchers.Main) { result.error("GET_SCHEDULES_ERROR", e.message, null) }
-            }
-          }
+        else -> {
+          handleMethodCallPart2(call, result)
         }
-        "checkOverlayPermission" -> {
-          result.success(android.provider.Settings.canDrawOverlays(this))
-        }
-        "requestOverlayPermission" -> {
-          val intent =
-                  Intent(
-                          android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                          android.net.Uri.parse("package:$packageName")
-                  )
-          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-          startActivity(intent)
-          result.success(null)
-        }
-        "addSchedule" -> {
-          val args = call.arguments as Map<*, *>
-          scope.launch {
-            try {
-              addSchedule(args)
-              withContext(Dispatchers.Main) { result.success(null) }
-            } catch (e: Exception) {
-              Log.e("MainActivity", "Error adding schedule", e)
-              withContext(Dispatchers.Main) { result.error("ADD_SCHEDULE_ERROR", e.message, null) }
-            }
-          }
-        }
-        "updateSchedule" -> {
-          val args = call.arguments as Map<*, *>
-          scope.launch {
-            try {
-              updateSchedule(args)
-              withContext(Dispatchers.Main) { result.success(null) }
-            } catch (e: Exception) {
-              Log.e("MainActivity", "Error updating schedule", e)
-              withContext(Dispatchers.Main) {
-                result.error("UPDATE_SCHEDULE_ERROR", e.message, null)
-              }
-            }
-          }
-        }
-        "deleteSchedule" -> {
-          val scheduleId = call.arguments as String
-          scope.launch {
-            try {
-              deleteSchedule(scheduleId)
-              withContext(Dispatchers.Main) { result.success(null) }
-            } catch (e: Exception) {
-              Log.e("MainActivity", "Error deleting schedule", e)
-              withContext(Dispatchers.Main) {
-                result.error("DELETE_SCHEDULE_ERROR", e.message, null)
-              }
-            }
-          }
-        }
-        "enablePersistentNotification" -> {
-          val enabled = call.arguments as Boolean
-          scope.launch {
-            try {
-              savePersistentNotificationPref(enabled)
-              if (enabled) {
-                val persistentNotif =
-                        com.example.timelock.notifications.PersistentNotification(this@MainActivity)
-                persistentNotif.show()
-              } else {
-                val persistentNotif =
-                        com.example.timelock.notifications.PersistentNotification(this@MainActivity)
-                persistentNotif.hide()
-              }
-              withContext(Dispatchers.Main) { result.success(null) }
-            } catch (e: Exception) {
-              withContext(Dispatchers.Main) {
-                result.error("PERSISTENT_NOTIF_ERROR", e.message, null)
-              }
-            }
-          }
-        }
-        "isPersistentNotificationEnabled" -> {
-          result.success(isPersistentNotificationEnabled())
-        }
-        "setBatterySaverMode" -> {
-          val enabled = call.arguments as Boolean
-          batteryModeManager.setBatterySaverEnabled(enabled)
-          result.success(null)
-        }
-        "isBatterySaverEnabled" -> {
-          result.success(batteryModeManager.isBatterySaverEnabled())
-        }
-        "getOptimizationStats" -> {
-          scope.launch {
-            try {
-              val stats = getOptimizationStats()
-              withContext(Dispatchers.Main) { result.success(stats) }
-            } catch (e: Exception) {
-              withContext(Dispatchers.Main) { result.error("STATS_ERROR", e.message, null) }
-            }
-          }
-        }
-        "invalidateCache" -> {
-          scope.launch {
-            try {
-              appCacheManager.invalidateCache()
-              wifiCacheManager.invalidateCache()
-              withContext(Dispatchers.Main) { result.success(null) }
-            } catch (e: Exception) {
-              withContext(Dispatchers.Main) { result.error("CACHE_ERROR", e.message, null) }
-            }
-          }
-        }
-        "forceCleanup" -> {
-          scope.launch {
-            try {
-              dataCleanupManager.forceCleanup()
-              withContext(Dispatchers.Main) { result.success(null) }
-            } catch (e: Exception) {
-              withContext(Dispatchers.Main) { result.error("CLEANUP_ERROR", e.message, null) }
-            }
-          }
-        }
-        "checkLocationPermission" -> {
-          result.success(hasLocationPermission())
-        }
-        "requestLocationPermission" -> {
-          requestLocationPermission()
-          result.success(null)
-        }
-        else -> result.notImplemented()
       }
+    }
+  }
+
+  private fun handleMethodCallPart2(call: MethodChannel.MethodCall, result: MethodChannel.Result) {
+    when (call.method) {
+      "getSchedules" -> {
+        val packageName = call.arguments as String
+        scope.launch {
+          try {
+            val schedules = getSchedules(packageName)
+            withContext(Dispatchers.Main) { result.success(schedules) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error getting schedules", e)
+            withContext(Dispatchers.Main) { result.error("GET_SCHEDULES_ERROR", e.message, null) }
+          }
+        }
+      }
+      "checkOverlayPermission" -> {
+        result.success(android.provider.Settings.canDrawOverlays(this))
+      }
+      "requestOverlayPermission" -> {
+        val intent =
+                Intent(
+                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        android.net.Uri.parse("package:$packageName")
+                )
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+        result.success(null)
+      }
+      "addSchedule" -> {
+        val args = call.arguments as Map<*, *>
+        scope.launch {
+          try {
+            addSchedule(args)
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error adding schedule", e)
+            withContext(Dispatchers.Main) { result.error("ADD_SCHEDULE_ERROR", e.message, null) }
+          }
+        }
+      }
+      "updateSchedule" -> {
+        val args = call.arguments as Map<*, *>
+        scope.launch {
+          try {
+            updateSchedule(args)
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error updating schedule", e)
+            withContext(Dispatchers.Main) { result.error("UPDATE_SCHEDULE_ERROR", e.message, null) }
+          }
+        }
+      }
+      "deleteSchedule" -> {
+        val scheduleId = call.arguments as String
+        scope.launch {
+          try {
+            deleteSchedule(scheduleId)
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error deleting schedule", e)
+            withContext(Dispatchers.Main) { result.error("DELETE_SCHEDULE_ERROR", e.message, null) }
+          }
+        }
+      }
+      "setBatterySaverMode" -> {
+        val enabled = call.arguments as Boolean
+        batteryModeManager.setBatterySaverEnabled(enabled)
+        result.success(null)
+      }
+      "isBatterySaverEnabled" -> {
+        result.success(batteryModeManager.isBatterySaverEnabled())
+      }
+      "getOptimizationStats" -> {
+        scope.launch {
+          try {
+            val stats = getOptimizationStats()
+            withContext(Dispatchers.Main) { result.success(stats) }
+          } catch (e: Exception) {
+            withContext(Dispatchers.Main) { result.error("STATS_ERROR", e.message, null) }
+          }
+        }
+      }
+      "invalidateCache" -> {
+        scope.launch {
+          try {
+            appCacheManager.invalidateCache()
+            wifiCacheManager.invalidateCache()
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            withContext(Dispatchers.Main) { result.error("CACHE_ERROR", e.message, null) }
+          }
+        }
+      }
+      "forceCleanup" -> {
+        scope.launch {
+          try {
+            dataCleanupManager.forceCleanup()
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            withContext(Dispatchers.Main) { result.error("CLEANUP_ERROR", e.message, null) }
+          }
+        }
+      }
+      "checkLocationPermission" -> {
+        result.success(hasLocationPermission())
+      }
+      "requestLocationPermission" -> {
+        requestLocationPermission()
+        result.success(null)
+      }
+      else -> result.notImplemented()
     }
   }
 
@@ -471,16 +458,6 @@ class MainActivity : FlutterActivity() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       requestPermissions(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), 1002)
     }
-  }
-
-  private fun savePersistentNotificationPref(enabled: Boolean) {
-    val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-    prefs.edit().putBoolean("persistent_notification_enabled", enabled).apply()
-  }
-
-  private fun isPersistentNotificationEnabled(): Boolean {
-    val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-    return prefs.getBoolean("persistent_notification_enabled", false)
   }
 
   private suspend fun getSchedules(packageName: String): List<Map<String, Any>> {
