@@ -10,6 +10,7 @@ import android.widget.RemoteViews
 import com.example.timelock.MainActivity
 import com.example.timelock.R
 import com.example.timelock.database.AppDatabase
+import com.example.timelock.utils.AppUtils
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.CoroutineScope
@@ -62,7 +63,7 @@ class AppTimeWidget : AppWidgetProvider() {
         views.setTextViewText(R.id.widget_title, "${restrictions.size} apps monitoreadas")
         views.setTextViewText(
                 R.id.widget_content,
-                "${formatTime(remainingMinutes)} restantes" +
+                "${AppUtils.formatTime(remainingMinutes)} restantes" +
                         if (blockedCount > 0)
                                 " • $blockedCount bloqueada${if (blockedCount > 1) "s" else ""}"
                         else ""
@@ -80,16 +81,6 @@ class AppTimeWidget : AppWidgetProvider() {
       views.setOnClickPendingIntent(R.id.widget_container, pendingIntent)
 
       appWidgetManager.updateAppWidget(appWidgetId, views)
-    }
-  }
-
-  private fun formatTime(minutes: Int): String {
-    return if (minutes >= 60) {
-      val h = minutes / 60
-      val m = minutes % 60
-      if (m == 0) "${h}h" else "${h}h ${m}m"
-    } else {
-      "${minutes}m"
     }
   }
 

@@ -1,5 +1,6 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 
 class AppPickerDialog extends StatefulWidget {
@@ -12,10 +13,6 @@ class AppPickerDialog extends StatefulWidget {
 }
 
 class _AppPickerDialogState extends State<AppPickerDialog> {
-  static const _ch = MethodChannel('app.restriction/config');
-  static const String CHANNEL = 'app.restriction/config';
-
-  List<Map<String, dynamic>> _allApps = [];
   List<Map<String, dynamic>> _installedApps = [];
   List<Map<String, dynamic>> _systemApps = [];
   List<Map<String, dynamic>> _filteredInstalled = [];
@@ -23,6 +20,8 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
   bool _loading = true;
   String _query = '';
   bool _showSystem = false;
+  final Map<String, Uint8List?> _iconCache = {};
+  final Set<String> _iconLoading = {};
 
   @override
   void initState() {
@@ -32,30 +31,17 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
   Future<void> _loadApps() async {
     try {
-      print('DEBUG: Iniciando carga de apps desde $CHANNEL');
-      final raw =
-          await _ch.invokeMethod<List<dynamic>>('getInstalledApps') ?? [];
+      setState(() => _loading = true);
 
-      print('DEBUG: Recibidas ${raw.length} apps de Android');
-      for (int i = 0; i < (raw.length > 3 ? 3 : raw.length); i++) {
-        print('DEBUG: App $i: ${raw[i]}');
-      }
+      final raw = await NativeService.getInstalledApps();
+
+      if (!mounted) return;
 
       final allApps = raw
-          .map((e) {
-            try {
-              return Map<String, dynamic>.from(e as Map);
-            } catch (ex) {
-              print('ERROR mapeando: $ex');
-              return <String, dynamic>{};
-            }
-          })
           .where((a) =>
               a.isNotEmpty &&
               !widget.excludedPackages.contains(a['packageName']))
           .toList();
-
-      print('DEBUG: Apps válidas: ${allApps.length}');
 
       final installed = <Map<String, dynamic>>[];
       final system = <Map<String, dynamic>>[];
@@ -68,8 +54,6 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
         }
       }
 
-      print('DEBUG: ${installed.length} instaladas, ${system.length} sistema');
-
       installed.sort((a, b) => (a['appName'] ?? '')
           .toString()
           .toLowerCase()
@@ -81,7 +65,6 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
       if (mounted) {
         setState(() {
-          _allApps = allApps;
           _installedApps = installed;
           _systemApps = system;
           _filteredInstalled = installed;
@@ -90,7 +73,6 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
         });
       }
     } catch (e) {
-      print('ERROR loading apps: $e');
       if (mounted) setState(() => _loading = false);
     }
   }
@@ -102,27 +84,28 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
         _filteredInstalled = _installedApps;
         _filteredSystem = _showSystem ? _systemApps : [];
       } else {
+        final lowerQ = q.toLowerCase();
         _filteredInstalled = _installedApps
             .where((a) =>
                 (a['appName'] ?? '')
                     .toString()
                     .toLowerCase()
-                    .contains(q.toLowerCase()) ||
+                    .contains(lowerQ) ||
                 (a['packageName'] ?? '')
                     .toString()
                     .toLowerCase()
-                    .contains(q.toLowerCase()))
+                    .contains(lowerQ))
             .toList();
         _filteredSystem = _systemApps
             .where((a) =>
                 (a['appName'] ?? '')
                     .toString()
                     .toLowerCase()
-                    .contains(q.toLowerCase()) ||
+                    .contains(lowerQ) ||
                 (a['packageName'] ?? '')
                     .toString()
                     .toLowerCase()
-                    .contains(q.toLowerCase()))
+                    .contains(lowerQ))
             .toList();
       }
     });
@@ -203,16 +186,37 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
               ),
               child: _loading
                   ? const Center(
-                      child: CircularProgressIndicator(strokeWidth: 3))
+                      child: Padding(
+                        padding: EdgeInsets.all(AppSpacing.xxl),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(strokeWidth: 3),
+                            SizedBox(height: AppSpacing.lg),
+                            Text(
+                              'Cargando apps...',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
                   : _filteredInstalled.isEmpty && _filteredSystem.isEmpty
                       ? Center(
-                          child: Text(
-                            _query.isEmpty
-                                ? 'No hay apps disponibles'
-                                : 'Sin resultados',
-                            style: const TextStyle(
-                              color: AppColors.textTertiary,
-                              fontSize: 15,
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.xxl),
+                            child: Text(
+                              _query.isEmpty
+                                  ? 'No hay apps disponibles'
+                                  : 'Sin resultados',
+                              style: const TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: 15,
+                              ),
                             ),
                           ),
                         )
@@ -274,7 +278,9 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
   Widget _appTile(Map<String, dynamic> app) {
     final appName = (app['appName'] ?? app['packageName'] ?? '?').toString();
+    final packageName = app['packageName'] as String?;
     final firstChar = appName.isNotEmpty ? appName[0].toUpperCase() : '?';
+    final iconBytes = app['icon'] as Uint8List?;
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -285,24 +291,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Center(
-                  child: Text(
-                    firstChar,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ),
+              _buildAppIcon(iconBytes, firstChar, packageName),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
@@ -339,10 +328,70 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
       ),
     );
   }
-}
 
-extension _ListSort<T> on List<T> {
-  void sortBy(Comparable Function(T) key) {
-    sort((a, b) => key(a).compareTo(key(b)));
+  Widget _buildAppIcon(
+      Uint8List? iconBytes, String fallbackChar, String? packageName) {
+    if (iconBytes != null && iconBytes.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Image.memory(
+          iconBytes,
+          width: 48,
+          height: 48,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _buildFallbackIcon(fallbackChar),
+        ),
+      );
+    }
+
+    if (packageName != null && _iconCache.containsKey(packageName)) {
+      final cachedIcon = _iconCache[packageName];
+      if (cachedIcon != null && cachedIcon.isNotEmpty) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Image.memory(
+            cachedIcon,
+            width: 48,
+            height: 48,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildFallbackIcon(fallbackChar),
+          ),
+        );
+      }
+    }
+
+    if (packageName != null && !_iconLoading.contains(packageName)) {
+      _iconLoading.add(packageName);
+      NativeService.getAppIcon(packageName).then((bytes) {
+        if (!mounted) return;
+        setState(() {
+          _iconCache[packageName] = bytes;
+          _iconLoading.remove(packageName);
+        });
+      });
+    }
+
+    return _buildFallbackIcon(fallbackChar);
+  }
+
+  Widget _buildFallbackIcon(String char) {
+    return Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Center(
+        child: Text(
+          char,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
+    );
   }
 }

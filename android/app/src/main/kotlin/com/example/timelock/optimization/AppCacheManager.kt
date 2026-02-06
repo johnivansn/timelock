@@ -1,11 +1,9 @@
 package com.example.timelock.optimization
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.Log
+import com.example.timelock.utils.AppUtils
 import java.io.File
 import java.io.FileOutputStream
 import kotlinx.coroutines.Dispatchers
@@ -77,9 +75,9 @@ class AppCacheManager(private val context: Context) {
           withContext(Dispatchers.IO) {
             try {
               val iconFile = File(cacheDir, "$packageName.png")
-              val bitmap = drawableToBitmap(drawable)
+              val bitmap = AppUtils.drawableToBitmap(drawable)
               FileOutputStream(iconFile).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 85, out)
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 85, out)
               }
               Log.d("AppCacheManager", "Cached icon for $packageName")
             } catch (e: Exception) {
@@ -90,23 +88,6 @@ class AppCacheManager(private val context: Context) {
   fun getCachedIconPath(packageName: String): String? {
     val iconFile = File(cacheDir, "$packageName.png")
     return if (iconFile.exists()) iconFile.absolutePath else null
-  }
-
-  private fun drawableToBitmap(drawable: Drawable): Bitmap {
-    if (drawable is BitmapDrawable) {
-      return drawable.bitmap
-    }
-
-    val bitmap =
-            Bitmap.createBitmap(
-                    drawable.intrinsicWidth.coerceAtLeast(1),
-                    drawable.intrinsicHeight.coerceAtLeast(1),
-                    Bitmap.Config.ARGB_8888
-            )
-    val canvas = Canvas(bitmap)
-    drawable.setBounds(0, 0, canvas.width, canvas.height)
-    drawable.draw(canvas)
-    return bitmap
   }
 
   suspend fun invalidateCache() =

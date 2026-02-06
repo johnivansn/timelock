@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:timelock/extensions/context_extensions.dart';
 import 'package:timelock/screens/export_import_screen.dart';
 import 'package:timelock/screens/notification_settings_screen.dart';
 import 'package:timelock/screens/optimization_screen.dart';
 import 'package:timelock/screens/permissions_screen.dart';
 import 'package:timelock/screens/pin_verify_screen.dart';
+import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
+import 'package:timelock/utils/app_utils.dart';
 import 'package:timelock/widgets/app_picker_dialog.dart';
 import 'package:timelock/widgets/time_picker_dialog.dart';
 import 'package:timelock/widgets/wifi_picker_dialog.dart';
@@ -18,8 +20,6 @@ class AppListScreen extends StatefulWidget {
 }
 
 class _AppListScreenState extends State<AppListScreen> {
-  static const _ch = MethodChannel('app.restriction/config');
-
   List<Map<String, dynamic>> _restrictions = [];
   bool _loading = true;
   bool _permissionsOk = false;
@@ -39,11 +39,9 @@ class _AppListScreenState extends State<AppListScreen> {
 
   Future<void> _checkPermissions() async {
     try {
-      final usage =
-          await _ch.invokeMethod<bool>('checkUsagePermission') ?? false;
-      final acc =
-          await _ch.invokeMethod<bool>('checkAccessibilityPermission') ?? false;
-      final admin = await _ch.invokeMethod<bool>('isAdminEnabled') ?? false;
+      final usage = await NativeService.checkUsagePermission();
+      final acc = await NativeService.checkAccessibilityPermission();
+      final admin = await NativeService.isAdminEnabled();
       if (mounted) {
         setState(() {
           _permissionsOk = usage && acc;
@@ -55,24 +53,19 @@ class _AppListScreenState extends State<AppListScreen> {
 
   Future<void> _startMonitoring() async {
     try {
-      await _ch.invokeMethod('startMonitoring');
+      await NativeService.startMonitoring();
     } catch (_) {}
   }
 
   Future<void> _loadRestrictions() async {
     try {
-      final raw =
-          await _ch.invokeMethod<List<dynamic>>('getRestrictions') ?? [];
-      final list = raw.map((e) => Map<String, dynamic>.from(e)).toList();
+      final list = await NativeService.getRestrictions();
 
       for (final r in list) {
         try {
-          final usage = await _ch.invokeMethod<Map<dynamic, dynamic>>(
-            'getUsageToday',
-            r['packageName'],
-          );
-          r['usedMinutes'] = usage?['usedMinutes'] ?? 0;
-          r['isBlocked'] = usage?['isBlocked'] ?? false;
+          final usage = await NativeService.getUsageToday(r['packageName']);
+          r['usedMinutes'] = usage['usedMinutes'] ?? 0;
+          r['isBlocked'] = usage['isBlocked'] ?? false;
         } catch (_) {
           r['usedMinutes'] = 0;
           r['isBlocked'] = false;
@@ -92,7 +85,7 @@ class _AppListScreenState extends State<AppListScreen> {
 
   Future<void> _addRestriction(String pkg, String name, int minutes) async {
     try {
-      await _ch.invokeMethod('addRestriction', {
+      await NativeService.addRestriction({
         'packageName': pkg,
         'appName': name,
         'dailyQuotaMinutes': minutes,
@@ -101,7 +94,7 @@ class _AppListScreenState extends State<AppListScreen> {
       });
       await _loadRestrictions();
     } catch (e) {
-      _showSnack('Error: $e', isError: true);
+      if (mounted) context.showSnack('Error: $e', isError: true);
     }
   }
 
@@ -117,7 +110,7 @@ class _AppListScreenState extends State<AppListScreen> {
 
   Future<void> _deleteRestriction(Map<String, dynamic> r) async {
     try {
-      await _ch.invokeMethod('deleteRestriction', r['packageName']);
+      await NativeService.deleteRestriction(r['packageName']);
       await _loadRestrictions();
     } catch (_) {
       _restrictions.removeWhere((x) => x['packageName'] == r['packageName']);
@@ -150,18 +143,6 @@ class _AppListScreenState extends State<AppListScreen> {
     }
   }
 
-  void _showSnack(String msg, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? AppColors.error : AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(AppSpacing.md),
-      ),
-    );
-  }
-
   void _openAddFlow() async {
     final existing =
         _restrictions.map((r) => r['packageName'] as String).toSet();
@@ -189,15 +170,6 @@ class _AppListScreenState extends State<AppListScreen> {
     final used = (r['usedMinutes'] as int).toDouble();
     final quota = (r['dailyQuotaMinutes'] as int).toDouble();
     return (used / quota).clamp(0.0, 1.0);
-  }
-
-  String _timeLabel(int minutes) {
-    if (minutes >= 60) {
-      final h = minutes ~/ 60;
-      final m = minutes % 60;
-      return m == 0 ? '${h}h' : '${h}h ${m}m';
-    }
-    return '${minutes}m';
   }
 
   @override
@@ -530,7 +502,7 @@ class _AppListScreenState extends State<AppListScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '${_timeLabel(used)} usados',
+                      '${AppUtils.formatTime(used)} usados',
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.textTertiary,
@@ -539,7 +511,7 @@ class _AppListScreenState extends State<AppListScreen> {
                     Text(
                       blocked
                           ? 'Se abre a medianoche'
-                          : '${_timeLabel(remaining)} restantes',
+                          : '${AppUtils.formatTime(remaining)} restantes',
                       style: TextStyle(
                         fontSize: 13,
                         color:

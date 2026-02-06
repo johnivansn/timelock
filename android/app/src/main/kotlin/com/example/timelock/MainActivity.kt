@@ -7,10 +7,16 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.Process
 import android.provider.Settings
 import android.util.Log
@@ -24,9 +30,12 @@ import com.example.timelock.optimization.DataCleanupManager
 import com.example.timelock.optimization.WifiCacheManager
 import com.example.timelock.services.AppBlockAccessibilityService
 import com.example.timelock.services.UsageMonitorService
+import com.example.timelock.utils.AppUtils
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.CoroutineScope
@@ -68,6 +77,15 @@ class MainActivity : FlutterActivity() {
             call,
             result ->
       when (call.method) {
+        "getInstalledApps" -> getInstalledAppsQuick(result)
+        "getAppIcon" -> {
+          val packageName = call.arguments as? String
+          if (packageName != null) {
+            getAppIcon(packageName, result)
+          } else {
+            result.error("INVALID_ARGUMENT", "packageName is required", null)
+          }
+        }
         "checkUsagePermission" -> result.success(hasUsageStatsPermission())
         "requestUsagePermission" -> {
           requestUsageStatsPermission()
@@ -81,17 +99,6 @@ class MainActivity : FlutterActivity() {
         "startMonitoring" -> {
           startMonitoringService()
           result.success(null)
-        }
-        "getInstalledApps" -> {
-          scope.launch {
-            try {
-              val apps = getInstalledApps()
-              withContext(Dispatchers.Main) { result.success(apps) }
-            } catch (e: Exception) {
-              Log.e("MainActivity", "Error getting installed apps", e)
-              withContext(Dispatchers.Main) { result.error("GET_APPS_ERROR", e.message, null) }
-            }
-          }
         }
         "addRestriction" -> {
           val args = call.arguments as Map<*, *>
@@ -266,22 +273,6 @@ class MainActivity : FlutterActivity() {
             }
           }
         }
-        "getNotificationSettings" -> {
-          val prefs = com.example.timelock.preferences.NotificationPreferences(this)
-          result.success(prefs.getAll())
-        }
-        "saveNotificationSettings" -> {
-          val args = call.arguments as Map<*, *>
-          val prefs = com.example.timelock.preferences.NotificationPreferences(this)
-          val settings =
-                  mapOf(
-                          "quota25" to (args["quota25"] as Boolean),
-                          "quota10" to (args["quota10"] as Boolean),
-                          "blocked" to (args["blocked"] as Boolean)
-                  )
-          prefs.saveAll(settings)
-          result.success(null)
-        }
         "exportConfig" -> {
           scope.launch {
             try {
@@ -312,144 +303,168 @@ class MainActivity : FlutterActivity() {
         "isDeviceAdminEnabled" -> {
           result.success(isDeviceAdminEnabled())
         }
-        "getSchedules" -> {
-          val packageName = call.arguments as String
-          scope.launch {
-            try {
-              val schedules = getSchedules(packageName)
-              withContext(Dispatchers.Main) { result.success(schedules) }
-            } catch (e: Exception) {
-              Log.e("MainActivity", "Error getting schedules", e)
-              withContext(Dispatchers.Main) { result.error("GET_SCHEDULES_ERROR", e.message, null) }
-            }
-          }
+        else -> {
+          handleMethodCallPart2(call, result)
         }
-        "checkOverlayPermission" -> {
-          result.success(android.provider.Settings.canDrawOverlays(this))
-        }
-        "requestOverlayPermission" -> {
-          val intent =
-                  Intent(
-                          android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                          android.net.Uri.parse("package:$packageName")
-                  )
-          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-          startActivity(intent)
-          result.success(null)
-        }
-        "addSchedule" -> {
-          val args = call.arguments as Map<*, *>
-          scope.launch {
-            try {
-              addSchedule(args)
-              withContext(Dispatchers.Main) { result.success(null) }
-            } catch (e: Exception) {
-              Log.e("MainActivity", "Error adding schedule", e)
-              withContext(Dispatchers.Main) { result.error("ADD_SCHEDULE_ERROR", e.message, null) }
-            }
-          }
-        }
-        "updateSchedule" -> {
-          val args = call.arguments as Map<*, *>
-          scope.launch {
-            try {
-              updateSchedule(args)
-              withContext(Dispatchers.Main) { result.success(null) }
-            } catch (e: Exception) {
-              Log.e("MainActivity", "Error updating schedule", e)
-              withContext(Dispatchers.Main) {
-                result.error("UPDATE_SCHEDULE_ERROR", e.message, null)
-              }
-            }
-          }
-        }
-        "deleteSchedule" -> {
-          val scheduleId = call.arguments as String
-          scope.launch {
-            try {
-              deleteSchedule(scheduleId)
-              withContext(Dispatchers.Main) { result.success(null) }
-            } catch (e: Exception) {
-              Log.e("MainActivity", "Error deleting schedule", e)
-              withContext(Dispatchers.Main) {
-                result.error("DELETE_SCHEDULE_ERROR", e.message, null)
-              }
-            }
-          }
-        }
-        "enablePersistentNotification" -> {
-          val enabled = call.arguments as Boolean
-          scope.launch {
-            try {
-              savePersistentNotificationPref(enabled)
-              if (enabled) {
-                val persistentNotif =
-                        com.example.timelock.notifications.PersistentNotification(this@MainActivity)
-                persistentNotif.show()
-              } else {
-                val persistentNotif =
-                        com.example.timelock.notifications.PersistentNotification(this@MainActivity)
-                persistentNotif.hide()
-              }
-              withContext(Dispatchers.Main) { result.success(null) }
-            } catch (e: Exception) {
-              withContext(Dispatchers.Main) {
-                result.error("PERSISTENT_NOTIF_ERROR", e.message, null)
-              }
-            }
-          }
-        }
-        "isPersistentNotificationEnabled" -> {
-          result.success(isPersistentNotificationEnabled())
-        }
-        "setBatterySaverMode" -> {
-          val enabled = call.arguments as Boolean
-          batteryModeManager.setBatterySaverEnabled(enabled)
-          result.success(null)
-        }
-        "isBatterySaverEnabled" -> {
-          result.success(batteryModeManager.isBatterySaverEnabled())
-        }
-        "getOptimizationStats" -> {
-          scope.launch {
-            try {
-              val stats = getOptimizationStats()
-              withContext(Dispatchers.Main) { result.success(stats) }
-            } catch (e: Exception) {
-              withContext(Dispatchers.Main) { result.error("STATS_ERROR", e.message, null) }
-            }
-          }
-        }
-        "invalidateCache" -> {
-          scope.launch {
-            try {
-              appCacheManager.invalidateCache()
-              wifiCacheManager.invalidateCache()
-              withContext(Dispatchers.Main) { result.success(null) }
-            } catch (e: Exception) {
-              withContext(Dispatchers.Main) { result.error("CACHE_ERROR", e.message, null) }
-            }
-          }
-        }
-        "forceCleanup" -> {
-          scope.launch {
-            try {
-              dataCleanupManager.forceCleanup()
-              withContext(Dispatchers.Main) { result.success(null) }
-            } catch (e: Exception) {
-              withContext(Dispatchers.Main) { result.error("CLEANUP_ERROR", e.message, null) }
-            }
-          }
-        }
-        "checkLocationPermission" -> {
-          result.success(hasLocationPermission())
-        }
-        "requestLocationPermission" -> {
-          requestLocationPermission()
-          result.success(null)
-        }
-        else -> result.notImplemented()
       }
+    }
+  }
+
+  private fun handleMethodCallPart2(call: MethodCall, result: MethodChannel.Result) {
+    when (call.method) {
+      "getSchedules" -> {
+        val packageName = call.arguments as String
+        scope.launch {
+          try {
+            val schedules = getSchedules(packageName)
+            withContext(Dispatchers.Main) { result.success(schedules) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error getting schedules", e)
+            withContext(Dispatchers.Main) { result.error("GET_SCHEDULES_ERROR", e.message, null) }
+          }
+        }
+      }
+      "checkOverlayPermission" -> {
+        result.success(android.provider.Settings.canDrawOverlays(this))
+      }
+      "requestOverlayPermission" -> {
+        val intent =
+                Intent(
+                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        android.net.Uri.parse("package:$packageName")
+                )
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+        result.success(null)
+      }
+      "addSchedule" -> {
+        val args = call.arguments as Map<*, *>
+        scope.launch {
+          try {
+            addSchedule(args)
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error adding schedule", e)
+            withContext(Dispatchers.Main) { result.error("ADD_SCHEDULE_ERROR", e.message, null) }
+          }
+        }
+      }
+      "updateSchedule" -> {
+        val args = call.arguments as Map<*, *>
+        scope.launch {
+          try {
+            updateSchedule(args)
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error updating schedule", e)
+            withContext(Dispatchers.Main) { result.error("UPDATE_SCHEDULE_ERROR", e.message, null) }
+          }
+        }
+      }
+      "deleteSchedule" -> {
+        val scheduleId = call.arguments as String
+        scope.launch {
+          try {
+            deleteSchedule(scheduleId)
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error deleting schedule", e)
+            withContext(Dispatchers.Main) { result.error("DELETE_SCHEDULE_ERROR", e.message, null) }
+          }
+        }
+      }
+      "setBatterySaverMode" -> {
+        val enabled = call.arguments as Boolean
+        batteryModeManager.setBatterySaverEnabled(enabled)
+        result.success(null)
+      }
+      "isBatterySaverEnabled" -> {
+        result.success(batteryModeManager.isBatterySaverEnabled())
+      }
+      "getOptimizationStats" -> {
+        scope.launch {
+          try {
+            val stats = getOptimizationStats()
+            withContext(Dispatchers.Main) { result.success(stats) }
+          } catch (e: Exception) {
+            withContext(Dispatchers.Main) { result.error("STATS_ERROR", e.message, null) }
+          }
+        }
+      }
+      "invalidateCache" -> {
+        scope.launch {
+          try {
+            appCacheManager.invalidateCache()
+            wifiCacheManager.invalidateCache()
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            withContext(Dispatchers.Main) { result.error("CACHE_ERROR", e.message, null) }
+          }
+        }
+      }
+      "forceCleanup" -> {
+        scope.launch {
+          try {
+            dataCleanupManager.forceCleanup()
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            withContext(Dispatchers.Main) { result.error("CLEANUP_ERROR", e.message, null) }
+          }
+        }
+      }
+      "checkLocationPermission" -> {
+        result.success(hasLocationPermission())
+      }
+      "requestLocationPermission" -> {
+        requestLocationPermission()
+        result.success(null)
+      }
+      "getSharedPreferences" -> {
+        val prefsName = call.arguments as String
+        scope.launch {
+          try {
+            val prefs = getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+            val map = prefs.all.mapValues { (_, v) -> v }
+            withContext(Dispatchers.Main) { result.success(map) }
+          } catch (e: Exception) {
+            withContext(Dispatchers.Main) { result.error("PREFS_ERROR", e.message, null) }
+          }
+        }
+      }
+      "saveSharedPreference" -> {
+        val args = call.arguments as Map<*, *>
+        val prefsName = args["prefsName"] as String
+        val key = args["key"] as String
+        val value = args["value"]
+
+        scope.launch {
+          try {
+            val prefs = getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+            prefs.edit().apply {
+              when (value) {
+                is Boolean -> putBoolean(key, value)
+                is String -> putString(key, value)
+                is Int -> putInt(key, value)
+                is Long -> putLong(key, value)
+                is Float -> putFloat(key, value)
+                else -> remove(key)
+              }
+              apply()
+            }
+
+            if (prefsName == "notification_prefs") {
+              val intent = Intent(this@MainActivity, UsageMonitorService::class.java)
+              intent.action = UsageMonitorService.ACTION_UPDATE_NOTIFICATION
+              startService(intent)
+            }
+
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            withContext(Dispatchers.Main) { result.error("PREFS_ERROR", e.message, null) }
+          }
+        }
+      }
+      else -> result.notImplemented()
     }
   }
 
@@ -471,16 +486,6 @@ class MainActivity : FlutterActivity() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       requestPermissions(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), 1002)
     }
-  }
-
-  private fun savePersistentNotificationPref(enabled: Boolean) {
-    val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-    prefs.edit().putBoolean("persistent_notification_enabled", enabled).apply()
-  }
-
-  private fun isPersistentNotificationEnabled(): Boolean {
-    val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-    return prefs.getBoolean("persistent_notification_enabled", false)
   }
 
   private suspend fun getSchedules(packageName: String): List<Map<String, Any>> {
@@ -643,6 +648,57 @@ class MainActivity : FlutterActivity() {
     return mode == AppOpsManager.MODE_ALLOWED
   }
 
+  private fun getInstalledAppsQuick(result: MethodChannel.Result) {
+    Thread {
+              try {
+                val pm = packageManager
+                val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+
+                val appList =
+                        apps.mapNotNull { app ->
+                          try {
+                            mapOf(
+                                    "appName" to pm.getApplicationLabel(app).toString(),
+                                    "packageName" to app.packageName,
+                                    "isSystem" to
+                                            ((app.flags and ApplicationInfo.FLAG_SYSTEM) != 0),
+                                    "icon" to null // Sin ícono por ahora
+                            )
+                          } catch (e: Exception) {
+                            null
+                          }
+                        }
+
+                Handler(Looper.getMainLooper()).post { result.success(appList) }
+              } catch (e: Exception) {
+                Handler(Looper.getMainLooper()).post {
+                  result.error("ERROR", "Error getting apps: ${e.message}", null)
+                }
+              }
+            }
+            .start()
+  }
+
+  private fun getAppIcon(packageName: String, result: MethodChannel.Result) {
+    Thread {
+              try {
+                val pm = packageManager
+                val app = pm.getApplicationInfo(packageName, 0)
+                val drawable = pm.getApplicationIcon(app)
+
+                val bitmap = drawableToBitmap(drawable)
+                val stream = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.PNG, 50, stream)
+                val iconBytes = stream.toByteArray()
+
+                Handler(Looper.getMainLooper()).post { result.success(iconBytes) }
+              } catch (e: Exception) {
+                Handler(Looper.getMainLooper()).post { result.success(null) }
+              }
+            }
+            .start()
+  }
+
   private fun requestUsageStatsPermission() {
     startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
   }
@@ -713,10 +769,22 @@ class MainActivity : FlutterActivity() {
                         appInfo.packageName
                       }
 
+              val iconBytes =
+                      try {
+                        val drawable = appInfo.loadIcon(pm)
+                        val bitmap = AppUtils.drawableToBitmap(drawable)
+                        val stream = java.io.ByteArrayOutputStream()
+                        bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
+                        stream.toByteArray()
+                      } catch (_: Exception) {
+                        null
+                      }
+
               mapOf<String, Any>(
                       "packageName" to appInfo.packageName,
                       "appName" to appName,
-                      "isSystem" to isSystem
+                      "isSystem" to isSystem,
+                      "icon" to (iconBytes ?: byteArrayOf())
               )
             }
             .sortedWith(
@@ -898,6 +966,22 @@ class MainActivity : FlutterActivity() {
       )
       startActivityForResult(intent, REQUEST_ENABLE_ADMIN)
     }
+  }
+
+  private fun drawableToBitmap(drawable: Drawable): Bitmap {
+    if (drawable is BitmapDrawable) {
+      return drawable.bitmap
+    }
+
+    val width = if (drawable.intrinsicWidth > 0) minOf(drawable.intrinsicWidth, 96) else 96
+    val height = if (drawable.intrinsicHeight > 0) minOf(drawable.intrinsicHeight, 96) else 96
+
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    drawable.setBounds(0, 0, canvas.width, canvas.height)
+    drawable.draw(canvas)
+
+    return bitmap
   }
 
   private fun isDeviceAdminEnabled(): Boolean {
