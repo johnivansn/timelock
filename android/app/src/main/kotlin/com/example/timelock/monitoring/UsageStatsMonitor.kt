@@ -5,7 +5,7 @@ import android.content.Context
 import android.util.Log
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.DailyUsage
-import com.example.timelock.notifications.NotificationHelper
+import com.example.timelock.notifications.PillNotificationHelper
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.CoroutineScope
@@ -18,7 +18,7 @@ class UsageStatsMonitor(private val context: Context) {
   private val database = AppDatabase.getDatabase(context)
   private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
   private val scope = CoroutineScope(Dispatchers.IO)
-  private val notificationHelper = NotificationHelper(context)
+  private val pillNotification = PillNotificationHelper(context)
 
   private val notified50Percent = mutableSetOf<String>()
   private val notified75Percent = mutableSetOf<String>()
@@ -132,9 +132,9 @@ class UsageStatsMonitor(private val context: Context) {
         if (usageMinutes >= restriction.dailyQuotaMinutes && !dailyUsage.isBlocked) {
           dailyUsage = dailyUsage.copy(isBlocked = true)
           database.dailyUsageDao().update(dailyUsage)
-          notificationHelper.notifyAppBlocked(
+          pillNotification.notifyAppBlocked(
                   restriction.appName,
-                  NotificationHelper.BlockReason.QUOTA_EXCEEDED
+                  com.example.timelock.notifications.NotificationHelper.BlockReason.QUOTA_EXCEEDED
           )
           Log.i(TAG, "${restriction.packageName} BLOQUEADA - cuota alcanzada")
 
@@ -166,21 +166,21 @@ class UsageStatsMonitor(private val context: Context) {
 
     when {
       remainingMinutes == 1 && !notifiedLastMinute.contains(packageName) -> {
-        notificationHelper.notifyLastMinute(appName)
+        pillNotification.notifyLastMinute(appName)
         notifiedLastMinute.add(packageName)
         Log.i(TAG, "Notificado último minuto para $packageName")
       }
       usedMinutes >= (quotaMinutes * 0.75).toInt() &&
               remainingMinutes > 1 &&
               !notified75Percent.contains(packageName) -> {
-        notificationHelper.notifyQuota75(appName, remainingMinutes)
+        pillNotification.notifyQuota75(appName, remainingMinutes)
         notified75Percent.add(packageName)
         Log.i(TAG, "Notificado 75% para $packageName")
       }
       usedMinutes >= (quotaMinutes * 0.5).toInt() &&
               usedMinutes < (quotaMinutes * 0.75).toInt() &&
               !notified50Percent.contains(packageName) -> {
-        notificationHelper.notifyQuota50(appName, remainingMinutes)
+        pillNotification.notifyQuota50(appName, remainingMinutes)
         notified50Percent.add(packageName)
         Log.i(TAG, "Notificado 50% para $packageName")
       }

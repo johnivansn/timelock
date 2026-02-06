@@ -267,30 +267,6 @@ class MainActivity : FlutterActivity() {
             }
           }
         }
-        "getNotificationSettings" -> {
-          val prefs = com.example.timelock.preferences.NotificationPreferences(this)
-          result.success(prefs.getAll())
-        }
-        "saveNotificationSettings" -> {
-          val args = call.arguments as Map<*, *>
-          val prefs = com.example.timelock.preferences.NotificationPreferences(this)
-          val settings =
-                  mapOf(
-                          "quota50" to (args["quota50"] as Boolean),
-                          "quota75" to (args["quota75"] as Boolean),
-                          "lastMinute" to (args["lastMinute"] as Boolean),
-                          "blocked" to (args["blocked"] as Boolean),
-                          "schedule" to (args["schedule"] as Boolean),
-                          "serviceNotification" to (args["serviceNotification"] as Boolean)
-                  )
-          prefs.saveAll(settings)
-
-          val intent = Intent(this, UsageMonitorService::class.java)
-          intent.action = UsageMonitorService.ACTION_UPDATE_NOTIFICATION
-          startService(intent)
-
-          result.success(null)
-        }
         "exportConfig" -> {
           scope.launch {
             try {

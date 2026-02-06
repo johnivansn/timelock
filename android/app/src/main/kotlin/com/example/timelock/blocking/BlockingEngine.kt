@@ -6,14 +6,14 @@ import android.net.wifi.WifiManager
 import android.util.Log
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.monitoring.ScheduleMonitor
-import com.example.timelock.notifications.NotificationHelper
+import com.example.timelock.notifications.PillNotificationHelper
 import java.text.SimpleDateFormat
 import java.util.*
 
 class BlockingEngine(private val context: Context) {
   private val database = AppDatabase.getDatabase(context)
   private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-  private val notificationHelper = NotificationHelper(context)
+  private val pillNotification = PillNotificationHelper(context)
   private val scheduleMonitor = ScheduleMonitor()
 
   sealed class BlockReason {
@@ -90,6 +90,15 @@ class BlockingEngine(private val context: Context) {
     if (usage.isBlocked) return true
 
     database.dailyUsageDao().update(usage.copy(isBlocked = true))
+
+    val notificationReason = when (reason) {
+      BlockReason.TimeQuota -> com.example.timelock.notifications.NotificationHelper.BlockReason.QUOTA_EXCEEDED
+      BlockReason.WifiBlocked -> com.example.timelock.notifications.NotificationHelper.BlockReason.WIFI_BLOCKED
+      BlockReason.ScheduleBlocked -> com.example.timelock.notifications.NotificationHelper.BlockReason.SCHEDULE_BLOCKED
+      BlockReason.Combined -> com.example.timelock.notifications.NotificationHelper.BlockReason.QUOTA_EXCEEDED
+    }
+
+    pillNotification.notifyAppBlocked(restriction.appName, notificationReason)
     Log.i(TAG, "$packageName blocked - reason: $reason")
     return true
   }
