@@ -53,22 +53,6 @@ Que la app sea **confiable y difícil de evadir** en uso real.
    * Requiere desactivar admin antes de desinstalar
    * Advertencia clara al usuario
 
-#### Device Owner (protección total)
-
-La protección total contra desinstalación solo es posible si la app es **Device Owner**.
-
-Pasos de aprovisionamiento con ADB (dispositivo recién reseteado o sin cuentas):
-
-```text
-adb shell dpm set-device-owner com.example.timelock/com.example.timelock.admin.DeviceAdminManager
-```
-
-Notas:
-
-1. Esto requiere un dispositivo limpio (generalmente con factory reset).
-2. Si el comando falla con “not allowed”, el dispositivo no está listo para aprovisionamiento.
-3. Una vez Device Owner, la app puede bloquear su desinstalación.
-
 #### Criterios de aceptación
 
 * ✅ ≥95% de apps visibles

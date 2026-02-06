@@ -18,7 +18,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   bool _adminEnabled = false;
   bool _loading = true;
   bool _deviceAdmin = false;
-  bool _deviceOwner = false;
 
   @override
   void initState() {
@@ -33,7 +32,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       final o = await NativeService.checkOverlayPermission();
       final admin = await NativeService.isAdminEnabled();
       final deviceAdmin = await NativeService.isDeviceAdminEnabled();
-      final deviceOwner = await NativeService.isDeviceOwner();
       if (mounted) {
         setState(() {
           _usage = u;
@@ -41,7 +39,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
           _overlay = o;
           _adminEnabled = admin;
           _deviceAdmin = deviceAdmin;
-          _deviceOwner = deviceOwner;
           _loading = false;
         });
       }
@@ -86,26 +83,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     if (!_usage) await _requestUsage();
     if (!_accessibility) await _requestAccessibility();
     if (!_overlay) await _requestOverlay();
-  }
-
-  void _showDeviceOwnerInfo() {
-    showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Device Owner requerido'),
-        content: const Text(
-          'La protección total contra desinstalación requiere aprovisionar la app '
-          'como Device Owner mediante ADB o QR durante el setup del dispositivo. '
-          'Consulta la documentación en README.md para los pasos.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Entendido'),
-          ),
-        ],
-      ),
-    );
   }
 
   bool get _allOk => _usage && _accessibility && _overlay;
@@ -235,16 +212,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Column(
                   children: [
-                  _permissionCard(
-                    icon: Icons.verified_user_rounded,
-                    title: 'Protección total (Device Owner)',
-                    description:
-                          'Bloquea la desinstalación cuando la app es Device Owner',
-                      granted: _deviceOwner,
-                      critical: false,
-                      onRequest: _showDeviceOwnerInfo,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
                     _permissionCard(
                       icon: Icons.security_rounded,
                       title: 'Protección básica (Device Admin)',
