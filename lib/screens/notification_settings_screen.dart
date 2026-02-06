@@ -14,9 +14,12 @@ class _NotificationSettingsScreenState
     extends State<NotificationSettingsScreen> {
   static const _ch = MethodChannel('app.restriction/config');
 
-  bool _quota25Enabled = true;
-  bool _quota10Enabled = true;
+  bool _quota50Enabled = true;
+  bool _quota75Enabled = true;
+  bool _lastMinuteEnabled = true;
   bool _blockedEnabled = true;
+  bool _scheduleEnabled = true;
+  bool _serviceNotificationEnabled = true;
   bool _loading = true;
 
   @override
@@ -31,9 +34,13 @@ class _NotificationSettingsScreenState
           .invokeMethod<Map<dynamic, dynamic>>('getNotificationSettings');
       if (settings != null && mounted) {
         setState(() {
-          _quota25Enabled = settings['quota25'] as bool? ?? true;
-          _quota10Enabled = settings['quota10'] as bool? ?? true;
+          _quota50Enabled = settings['quota50'] as bool? ?? true;
+          _quota75Enabled = settings['quota75'] as bool? ?? true;
+          _lastMinuteEnabled = settings['lastMinute'] as bool? ?? true;
           _blockedEnabled = settings['blocked'] as bool? ?? true;
+          _scheduleEnabled = settings['schedule'] as bool? ?? true;
+          _serviceNotificationEnabled =
+              settings['serviceNotification'] as bool? ?? true;
           _loading = false;
         });
       }
@@ -45,9 +52,12 @@ class _NotificationSettingsScreenState
   Future<void> _saveSettings() async {
     try {
       await _ch.invokeMethod('saveNotificationSettings', {
-        'quota25': _quota25Enabled,
-        'quota10': _quota10Enabled,
+        'quota50': _quota50Enabled,
+        'quota75': _quota75Enabled,
+        'lastMinute': _lastMinuteEnabled,
         'blocked': _blockedEnabled,
+        'schedule': _scheduleEnabled,
+        'serviceNotification': _serviceNotificationEnabled,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -132,23 +142,34 @@ class _NotificationSettingsScreenState
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   _notificationToggle(
-                    icon: Icons.warning_amber_rounded,
-                    title: 'Queda 25% de tiempo',
-                    description: 'Cuando consumes el 75% de tu cuota diaria',
-                    value: _quota25Enabled,
+                    icon: Icons.hourglass_bottom_rounded,
+                    title: 'Mitad del tiempo usado (50%)',
+                    description: 'Cuando consumes el 50% de tu cuota diaria',
+                    value: _quota50Enabled,
                     onChanged: (val) {
-                      setState(() => _quota25Enabled = val);
+                      setState(() => _quota50Enabled = val);
+                      _saveSettings();
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _notificationToggle(
+                    icon: Icons.warning_amber_rounded,
+                    title: 'Quedan pocos minutos (75%)',
+                    description: 'Cuando consumes el 75% de tu cuota diaria',
+                    value: _quota75Enabled,
+                    onChanged: (val) {
+                      setState(() => _quota75Enabled = val);
                       _saveSettings();
                     },
                   ),
                   const SizedBox(height: AppSpacing.md),
                   _notificationToggle(
                     icon: Icons.error_outline_rounded,
-                    title: 'Últimos minutos (10%)',
-                    description: 'Cuando consumes el 90% de tu cuota diaria',
-                    value: _quota10Enabled,
+                    title: 'Último minuto disponible',
+                    description: 'Cuando solo queda 1 minuto de tu cuota',
+                    value: _lastMinuteEnabled,
                     onChanged: (val) {
-                      setState(() => _quota10Enabled = val);
+                      setState(() => _lastMinuteEnabled = val);
                       _saveSettings();
                     },
                   ),
@@ -164,7 +185,54 @@ class _NotificationSettingsScreenState
                   AppSpacing.xs,
                 ),
                 child: Text(
-                  'BLOQUEOS',
+                  'BLOQUEOS Y HORARIOS',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textTertiary,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _notificationToggle(
+                    icon: Icons.lock_outline_rounded,
+                    title: 'App bloqueada',
+                    description: 'Cuando una app es bloqueada automáticamente',
+                    value: _blockedEnabled,
+                    onChanged: (val) {
+                      setState(() => _blockedEnabled = val);
+                      _saveSettings();
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _notificationToggle(
+                    icon: Icons.schedule_rounded,
+                    title: 'Horarios programados',
+                    description: 'Avisos sobre bloqueos por horario',
+                    value: _scheduleEnabled,
+                    onChanged: (val) {
+                      setState(() => _scheduleEnabled = val);
+                      _saveSettings();
+                    },
+                  ),
+                ]),
+              ),
+            ),
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.xl,
+                  AppSpacing.lg,
+                  AppSpacing.xs,
+                ),
+                child: Text(
+                  'NOTIFICACIÓN DEL SERVICIO',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -178,12 +246,13 @@ class _NotificationSettingsScreenState
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: _notificationToggle(
-                  icon: Icons.lock_outline_rounded,
-                  title: 'App bloqueada',
-                  description: 'Cuando una app es bloqueada automáticamente',
-                  value: _blockedEnabled,
+                  icon: Icons.notifications_active_outlined,
+                  title: 'Mostrar estado de monitoreo',
+                  description:
+                      'Notificación permanente que indica apps monitoreadas',
+                  value: _serviceNotificationEnabled,
                   onChanged: (val) {
-                    setState(() => _blockedEnabled = val);
+                    setState(() => _serviceNotificationEnabled = val);
                     _saveSettings();
                   },
                 ),

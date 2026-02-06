@@ -26,6 +26,7 @@ import com.example.timelock.services.AppBlockAccessibilityService
 import com.example.timelock.services.UsageMonitorService
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -327,7 +328,7 @@ class MainActivity : FlutterActivity() {
     }
   }
 
-  private fun handleMethodCallPart2(call: MethodChannel.MethodCall, result: MethodChannel.Result) {
+  private fun handleMethodCallPart2(call: MethodCall, result: MethodChannel.Result) {
     when (call.method) {
       "getSchedules" -> {
         val packageName = call.arguments as String
