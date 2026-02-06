@@ -13,7 +13,6 @@ class AppPickerDialog extends StatefulWidget {
 }
 
 class _AppPickerDialogState extends State<AppPickerDialog> {
-  List<Map<String, dynamic>> _allApps = [];
   List<Map<String, dynamic>> _installedApps = [];
   List<Map<String, dynamic>> _systemApps = [];
   List<Map<String, dynamic>> _filteredInstalled = [];
@@ -21,6 +20,8 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
   bool _loading = true;
   String _query = '';
   bool _showSystem = false;
+  final Map<String, Uint8List?> _iconCache = {};
+  final Set<String> _iconLoading = {};
 
   @override
   void initState() {
@@ -30,7 +31,11 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
   Future<void> _loadApps() async {
     try {
+      setState(() => _loading = true);
+
       final raw = await NativeService.getInstalledApps();
+
+      if (!mounted) return;
 
       final allApps = raw
           .where((a) =>
@@ -60,7 +65,6 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
       if (mounted) {
         setState(() {
-          _allApps = allApps;
           _installedApps = installed;
           _systemApps = system;
           _filteredInstalled = installed;
@@ -80,27 +84,28 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
         _filteredInstalled = _installedApps;
         _filteredSystem = _showSystem ? _systemApps : [];
       } else {
+        final lowerQ = q.toLowerCase();
         _filteredInstalled = _installedApps
             .where((a) =>
                 (a['appName'] ?? '')
                     .toString()
                     .toLowerCase()
-                    .contains(q.toLowerCase()) ||
+                    .contains(lowerQ) ||
                 (a['packageName'] ?? '')
                     .toString()
                     .toLowerCase()
-                    .contains(q.toLowerCase()))
+                    .contains(lowerQ))
             .toList();
         _filteredSystem = _systemApps
             .where((a) =>
                 (a['appName'] ?? '')
                     .toString()
                     .toLowerCase()
-                    .contains(q.toLowerCase()) ||
+                    .contains(lowerQ) ||
                 (a['packageName'] ?? '')
                     .toString()
                     .toLowerCase()
-                    .contains(q.toLowerCase()))
+                    .contains(lowerQ))
             .toList();
       }
     });
@@ -181,16 +186,37 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
               ),
               child: _loading
                   ? const Center(
-                      child: CircularProgressIndicator(strokeWidth: 3))
+                      child: Padding(
+                        padding: EdgeInsets.all(AppSpacing.xxl),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(strokeWidth: 3),
+                            SizedBox(height: AppSpacing.lg),
+                            Text(
+                              'Cargando apps...',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
                   : _filteredInstalled.isEmpty && _filteredSystem.isEmpty
                       ? Center(
-                          child: Text(
-                            _query.isEmpty
-                                ? 'No hay apps disponibles'
-                                : 'Sin resultados',
-                            style: const TextStyle(
-                              color: AppColors.textTertiary,
-                              fontSize: 15,
+                          child: Padding(
+                            padding: const EdgeInsets.all(AppSpacing.xxl),
+                            child: Text(
+                              _query.isEmpty
+                                  ? 'No hay apps disponibles'
+                                  : 'Sin resultados',
+                              style: const TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: 15,
+                              ),
                             ),
                           ),
                         )
@@ -252,6 +278,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
   Widget _appTile(Map<String, dynamic> app) {
     final appName = (app['appName'] ?? app['packageName'] ?? '?').toString();
+    final packageName = app['packageName'] as String?;
     final firstChar = appName.isNotEmpty ? appName[0].toUpperCase() : '?';
     final iconBytes = app['icon'] as Uint8List?;
 
@@ -264,7 +291,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(
             children: [
-              _buildAppIcon(iconBytes, firstChar),
+              _buildAppIcon(iconBytes, firstChar, packageName),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
@@ -302,7 +329,8 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
     );
   }
 
-  Widget _buildAppIcon(Uint8List? iconBytes, String fallbackChar) {
+  Widget _buildAppIcon(
+      Uint8List? iconBytes, String fallbackChar, String? packageName) {
     if (iconBytes != null && iconBytes.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -315,6 +343,34 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
         ),
       );
     }
+
+    if (packageName != null && _iconCache.containsKey(packageName)) {
+      final cachedIcon = _iconCache[packageName];
+      if (cachedIcon != null && cachedIcon.isNotEmpty) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          child: Image.memory(
+            cachedIcon,
+            width: 48,
+            height: 48,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => _buildFallbackIcon(fallbackChar),
+          ),
+        );
+      }
+    }
+
+    if (packageName != null && !_iconLoading.contains(packageName)) {
+      _iconLoading.add(packageName);
+      NativeService.getAppIcon(packageName).then((bytes) {
+        if (!mounted) return;
+        setState(() {
+          _iconCache[packageName] = bytes;
+          _iconLoading.remove(packageName);
+        });
+      });
+    }
+
     return _buildFallbackIcon(fallbackChar);
   }
 

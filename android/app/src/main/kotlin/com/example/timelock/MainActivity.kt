@@ -7,10 +7,16 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.Process
 import android.provider.Settings
 import android.util.Log
@@ -29,6 +35,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.CoroutineScope
@@ -70,6 +77,15 @@ class MainActivity : FlutterActivity() {
             call,
             result ->
       when (call.method) {
+        "getInstalledApps" -> getInstalledAppsQuick(result)
+        "getAppIcon" -> {
+          val packageName = call.arguments as? String
+          if (packageName != null) {
+            getAppIcon(packageName, result)
+          } else {
+            result.error("INVALID_ARGUMENT", "packageName is required", null)
+          }
+        }
         "checkUsagePermission" -> result.success(hasUsageStatsPermission())
         "requestUsagePermission" -> {
           requestUsageStatsPermission()
@@ -83,17 +99,6 @@ class MainActivity : FlutterActivity() {
         "startMonitoring" -> {
           startMonitoringService()
           result.success(null)
-        }
-        "getInstalledApps" -> {
-          scope.launch {
-            try {
-              val apps = getInstalledApps()
-              withContext(Dispatchers.Main) { result.success(apps) }
-            } catch (e: Exception) {
-              Log.e("MainActivity", "Error getting installed apps", e)
-              withContext(Dispatchers.Main) { result.error("GET_APPS_ERROR", e.message, null) }
-            }
-          }
         }
         "addRestriction" -> {
           val args = call.arguments as Map<*, *>
@@ -643,6 +648,57 @@ class MainActivity : FlutterActivity() {
     return mode == AppOpsManager.MODE_ALLOWED
   }
 
+  private fun getInstalledAppsQuick(result: MethodChannel.Result) {
+    Thread {
+              try {
+                val pm = packageManager
+                val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+
+                val appList =
+                        apps.mapNotNull { app ->
+                          try {
+                            mapOf(
+                                    "appName" to pm.getApplicationLabel(app).toString(),
+                                    "packageName" to app.packageName,
+                                    "isSystem" to
+                                            ((app.flags and ApplicationInfo.FLAG_SYSTEM) != 0),
+                                    "icon" to null // Sin ícono por ahora
+                            )
+                          } catch (e: Exception) {
+                            null
+                          }
+                        }
+
+                Handler(Looper.getMainLooper()).post { result.success(appList) }
+              } catch (e: Exception) {
+                Handler(Looper.getMainLooper()).post {
+                  result.error("ERROR", "Error getting apps: ${e.message}", null)
+                }
+              }
+            }
+            .start()
+  }
+
+  private fun getAppIcon(packageName: String, result: MethodChannel.Result) {
+    Thread {
+              try {
+                val pm = packageManager
+                val app = pm.getApplicationInfo(packageName, 0)
+                val drawable = pm.getApplicationIcon(app)
+
+                val bitmap = drawableToBitmap(drawable)
+                val stream = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.PNG, 50, stream)
+                val iconBytes = stream.toByteArray()
+
+                Handler(Looper.getMainLooper()).post { result.success(iconBytes) }
+              } catch (e: Exception) {
+                Handler(Looper.getMainLooper()).post { result.success(null) }
+              }
+            }
+            .start()
+  }
+
   private fun requestUsageStatsPermission() {
     startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
   }
@@ -910,6 +966,22 @@ class MainActivity : FlutterActivity() {
       )
       startActivityForResult(intent, REQUEST_ENABLE_ADMIN)
     }
+  }
+
+  private fun drawableToBitmap(drawable: Drawable): Bitmap {
+    if (drawable is BitmapDrawable) {
+      return drawable.bitmap
+    }
+
+    val width = if (drawable.intrinsicWidth > 0) minOf(drawable.intrinsicWidth, 96) else 96
+    val height = if (drawable.intrinsicHeight > 0) minOf(drawable.intrinsicHeight, 96) else 96
+
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    drawable.setBounds(0, 0, canvas.width, canvas.height)
+    drawable.draw(canvas)
+
+    return bitmap
   }
 
   private fun isDeviceAdminEnabled(): Boolean {

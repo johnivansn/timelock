@@ -1,6 +1,14 @@
 import 'package:flutter/services.dart';
 
 class NativeService {
+  static Future<Uint8List?> getAppIcon(String packageName) async {
+    try {
+      return await _channel.invokeMethod<Uint8List>('getAppIcon', packageName);
+    } catch (_) {
+      return null;
+    }
+  }
+
   static const _channel = MethodChannel('app.restriction/config');
 
   static Future<bool> checkUsagePermission() async {
