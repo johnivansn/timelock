@@ -178,6 +178,8 @@ class _AppListScreenState extends State<AppListScreen> {
         'dailyQuotas': limit?['dailyQuotas'] ?? {},
         'weeklyQuotaMinutes': limit?['weeklyQuotaMinutes'] ?? 0,
         'weeklyResetDay': limit?['weeklyResetDay'] ?? 2,
+        'weeklyResetHour': limit?['weeklyResetHour'] ?? 0,
+        'weeklyResetMinute': limit?['weeklyResetMinute'] ?? 0,
       });
       await _loadRestrictions();
     } catch (e) {
@@ -287,6 +289,8 @@ class _AppListScreenState extends State<AppListScreen> {
       'dailyQuotas': limit['dailyQuotas'] ?? r['dailyQuotas'],
       'weeklyQuotaMinutes': limit['weeklyQuotaMinutes'] ?? r['weeklyQuotaMinutes'],
       'weeklyResetDay': limit['weeklyResetDay'] ?? r['weeklyResetDay'],
+      'weeklyResetHour': limit['weeklyResetHour'] ?? r['weeklyResetHour'],
+      'weeklyResetMinute': limit['weeklyResetMinute'] ?? r['weeklyResetMinute'],
     });
     await _loadRestrictions();
   }

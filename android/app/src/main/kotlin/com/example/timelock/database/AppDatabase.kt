@@ -137,6 +137,22 @@ class Migration6To7 : Migration(6, 7) {
   }
 }
 
+class Migration7To8 : Migration(7, 8) {
+  override fun migrate(database: SupportSQLiteDatabase) {
+    try {
+      database.execSQL(
+              "ALTER TABLE app_restrictions ADD COLUMN weeklyResetHour INTEGER NOT NULL DEFAULT 0"
+      )
+      database.execSQL(
+              "ALTER TABLE app_restrictions ADD COLUMN weeklyResetMinute INTEGER NOT NULL DEFAULT 0"
+      )
+    } catch (e: Exception) {
+      android.util.Log.e("Migration7To8", "Error migrating", e)
+      throw e
+    }
+  }
+}
+
 @Database(
         entities =
                 [
@@ -144,7 +160,7 @@ class Migration6To7 : Migration(6, 7) {
                         DailyUsage::class,
                         AdminSettings::class,
                         AppSchedule::class],
-        version = 7,
+        version = 8,
         exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -171,7 +187,8 @@ abstract class AppDatabase : RoomDatabase() {
                                 Migration3To4(),
                                 Migration4To5(),
                                 Migration5To6(),
-                                Migration6To7()
+                                Migration6To7(),
+                                Migration7To8()
                         )
                         .build()
                 INSTANCE = instance

@@ -32,8 +32,22 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   late Map<int, int> _dailyQuotas;
   late int _weeklyMinutes;
   late int _weeklyResetDay;
+  late int _weeklyResetHour;
+  late int _weeklyResetMinute;
   late final TextEditingController _weeklyController;
   late final TextEditingController _dailyMinutesController;
+  late final TextEditingController _weeklyHourController;
+  late final TextEditingController _weeklyMinuteController;
+  late int _weeklyDaysInput;
+  late int _weeklyHoursInput;
+  late int _weeklyMinutesInput;
+  late int _dailyHoursInput;
+  late int _dailyMinutesInput;
+  late final TextEditingController _weeklyDaysController;
+  late final TextEditingController _weeklyHoursController;
+  late final TextEditingController _weeklyMinutesInputController;
+  late final TextEditingController _dailyHoursController;
+  late final TextEditingController _dailyMinutesInputController;
   bool _loadingSchedules = false;
   List<Map<String, dynamic>> _schedules = [];
   bool _schedulesChanged = false;
@@ -44,6 +58,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   int _localScheduleCounter = 0;
   bool _inactiveFirst = false;
   final Map<int, TextEditingController> _dayControllers = {};
+  final Map<int, TextEditingController> _dayHourControllers = {};
+  final Map<int, TextEditingController> _dayMinuteControllers = {};
   final FocusNode _dailyMinutesFocus = FocusNode();
   final Map<int, FocusNode> _dayFocusNodes = {};
   Map<String, dynamic>? _usageData;
@@ -55,6 +71,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   late Map<int, int> _initialDailyQuotas;
   late int _initialWeeklyMinutes;
   late int _initialWeeklyResetDay;
+  late int _initialWeeklyResetHour;
+  late int _initialWeeklyResetMinute;
   final Map<String, Map<String, dynamic>> _originalSchedulesById = {};
 
   @override
@@ -66,16 +84,43 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     _dailyMinutes = (init['dailyQuotaMinutes'] as int?) ?? 30;
     _weeklyMinutes = (init['weeklyQuotaMinutes'] as int?) ?? 300;
     _weeklyResetDay = (init['weeklyResetDay'] as int?) ?? 2;
+    _weeklyResetHour = (init['weeklyResetHour'] as int?) ?? 0;
+    _weeklyResetMinute = (init['weeklyResetMinute'] as int?) ?? 0;
     _weeklyController =
         TextEditingController(text: _weeklyMinutes.toString());
     _dailyMinutesController = TextEditingController(
         text: _dailyMinutes > 0 ? _dailyMinutes.toString() : '');
+    _weeklyHourController =
+        TextEditingController(text: _weeklyResetHour.toString().padLeft(2, '0'));
+    _weeklyMinuteController = TextEditingController(
+        text: _weeklyResetMinute.toString().padLeft(2, '0'));
+    _weeklyDaysInput = (_weeklyMinutes ~/ 1440).clamp(0, 7);
+    _weeklyHoursInput = ((_weeklyMinutes % 1440) ~/ 60).clamp(0, 23);
+    _weeklyMinutesInput = (_weeklyMinutes % 60).clamp(0, 59);
+    _weeklyDaysController =
+        TextEditingController(text: _weeklyDaysInput.toString());
+    _weeklyHoursController =
+        TextEditingController(text: _weeklyHoursInput.toString());
+    _weeklyMinutesInputController =
+        TextEditingController(text: _weeklyMinutesInput.toString());
+    _dailyHoursInput = (_dailyMinutes ~/ 60).clamp(0, 23);
+    _dailyMinutesInput = (_dailyMinutes % 60).clamp(0, 59);
+    _dailyHoursController =
+        TextEditingController(text: _dailyHoursInput.toString());
+    _dailyMinutesInputController =
+        TextEditingController(text: _dailyMinutesInput.toString());
     _dailyQuotas = _parseDailyQuotas(init['dailyQuotas']) ??
         {2: _dailyMinutes, 3: _dailyMinutes, 4: _dailyMinutes, 5: _dailyMinutes, 6: _dailyMinutes};
     for (var day = 1; day <= 7; day++) {
       final value = _dailyQuotas[day] ?? 0;
       _dayControllers[day] =
           TextEditingController(text: value > 0 ? value.toString() : '');
+      final hours = (value ~/ 60).clamp(0, 23);
+      final minutes = (value % 60).clamp(0, 59);
+      _dayHourControllers[day] =
+          TextEditingController(text: value > 0 ? hours.toString() : '');
+      _dayMinuteControllers[day] =
+          TextEditingController(text: value > 0 ? minutes.toString() : '');
       _dayFocusNodes[day] = FocusNode();
     }
     _dailyMinutesFocus.addListener(_handleDailyFocusChange);
@@ -87,6 +132,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     _initialDailyMinutes = _dailyMinutes;
     _initialWeeklyMinutes = _weeklyMinutes;
     _initialWeeklyResetDay = _weeklyResetDay;
+    _initialWeeklyResetHour = _weeklyResetHour;
+    _initialWeeklyResetMinute = _weeklyResetMinute;
     _initialDailyQuotas = Map<int, int>.from(_dailyQuotas);
     if (_packageName != null) {
       _loadSchedules();
@@ -104,7 +151,20 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   void dispose() {
     _weeklyController.dispose();
     _dailyMinutesController.dispose();
+    _weeklyHourController.dispose();
+    _weeklyMinuteController.dispose();
+    _weeklyDaysController.dispose();
+    _weeklyHoursController.dispose();
+    _weeklyMinutesInputController.dispose();
+    _dailyHoursController.dispose();
+    _dailyMinutesInputController.dispose();
     for (final c in _dayControllers.values) {
+      c.dispose();
+    }
+    for (final c in _dayHourControllers.values) {
+      c.dispose();
+    }
+    for (final c in _dayMinuteControllers.values) {
       c.dispose();
     }
     _dailyMinutesFocus.dispose();
@@ -454,25 +514,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 const SizedBox(height: AppSpacing.lg),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                  child: _sectionLabel('Tipo de límite'),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                  child: _pillRow(
-                    leftLabel: 'Diario',
-                    rightLabel: 'Semanal',
-                    leftSelected: _limitType == 'daily',
-                    rightSelected: _limitType == 'weekly',
-                    onLeft: () => setState(() {
-                      _limitType = 'daily';
-                      _recomputeDirty();
-                    }),
-                    onRight: () => setState(() {
-                      _limitType = 'weekly';
-                      _recomputeDirty();
-                    }),
-                  ),
+                  child: _limitTypeSection(),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 if (_limitType == 'daily') _dailyConfig(),
@@ -827,52 +869,9 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Minutos por semana',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          TextField(
-            controller: _weeklyController,
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            onChanged: (v) {
-              final n = int.tryParse(v);
-              if (n != null) {
-                final clamped = n.clamp(1, 10080);
-                setState(() => _weeklyMinutes = clamped);
-                if (clamped.toString() != _weeklyController.text) {
-                  _weeklyController.text = clamped.toString();
-                  _weeklyController.selection = TextSelection.collapsed(
-                      offset: _weeklyController.text.length);
-                }
-              }
-            },
-            decoration: const InputDecoration(
-              suffixText: 'min',
-              contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          const Text(
-            'Reinicio semanal',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          DropdownButtonFormField<int>(
-            initialValue: _weeklyResetDay,
-            items: const [
-              DropdownMenuItem(value: 1, child: Text('Domingo')),
-              DropdownMenuItem(value: 2, child: Text('Lunes')),
-              DropdownMenuItem(value: 3, child: Text('Martes')),
-              DropdownMenuItem(value: 4, child: Text('Miércoles')),
-              DropdownMenuItem(value: 5, child: Text('Jueves')),
-              DropdownMenuItem(value: 6, child: Text('Viernes')),
-              DropdownMenuItem(value: 7, child: Text('Sábado')),
-            ],
-            onChanged: (v) {
-              if (v != null) setState(() => _weeklyResetDay = v);
-            },
+          _weeklySection(
+            onMinutesChanged: (v) => setState(() => _weeklyMinutes = v),
+            onResetChanged: (v) => setState(() => _weeklyResetDay = v),
           ),
         ],
       ),
@@ -887,6 +886,59 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         letterSpacing: 1.1,
         fontWeight: FontWeight.w700,
         color: AppColors.textTertiary,
+      ),
+    );
+  }
+
+  Widget _limitTypeSection() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.tune_rounded,
+                  size: 16, color: AppColors.primary),
+              SizedBox(width: AppSpacing.sm),
+              Text(
+                'Tipo de límite',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Elige cómo se reinicia el tiempo',
+            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _pillRow(
+            leftLabel: 'Diario',
+            rightLabel: 'Semanal',
+            leftSelected: _limitType == 'daily',
+            rightSelected: _limitType == 'weekly',
+            onLeft: () => setState(() {
+              _limitType = 'daily';
+              _recomputeDirty();
+            }),
+            onRight: () => setState(() {
+              _limitType = 'weekly';
+              _recomputeDirty();
+            }),
+          ),
+        ],
       ),
     );
   }
@@ -927,7 +979,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   }) {
     final bg = selected
         ? AppColors.primary
-        : AppColors.surfaceVariant.withValues(alpha: 0.6);
+        : AppColors.surfaceVariant.withValues(alpha: 0.7);
     final fg = selected ? Colors.white : AppColors.textSecondary;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -939,8 +991,17 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         border: Border.all(
           color: selected
               ? AppColors.primary.withValues(alpha: 0.8)
-              : AppColors.surfaceVariant.withValues(alpha: 0.8),
+              : AppColors.surfaceVariant.withValues(alpha: 0.7),
         ),
+        boxShadow: selected
+            ? [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.25),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: InkWell(
         onTap: onTap,
@@ -961,7 +1022,227 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionLabel('Tipo de límite diario'),
+          _dailyModeSection(),
+          const SizedBox(height: AppSpacing.md),
+          if (_dailyMode == 'same') _dailyDurationCard(),
+          if (_dailyMode == 'per_day') _perDayRows(),
+        ],
+      ),
+    );
+  }
+
+  Widget _weeklyConfig() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _weeklySection(
+            onMinutesChanged: (v) {
+              setState(() {
+                _weeklyMinutes = v;
+                _recomputeDirty();
+              });
+            },
+            onResetChanged: (v) {
+              setState(() {
+                _weeklyResetDay = v;
+                _recomputeDirty();
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _weeklySection({
+    required ValueChanged<int> onMinutesChanged,
+    required ValueChanged<int> onResetChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.calendar_month_rounded,
+                  size: 16, color: AppColors.primary),
+              SizedBox(width: AppSpacing.sm),
+              Text(
+                'Límite semanal',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Define el total para toda la semana',
+            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _durationRowCard(
+            badge: 'Sem',
+            daysController: _weeklyDaysController,
+            hoursController: _weeklyHoursController,
+            minutesController: _weeklyMinutesInputController,
+            unitsLabel: 'd / h / m',
+            onChanged: () {
+              final d = int.tryParse(_weeklyDaysController.text) ?? 0;
+              final h = int.tryParse(_weeklyHoursController.text) ?? 0;
+              final m = int.tryParse(_weeklyMinutesInputController.text) ?? 0;
+              final minutes = (d.clamp(0, 7) * 1440) +
+                  (h.clamp(0, 23) * 60) +
+                  m.clamp(0, 59);
+              _weeklyMinutes = minutes;
+              onMinutesChanged(minutes);
+              _recomputeDirty();
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const Text(
+            'Reinicio semanal',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  initialValue: _weeklyResetDay,
+                  items: const [
+                    DropdownMenuItem(value: 1, child: Text('Domingo')),
+                    DropdownMenuItem(value: 2, child: Text('Lunes')),
+                    DropdownMenuItem(value: 3, child: Text('Martes')),
+                    DropdownMenuItem(value: 4, child: Text('Miércoles')),
+                    DropdownMenuItem(value: 5, child: Text('Jueves')),
+                    DropdownMenuItem(value: 6, child: Text('Viernes')),
+                    DropdownMenuItem(value: 7, child: Text('Sábado')),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) onResetChanged(v);
+                  },
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              SizedBox(
+                width: 56,
+                child: TextField(
+                  controller: _weeklyHourController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textAlign: TextAlign.center,
+                  onChanged: (v) {
+                    final n = int.tryParse(v) ?? 0;
+                    final clamped = n.clamp(0, 23);
+                    if (clamped.toString().padLeft(2, '0') !=
+                        _weeklyHourController.text) {
+                      _weeklyHourController.text =
+                          clamped.toString().padLeft(2, '0');
+                      _weeklyHourController.selection =
+                          TextSelection.collapsed(
+                              offset: _weeklyHourController.text.length);
+                    }
+                    onResetChanged(_weeklyResetDay);
+                    setState(() {
+                      _weeklyResetHour = clamped;
+                      _recomputeDirty();
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    hintText: 'HH',
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                ':',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(width: 6),
+              SizedBox(
+                width: 56,
+                child: TextField(
+                  controller: _weeklyMinuteController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textAlign: TextAlign.center,
+                  onChanged: (v) {
+                    final n = int.tryParse(v) ?? 0;
+                    final clamped = n.clamp(0, 59);
+                    if (clamped.toString().padLeft(2, '0') !=
+                        _weeklyMinuteController.text) {
+                      _weeklyMinuteController.text =
+                          clamped.toString().padLeft(2, '0');
+                      _weeklyMinuteController.selection =
+                          TextSelection.collapsed(
+                              offset: _weeklyMinuteController.text.length);
+                    }
+                    onResetChanged(_weeklyResetDay);
+                    setState(() {
+                      _weeklyResetMinute = clamped;
+                      _recomputeDirty();
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    hintText: 'MM',
+                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dailyModeSection() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.calendar_view_day_rounded,
+                  size: 16, color: AppColors.primary),
+              SizedBox(width: AppSpacing.sm),
+              Text(
+                'Tipo de límite diario',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Define si el límite cambia por día',
+            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+          ),
           const SizedBox(height: AppSpacing.sm),
           _pillRow(
             leftLabel: 'Mismo',
@@ -977,69 +1258,6 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               _dailyMode = 'per_day';
               _recomputeDirty();
             }),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          if (_dailyMode == 'same') _minutesCard(),
-          if (_dailyMode == 'per_day') _perDayRows(),
-        ],
-      ),
-    );
-  }
-
-  Widget _weeklyConfig() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _sectionLabel('Minutos por semana'),
-          const SizedBox(height: AppSpacing.sm),
-          TextField(
-            controller: _weeklyController,
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            onChanged: (v) {
-              final n = int.tryParse(v);
-              if (n != null) {
-                final clamped = n.clamp(1, 10080);
-                setState(() {
-                  _weeklyMinutes = clamped;
-                  _recomputeDirty();
-                });
-                if (clamped.toString() != _weeklyController.text) {
-                  _weeklyController.text = clamped.toString();
-                  _weeklyController.selection = TextSelection.collapsed(
-                      offset: _weeklyController.text.length);
-                }
-              }
-            },
-            decoration: const InputDecoration(
-              suffixText: 'min',
-              contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _sectionLabel('Reinicio semanal'),
-          const SizedBox(height: AppSpacing.xs),
-          DropdownButtonFormField<int>(
-            initialValue: _weeklyResetDay,
-            items: const [
-              DropdownMenuItem(value: 1, child: Text('Domingo')),
-              DropdownMenuItem(value: 2, child: Text('Lunes')),
-              DropdownMenuItem(value: 3, child: Text('Martes')),
-              DropdownMenuItem(value: 4, child: Text('Miércoles')),
-              DropdownMenuItem(value: 5, child: Text('Jueves')),
-              DropdownMenuItem(value: 6, child: Text('Viernes')),
-              DropdownMenuItem(value: 7, child: Text('Sábado')),
-            ],
-            onChanged: (v) {
-              if (v != null) {
-                setState(() {
-                  _weeklyResetDay = v;
-                  _recomputeDirty();
-                });
-              }
-            },
           ),
         ],
       ),
@@ -1176,89 +1394,15 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     return Column(
       children: List.generate(7, (i) {
         final day = i + 1;
-        final value = _dailyQuotas[day] ?? 0;
         return Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 32,
-                child: Text(
-                  dayLabels[day] ?? '?',
-                  style: const TextStyle(fontSize: 11),
-                ),
-              ),
-              Expanded(
-                child: TextField(
-                  controller: _dayControllers[day],
-                  focusNode: _dayFocusNodes[day],
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  textAlign: TextAlign.center,
-                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                  onSubmitted: (_) => FocusScope.of(context).unfocus(),
-                  onChanged: (v) {
-                    if (v.isEmpty) {
-                      setState(() {
-                        _dailyQuotas[day] = 0;
-                        _recomputeDirty();
-                      });
-                      return;
-                    }
-                    final n = int.tryParse(v) ?? 0;
-                    final clamped = n.clamp(1, 480);
-                    if (clamped.toString() != _dayControllers[day]?.text) {
-                      _dayControllers[day]?.text = clamped.toString();
-                      _dayControllers[day]?.selection = TextSelection.collapsed(
-                          offset: _dayControllers[day]!.text.length);
-                    }
-                    setState(() {
-                      _dailyQuotas[day] = clamped;
-                      _recomputeDirty();
-                    });
-                  },
-                  onEditingComplete: () {
-                    final controller = _dayControllers[day];
-                    if (controller != null && controller.text.trim().isEmpty) {
-                      controller.text = '1';
-                      controller.selection = TextSelection.collapsed(
-                          offset: controller.text.length);
-                      setState(() {
-                        _dailyQuotas[day] = 1;
-                        _recomputeDirty();
-                      });
-                    }
-                    FocusScope.of(context).unfocus();
-                  },
-                  decoration: InputDecoration(
-                    hintText: '≥ 1',
-                    hintStyle: TextStyle(
-                      color: AppColors.textTertiary.withValues(alpha: 0.8),
-                    ),
-                    suffixText: 'min',
-                    suffixStyle: const TextStyle(color: AppColors.textSecondary),
-                    filled: true,
-                    fillColor: AppColors.surfaceVariant.withValues(alpha: 0.6),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              SizedBox(
-                width: 84,
-                child: Text(
-                  value <= 0 ? '≥ 1' : 'Límite',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: value <= 0
-                        ? AppColors.warning
-                        : AppColors.textTertiary,
-                  ),
-                ),
-              ),
-            ],
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: _durationRowCard(
+            badge: dayLabels[day] ?? '?',
+            daysController: null,
+            hoursController: _dayHourControllers[day]!,
+            minutesController: _dayMinuteControllers[day]!,
+            unitsLabel: 'h / m',
+            onChanged: () => _syncPerDayMinutes(day),
           ),
         );
       }),
@@ -1555,12 +1699,215 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     }
     if (_weeklyMinutes != _initialWeeklyMinutes) return true;
     if (_weeklyResetDay != _initialWeeklyResetDay) return true;
+    if (_weeklyResetHour != _initialWeeklyResetHour) return true;
+    if (_weeklyResetMinute != _initialWeeklyResetMinute) return true;
     return false;
+  }
+
+  void _syncPerDayMinutes(int day) {
+    final h = int.tryParse(_dayHourControllers[day]?.text ?? '') ?? 0;
+    final m = int.tryParse(_dayMinuteControllers[day]?.text ?? '') ?? 0;
+    final hours = h.clamp(0, 23);
+    final mins = m.clamp(0, 59);
+    if (hours.toString() != _dayHourControllers[day]?.text) {
+      _dayHourControllers[day]?.text = hours.toString();
+      _dayHourControllers[day]?.selection = TextSelection.collapsed(
+          offset: _dayHourControllers[day]!.text.length);
+    }
+    if (mins.toString() != _dayMinuteControllers[day]?.text) {
+      _dayMinuteControllers[day]?.text = mins.toString();
+      _dayMinuteControllers[day]?.selection = TextSelection.collapsed(
+          offset: _dayMinuteControllers[day]!.text.length);
+    }
+    final minutes = hours * 60 + mins;
+    setState(() {
+      _dailyQuotas[day] = minutes;
+      _recomputeDirty();
+    });
+  }
+
+  Widget _dailyDurationCard() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Minutos por día',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        _durationRowCard(
+          badge: 'Día',
+          daysController: null,
+          hoursController: _dailyHoursController,
+          minutesController: _dailyMinutesInputController,
+          unitsLabel: 'h / m',
+          onChanged: () {
+            final h = int.tryParse(_dailyHoursController.text) ?? 0;
+            final m = int.tryParse(_dailyMinutesInputController.text) ?? 0;
+            final minutes = (h.clamp(0, 23) * 60) + m.clamp(0, 59);
+            setState(() {
+              _dailyMinutes = minutes;
+              _dailyMinutesController.text =
+                  minutes > 0 ? minutes.toString() : '';
+              _recomputeDirty();
+            });
+          },
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        const Text(
+          'Rango: 1 - 480 minutos',
+          style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+        ),
+      ],
+    );
+  }
+
+  Widget _durationRowCard({
+    required String badge,
+    required TextEditingController? daysController,
+    required TextEditingController hoursController,
+    required TextEditingController minutesController,
+    required String unitsLabel,
+    required VoidCallback onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.22),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              badge,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Center(
+              child: _durationInputsRow(
+                daysController: daysController,
+                hoursController: hoursController,
+                minutesController: minutesController,
+                unitsLabel: unitsLabel,
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _durationInputsRow({
+    required TextEditingController? daysController,
+    required TextEditingController hoursController,
+    required TextEditingController minutesController,
+    required String unitsLabel,
+    required VoidCallback onChanged,
+  }) {
+    Widget buildBox(
+        {required TextEditingController controller,
+        required String hint,
+        required int max}) {
+      return SizedBox(
+        width: 64,
+        child: Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.25),
+              ),
+            ),
+          child: Center(
+            child: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              textAlign: TextAlign.center,
+              onTapOutside: (_) => FocusScope.of(context).unfocus(),
+              onSubmitted: (_) => FocusScope.of(context).unfocus(),
+              onChanged: (v) {
+                final n = int.tryParse(v) ?? 0;
+                final clamped = n.clamp(0, max);
+                if (clamped.toString() != controller.text) {
+                  controller.text = clamped.toString();
+                  controller.selection =
+                      TextSelection.collapsed(offset: controller.text.length);
+                }
+                onChanged();
+              },
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+              decoration: InputDecoration(
+                hintText: hint,
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                filled: false,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        if (daysController != null)
+          buildBox(controller: daysController, hint: 'D', max: 7),
+        buildBox(controller: hoursController, hint: 'H', max: 23),
+        const Text(':', style: TextStyle(color: AppColors.textSecondary)),
+        buildBox(controller: minutesController, hint: 'M', max: 59),
+        Padding(
+          padding: const EdgeInsets.only(left: 4),
+          child: Text(
+            unitsLabel,
+            style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+          ),
+        ),
+      ],
+    );
   }
 
   bool _isLimitValid() {
     if (_limitType == 'weekly') {
-      return _weeklyMinutes >= 1;
+      return _weeklyMinutes >= 1 &&
+          _weeklyResetHour >= 0 &&
+          _weeklyResetHour <= 23 &&
+          _weeklyResetMinute >= 0 &&
+          _weeklyResetMinute <= 59;
     }
     if (_dailyMode == 'same') {
       return _dailyMinutes >= 1;
@@ -1665,6 +2012,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       'dailyQuotas': isDaily && _dailyMode == 'per_day' ? _dailyQuotas : {},
       'weeklyQuotaMinutes': _weeklyMinutes,
       'weeklyResetDay': _weeklyResetDay,
+      'weeklyResetHour': _weeklyResetHour,
+      'weeklyResetMinute': _weeklyResetMinute,
       'schedulesChanged': scheduleDirty,
     };
     if (mounted) Navigator.pop(context, result);

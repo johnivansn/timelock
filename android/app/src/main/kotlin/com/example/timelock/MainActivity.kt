@@ -486,9 +486,11 @@ class MainActivity : FlutterActivity() {
                       "dailyMode" to r.dailyMode,
                       "dailyQuotas" to r.dailyQuotas,
                       "weeklyQuotaMinutes" to r.weeklyQuotaMinutes,
-                      "weeklyResetDay" to r.weeklyResetDay
-              )
-            }
+                      "weeklyResetDay" to r.weeklyResetDay,
+                      "weeklyResetHour" to r.weeklyResetHour,
+                      "weeklyResetMinute" to r.weeklyResetMinute
+                )
+              }
 
     val exportMap =
             mutableMapOf<String, Any>(
@@ -545,6 +547,8 @@ class MainActivity : FlutterActivity() {
                         weeklyQuotaMinutes =
                                 (item["weeklyQuotaMinutes"] as? Number)?.toInt() ?: 0,
                         weeklyResetDay = (item["weeklyResetDay"] as? Number)?.toInt() ?: 2,
+                        weeklyResetHour = (item["weeklyResetHour"] as? Number)?.toInt() ?: 0,
+                        weeklyResetMinute = (item["weeklyResetMinute"] as? Number)?.toInt() ?: 0,
                         createdAt = System.currentTimeMillis()
                 )
       database.appRestrictionDao().insert(restriction)
@@ -741,6 +745,8 @@ class MainActivity : FlutterActivity() {
     val dailyQuotas = parseDailyQuotas(args["dailyQuotas"])
     val weeklyQuotaMinutes = (args["weeklyQuotaMinutes"] as? Number)?.toInt() ?: 0
     val weeklyResetDay = (args["weeklyResetDay"] as? Number)?.toInt() ?: 2
+    val weeklyResetHour = (args["weeklyResetHour"] as? Number)?.toInt() ?: 0
+    val weeklyResetMinute = (args["weeklyResetMinute"] as? Number)?.toInt() ?: 0
     val restriction =
             AppRestriction(
                     id = UUID.randomUUID().toString(),
@@ -751,10 +757,12 @@ class MainActivity : FlutterActivity() {
                     limitType = limitType,
                     dailyMode = dailyMode,
                     dailyQuotas = dailyQuotas,
-                    weeklyQuotaMinutes = weeklyQuotaMinutes,
-                    weeklyResetDay = weeklyResetDay,
-                    createdAt = System.currentTimeMillis()
-            )
+            weeklyQuotaMinutes = weeklyQuotaMinutes,
+            weeklyResetDay = weeklyResetDay,
+            weeklyResetHour = weeklyResetHour,
+            weeklyResetMinute = weeklyResetMinute,
+            createdAt = System.currentTimeMillis()
+    )
     database.appRestrictionDao().insert(restriction)
   }
 
@@ -776,7 +784,13 @@ class MainActivity : FlutterActivity() {
                                     ?: restriction.weeklyQuotaMinutes,
                     weeklyResetDay =
                             (args["weeklyResetDay"] as? Number)?.toInt()
-                                    ?: restriction.weeklyResetDay
+                                    ?: restriction.weeklyResetDay,
+                    weeklyResetHour =
+                            (args["weeklyResetHour"] as? Number)?.toInt()
+                                    ?: restriction.weeklyResetHour,
+                    weeklyResetMinute =
+                            (args["weeklyResetMinute"] as? Number)?.toInt()
+                                    ?: restriction.weeklyResetMinute
             )
     database.appRestrictionDao().update(updated)
   }
@@ -800,7 +814,9 @@ class MainActivity : FlutterActivity() {
               "dailyMode" to restriction.dailyMode,
               "dailyQuotas" to restriction.dailyQuotas,
               "weeklyQuotaMinutes" to restriction.weeklyQuotaMinutes,
-              "weeklyResetDay" to restriction.weeklyResetDay
+              "weeklyResetDay" to restriction.weeklyResetDay,
+              "weeklyResetHour" to restriction.weeklyResetHour,
+              "weeklyResetMinute" to restriction.weeklyResetMinute
       )
     }
   }
@@ -812,7 +828,12 @@ class MainActivity : FlutterActivity() {
     val liveMillis = UsageStatsMonitor(this).getUsageToday(packageName)
     val restriction = database.appRestrictionDao().getByPackage(packageName)
     val weekStart =
-            if (restriction != null) getWeekStartDate(restriction.weeklyResetDay, dateFormat)
+            if (restriction != null) getWeekStartDate(
+                    restriction.weeklyResetDay,
+                    restriction.weeklyResetHour,
+                    restriction.weeklyResetMinute,
+                    dateFormat
+            )
             else today
     val weekUsages = database.dailyUsageDao().getUsageSince(packageName, weekStart)
     val weekMinutes = weekUsages.sumOf { it.usedMinutes }
@@ -825,12 +846,25 @@ class MainActivity : FlutterActivity() {
     )
   }
 
-  private fun getWeekStartDate(resetDay: Int, dateFormat: SimpleDateFormat): String {
+  private fun getWeekStartDate(
+          resetDay: Int,
+          resetHour: Int,
+          resetMinute: Int,
+          dateFormat: SimpleDateFormat
+  ): String {
+    val now = Calendar.getInstance()
     val cal = Calendar.getInstance()
     val current = cal.get(Calendar.DAY_OF_WEEK)
     var diff = current - resetDay
     if (diff < 0) diff += 7
     cal.add(Calendar.DAY_OF_MONTH, -diff)
+    cal.set(Calendar.HOUR_OF_DAY, resetHour)
+    cal.set(Calendar.MINUTE, resetMinute)
+    cal.set(Calendar.SECOND, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    if (now.before(cal)) {
+      cal.add(Calendar.DAY_OF_MONTH, -7)
+    }
     return dateFormat.format(cal.time)
   }
 
