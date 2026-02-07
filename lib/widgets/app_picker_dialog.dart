@@ -4,9 +4,14 @@ import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 
 class AppPickerDialog extends StatefulWidget {
-  const AppPickerDialog({super.key, required this.excludedPackages});
+  const AppPickerDialog({
+    super.key,
+    required this.excludedPackages,
+    this.fullScreen = false,
+  });
 
   final Set<String> excludedPackages;
+  final bool fullScreen;
 
   @override
   State<AppPickerDialog> createState() => _AppPickerDialogState();
@@ -113,6 +118,61 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.fullScreen) {
+      return SafeArea(
+        child: Container(
+          color: AppColors.surface,
+          child: Column(
+            children: [
+              const SizedBox(height: AppSpacing.sm),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: TextField(
+                  onChanged: _filter,
+                  decoration: const InputDecoration(
+                    hintText: 'Buscar apps...',
+                    prefixIcon: Icon(Icons.search_rounded, size: 18),
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              if (!_loading && _systemApps.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  child: CheckboxListTile(
+                    value: _showSystem,
+                    onChanged: (v) {
+                      setState(() => _showSystem = v ?? false);
+                      _filter(_query);
+                    },
+                    title: const Text(
+                      'Mostrar apps del sistema',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              Expanded(child: _buildList()),
+              if (!_loading)
+                Padding(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Text(
+                    'Total: ${_installedApps.length} instaladas + ${_systemApps.length} sistema',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       child: Container(
         decoration: const BoxDecoration(
@@ -187,80 +247,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(context).size.height * 0.5,
               ),
-              child: _loading
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(AppSpacing.xxl),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(strokeWidth: 3),
-                            SizedBox(height: AppSpacing.sm),
-                            Text(
-                              'Cargando apps...',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : _filteredInstalled.isEmpty && _filteredSystem.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.xxl),
-                            child: Text(
-                              _query.isEmpty
-                                  ? 'No hay apps disponibles'
-                                  : 'Sin resultados',
-                              style: const TextStyle(
-                                color: AppColors.textTertiary,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.lg),
-                          children: [
-                            if (_filteredInstalled.isNotEmpty) ...[
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                    top: AppSpacing.sm, bottom: AppSpacing.sm),
-                                child: Text(
-                                  'APPS INSTALADAS (${_filteredInstalled.length})',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textTertiary,
-                                    letterSpacing: 1.0,
-                                  ),
-                                ),
-                              ),
-                              ..._filteredInstalled.map((app) => _appTile(app)),
-                            ],
-                            if (_filteredSystem.isNotEmpty) ...[
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                    top: AppSpacing.sm, bottom: AppSpacing.sm),
-                                child: Text(
-                                  'APPS DEL SISTEMA (${_filteredSystem.length})',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textTertiary,
-                                    letterSpacing: 1.0,
-                                  ),
-                                ),
-                              ),
-                              ..._filteredSystem.map((app) => _appTile(app)),
-                            ],
-                          ],
-                        ),
+              child: _buildList(),
             ),
             if (!_loading)
               Padding(
@@ -276,6 +263,82 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildList() {
+    if (_loading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.xxl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(strokeWidth: 3),
+              SizedBox(height: AppSpacing.sm),
+              Text(
+                'Cargando apps...',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_filteredInstalled.isEmpty && _filteredSystem.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xxl),
+          child: Text(
+            _query.isEmpty ? 'No hay apps disponibles' : 'Sin resultados',
+            style: const TextStyle(
+              color: AppColors.textTertiary,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      children: [
+        if (_filteredInstalled.isNotEmpty) ...[
+          Padding(
+            padding:
+                const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.sm),
+            child: Text(
+              'APPS INSTALADAS (${_filteredInstalled.length})',
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textTertiary,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ),
+          ..._filteredInstalled.map((app) => _appTile(app)),
+        ],
+        if (_filteredSystem.isNotEmpty) ...[
+          Padding(
+            padding:
+                const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.sm),
+            child: Text(
+              'APPS DEL SISTEMA (${_filteredSystem.length})',
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textTertiary,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ),
+          ..._filteredSystem.map((app) => _appTile(app)),
+        ],
+      ],
     );
   }
 

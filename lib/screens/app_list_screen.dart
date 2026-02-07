@@ -11,7 +11,7 @@ import 'package:timelock/screens/restriction_edit_screen.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
-import 'package:timelock/widgets/app_picker_dialog.dart';
+import 'package:timelock/screens/app_picker_screen.dart';
 import 'package:timelock/widgets/schedule_editor_dialog.dart';
 
 class AppListScreen extends StatefulWidget {
@@ -210,11 +210,11 @@ class _AppListScreenState extends State<AppListScreen> {
         _restrictions.map((r) => r['packageName'] as String).toSet();
 
     if (!mounted) return;
-    final app = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => AppPickerDialog(excludedPackages: existing),
+    final app = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AppPickerScreen(excludedPackages: existing),
+      ),
     );
     if (app == null || !mounted) return;
     final limit = await Navigator.push<Map<String, dynamic>>(

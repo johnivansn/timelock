@@ -992,10 +992,10 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               final n = int.tryParse(v) ?? 0;
               onChanged(n.clamp(0, 480));
             },
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               hintText: '0',
               suffixText: 'min',
-              contentPadding: const EdgeInsets.symmetric(
+              contentPadding: EdgeInsets.symmetric(
                   horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
               filled: true,
               fillColor: AppColors.surface,
