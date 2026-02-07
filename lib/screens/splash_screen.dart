@@ -5,7 +5,7 @@ import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/schedule_utils.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -71,7 +71,7 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Container(
           width: double.infinity,
           height: double.infinity,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [AppColors.surface, AppColors.surfaceVariant],
               begin: Alignment.topLeft,
@@ -88,11 +88,11 @@ class _SplashScreenState extends State<SplashScreen> {
                   color: AppColors.primary.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.shield_rounded,
+                child: Icon(Icons.shield_rounded,
                     size: 36, color: AppColors.primary),
               ),
-              const SizedBox(height: AppSpacing.md),
-              const Text(
+              SizedBox(height: AppSpacing.md),
+              Text(
                 'AppTimeControl',
                 style: TextStyle(
                   fontSize: 20,
@@ -100,16 +100,16 @@ class _SplashScreenState extends State<SplashScreen> {
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: AppSpacing.xs),
-              const Text(
+              SizedBox(height: AppSpacing.xs),
+              Text(
                 'Preparando la app...',
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.textTertiary,
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
-              const SizedBox(
+              SizedBox(height: AppSpacing.lg),
+              SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
@@ -121,3 +121,4 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 }
+

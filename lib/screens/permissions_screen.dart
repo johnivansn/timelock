@@ -5,7 +5,7 @@ import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 
 class PermissionsScreen extends StatefulWidget {
-  const PermissionsScreen({super.key});
+  PermissionsScreen({super.key});
 
   @override
   State<PermissionsScreen> createState() => _PermissionsScreenState();
@@ -50,7 +50,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   Future<void> _requestDeviceAdmin() async {
     try {
       await NativeService.enableDeviceAdmin();
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(Duration(seconds: 2));
       await _refresh();
     } catch (_) {}
   }
@@ -58,7 +58,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   Future<void> _requestUsage() async {
     try {
       await NativeService.requestUsagePermission();
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(Duration(seconds: 2));
       await _refresh();
     } catch (_) {}
   }
@@ -66,7 +66,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   Future<void> _requestAccessibility() async {
     try {
       await NativeService.requestAccessibilityPermission();
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(Duration(seconds: 2));
       await _refresh();
     } catch (_) {}
   }
@@ -74,7 +74,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   Future<void> _requestOverlay() async {
     try {
       await NativeService.requestOverlayPermission();
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(Duration(seconds: 2));
       await _refresh();
     } catch (_) {}
   }
@@ -93,23 +93,23 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            const SliverAppBar(
+            SliverAppBar(
               pinned: true,
               title: Text('Permisos'),
             ),
             if (_loading)
-              const SliverFillRemaining(
+              SliverFillRemaining(
                 child: Center(child: CircularProgressIndicator(strokeWidth: 3)),
               )
             else ...[
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
+                  padding: EdgeInsets.fromLTRB(AppSpacing.lg,
                       AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
                   child: _statusCard(),
                 ),
               ),
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg,
                       AppSpacing.lg, AppSpacing.xs),
@@ -125,7 +125,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     _permissionCard(
@@ -136,7 +136,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                       critical: true,
                       onRequest: _requestUsage,
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(height: AppSpacing.sm),
                     _permissionCard(
                       icon: Icons.accessibility_new_rounded,
                       title: 'Accesibilidad',
@@ -145,7 +145,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                       critical: true,
                       onRequest: _requestAccessibility,
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(height: AppSpacing.sm),
                     _permissionCard(
                       icon: Icons.layers_rounded,
                       title: 'Mostrar sobre otras apps',
@@ -161,18 +161,18 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
               if (!_allOk)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    padding: EdgeInsets.all(AppSpacing.lg),
                     child: SizedBox(
                       height: 44,
                       child: FilledButton.icon(
                         onPressed: _configureAll,
-                        icon: const Icon(Icons.settings_rounded, size: 18),
-                        label: const Text('Configurar Todo'),
+                        icon: Icon(Icons.settings_rounded, size: 18),
+                        label: Text('Configurar Todo'),
                       ),
                     ),
                   ),
                 ),
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg,
                       AppSpacing.lg, AppSpacing.xs),
@@ -190,11 +190,11 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                      EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: _adminCard(),
                 ),
               ),
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg,
                       AppSpacing.lg, AppSpacing.xs),
@@ -212,7 +212,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                      EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: Column(
                     children: [
                       _permissionCard(
@@ -228,7 +228,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                   ),
                 ),
               ),
-              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
+              SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
             ],
           ],
         ),
@@ -239,13 +239,13 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   Widget _statusCard() {
     if (_allOk) {
       return Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: AppColors.success.withValues(alpha: 0.1),
           border: Border.all(color: AppColors.success, width: 1),
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
-        child: const Row(
+        child: Row(
           children: [
             Icon(Icons.check_circle_rounded,
                 color: AppColors.success, size: 20),
@@ -264,13 +264,13 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       );
     }
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.warning.withValues(alpha: 0.1),
         border: Border.all(color: AppColors.warning, width: 1),
         borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
-      child: const Row(
+      child: Row(
         children: [
           Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 20),
           SizedBox(width: AppSpacing.sm),
@@ -295,7 +295,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   }) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(AppSpacing.md),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -314,7 +314,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                 color: granted ? AppColors.success : AppColors.error,
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,7 +325,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
@@ -333,13 +333,13 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                       ),
                       if (critical)
                         Container(
-                          padding: const EdgeInsets.symmetric(
+                          padding: EdgeInsets.symmetric(
                               horizontal: AppSpacing.sm, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppColors.error.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
+                          child: Text(
                             'REQUERIDO',
                             style: TextStyle(
                               fontSize: 9,
@@ -351,10 +351,10 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(height: AppSpacing.xs),
                   Text(
                     description,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 11,
                         color: AppColors.textTertiary,
                         height: 1.4),
@@ -362,12 +362,12 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                 ],
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: AppSpacing.sm),
             if (granted)
-              const Icon(Icons.check_circle_rounded,
+              Icon(Icons.check_circle_rounded,
                   color: AppColors.success, size: 20)
             else
-              TextButton(onPressed: onRequest, child: const Text('Habilitar')),
+              TextButton(onPressed: onRequest, child: Text('Habilitar')),
           ],
         ),
       ),
@@ -377,7 +377,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   Widget _adminCard() {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(AppSpacing.md),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -396,12 +396,12 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                 color: _adminEnabled ? AppColors.success : AppColors.primary,
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Protección con PIN',
                     style: TextStyle(
                       fontSize: 13,
@@ -409,12 +409,12 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(height: AppSpacing.xs),
                   Text(
                     _adminEnabled
                         ? 'Se requiere PIN para modificar restricciones'
                         : 'Protege contra cambios accidentales',
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 11,
                         color: AppColors.textTertiary,
                         height: 1.4),
@@ -422,7 +422,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                 ],
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: AppSpacing.sm),
             _adminEnabled ? _disableAdminButton() : _enableAdminButton(),
           ],
         ),
@@ -435,12 +435,12 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       onPressed: () {
         Navigator.push<bool>(
           context,
-          MaterialPageRoute(builder: (_) => const PinSetupScreen()),
+          MaterialPageRoute(builder: (_) => PinSetupScreen()),
         ).then((result) {
           if (result == true) _refresh();
         });
       },
-      child: const Text('Activar'),
+      child: Text('Activar'),
     );
   }
 
@@ -450,7 +450,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
         Navigator.push<bool>(
           context,
           MaterialPageRoute(
-            builder: (_) => const PinVerifyScreen(
+            builder: (_) => PinVerifyScreen(
               reason: 'Ingresa tu PIN para desactivar el modo administrador',
             ),
           ),
@@ -462,7 +462,8 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
         });
       },
       style: TextButton.styleFrom(foregroundColor: AppColors.error),
-      child: const Text('Desactivar'),
+      child: Text('Desactivar'),
     );
   }
 }
+

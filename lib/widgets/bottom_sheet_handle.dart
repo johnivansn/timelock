@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:timelock/theme/app_theme.dart';
 
 class BottomSheetHandle extends StatelessWidget {
-  const BottomSheetHandle({super.key, this.color});
+  BottomSheetHandle({super.key, this.color});
 
   final Color? color;
 
@@ -18,3 +18,4 @@ class BottomSheetHandle extends StatelessWidget {
     );
   }
 }
+

@@ -3,9 +3,10 @@ import 'package:timelock/extensions/context_extensions.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
+import 'package:timelock/utils/app_settings.dart';
 
 class OptimizationScreen extends StatefulWidget {
-  const OptimizationScreen({super.key});
+  OptimizationScreen({super.key});
 
   @override
   State<OptimizationScreen> createState() => _OptimizationScreenState();
@@ -64,6 +65,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
               : 'Modo normal (actualización cada 30s)',
         );
       }
+      await AppSettings.load();
       await _loadSettings();
     } catch (_) {}
   }
@@ -94,31 +96,31 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-          const SliverAppBar(
+          SliverAppBar(
             pinned: true,
             title: Text('Optimización'),
           ),
           if (_loading)
-            const SliverFillRemaining(
+            SliverFillRemaining(
               child: Center(child: CircularProgressIndicator(strokeWidth: 3)),
             )
           else ...[
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(
+                padding: EdgeInsets.fromLTRB(
                   AppSpacing.lg,
                   AppSpacing.lg,
                   AppSpacing.lg,
                   AppSpacing.sm,
                 ),
                 child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  padding: EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: AppColors.info.withValues(alpha: 0.1),
                     border: Border.all(color: AppColors.info, width: 1),
                     borderRadius: BorderRadius.circular(AppRadius.lg),
                   ),
-                  child: const Row(
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(Icons.speed_rounded,
@@ -139,7 +141,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                 ),
               ),
             ),
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   AppSpacing.lg,
@@ -160,10 +162,10 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                    padding: EdgeInsets.all(AppSpacing.md),
                     child: Row(
                       children: [
                         Container(
@@ -185,12 +187,12 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                                 : AppColors.textTertiary,
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.sm),
+                        SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Reducir frecuencia de tracking',
                                 style: TextStyle(
                                   fontSize: 13,
@@ -198,12 +200,12 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                                   color: AppColors.textPrimary,
                                 ),
                               ),
-                              const SizedBox(height: AppSpacing.xs),
+                              SizedBox(height: AppSpacing.xs),
                               Text(
                                 _batterySaverEnabled
                                     ? 'Actualización cada 2 minutos'
                                     : 'Actualización cada 30 segundos',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
                                   color: AppColors.textTertiary,
                                 ),
@@ -221,7 +223,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                 ),
               ),
             ),
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   AppSpacing.lg,
@@ -244,10 +246,10 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                      EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
+                      padding: EdgeInsets.all(AppSpacing.md),
                       child: Column(
                         children: [
                           _statRow(
@@ -255,31 +257,31 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                             label: 'Base de datos',
                             value: '${_stats!['databaseSizeMB']} MB',
                           ),
-                          const Divider(height: AppSpacing.md),
+                          Divider(height: AppSpacing.md),
                           _statRow(
                             icon: Icons.cached_rounded,
                             label: 'Cache',
                             value: '${_stats!['cacheSizeKB']} KB',
                           ),
-                          const Divider(height: AppSpacing.md),
+                          Divider(height: AppSpacing.md),
                           _statRow(
                             icon: Icons.memory_rounded,
                             label: 'RAM clase',
                             value: '$_memoryClassMb MB',
                           ),
-                          const Divider(height: AppSpacing.md),
+                          Divider(height: AppSpacing.md),
                           _statRow(
                             icon: Icons.folder_special_rounded,
                             label: 'Límite cache íconos',
                             value: '${_iconCacheLimitMb.toStringAsFixed(1)} MB',
                           ),
-                          const Divider(height: AppSpacing.md),
+                          Divider(height: AppSpacing.md),
                           _statRow(
                             icon: Icons.download_for_offline_rounded,
                             label: 'Prefetch íconos',
                             value: '$_iconPrefetchCount',
                           ),
-                          const Divider(height: AppSpacing.md),
+                          Divider(height: AppSpacing.md),
                           _statRow(
                             icon: Icons.bar_chart_rounded,
                             label: 'Registros de uso',
@@ -292,7 +294,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                 ),
               ),
             ],
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   AppSpacing.lg,
@@ -313,7 +315,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Card(
                   child: Column(
                     children: [
@@ -325,23 +327,23 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                             color: AppColors.warning.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(AppRadius.sm),
                           ),
-                          child: const Icon(Icons.delete_sweep_rounded,
+                          child: Icon(Icons.delete_sweep_rounded,
                               color: AppColors.warning, size: 18),
                         ),
-                        title: const Text(
+                        title: Text(
                           'Limpiar cache',
                           style: TextStyle(fontSize: 13),
                         ),
-                        subtitle: const Text(
+                        subtitle: Text(
                           'Elimina datos temporales',
                           style: TextStyle(fontSize: 11),
                         ),
                         trailing:
-                            const Icon(Icons.chevron_right_rounded, size: 18),
+                            Icon(Icons.chevron_right_rounded, size: 18),
                         onTap: _invalidateCache,
                         visualDensity: VisualDensity.compact,
                       ),
-                      const Divider(height: 1, indent: 56),
+                      Divider(height: 1, indent: 56),
                       ListTile(
                         leading: Container(
                           width: 32,
@@ -350,19 +352,19 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                             color: AppColors.error.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(AppRadius.sm),
                           ),
-                          child: const Icon(Icons.cleaning_services_rounded,
+                          child: Icon(Icons.cleaning_services_rounded,
                               color: AppColors.error, size: 18),
                         ),
-                        title: const Text(
+                        title: Text(
                           'Limpieza profunda',
                           style: TextStyle(fontSize: 13),
                         ),
-                        subtitle: const Text(
+                        subtitle: Text(
                           'Elimina datos antiguos',
                           style: TextStyle(fontSize: 11),
                         ),
                         trailing:
-                            const Icon(Icons.chevron_right_rounded, size: 18),
+                            Icon(Icons.chevron_right_rounded, size: 18),
                         onTap: _forceCleanup,
                         visualDensity: VisualDensity.compact,
                       ),
@@ -371,7 +373,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                 ),
               ),
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
+            SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
           ],
           ],
         ),
@@ -384,11 +386,11 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
     return Row(
       children: [
         Icon(icon, color: AppColors.textSecondary, size: 18),
-        const SizedBox(width: AppSpacing.sm),
+        SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,
             ),
@@ -396,7 +398,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
         ),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
@@ -406,3 +408,4 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
     );
   }
 }
+

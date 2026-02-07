@@ -6,7 +6,7 @@ import 'package:timelock/utils/app_utils.dart';
 import 'package:timelock/widgets/bottom_sheet_handle.dart';
 
 class AppPickerDialog extends StatefulWidget {
-  const AppPickerDialog({
+  AppPickerDialog({
     super.key,
     required this.excludedPackages,
     this.fullScreen = false,
@@ -169,12 +169,12 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
           color: AppColors.surface,
           child: Column(
             children: [
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: AppSpacing.sm),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: TextField(
                   onChanged: _filter,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Buscar apps...',
                     prefixIcon: Icon(Icons.search_rounded, size: 18),
                     contentPadding:
@@ -182,17 +182,17 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: AppSpacing.sm),
               if (!_loading && _systemApps.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: CheckboxListTile(
                     value: _showSystem,
                     onChanged: (v) {
                       setState(() => _showSystem = v ?? false);
                       _filter(_query);
                     },
-                    title: const Text(
+                    title: Text(
                       'Mostrar apps del sistema',
                       style: TextStyle(fontSize: 12),
                     ),
@@ -203,10 +203,10 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
               Expanded(child: _buildList()),
               if (!_loading)
                 Padding(
-                  padding: const EdgeInsets.all(AppSpacing.md),
+                  padding: EdgeInsets.all(AppSpacing.md),
                   child: Text(
                     'Total: ${_installedApps.length} instaladas + ${_systemApps.length} sistema',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       color: AppColors.textTertiary,
                     ),
@@ -220,21 +220,21 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
     return SingleChildScrollView(
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius:
               BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         ),
         child: Column(
           children: [
-            const SizedBox(height: AppSpacing.sm),
-            const BottomSheetHandle(),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.sm),
+            BottomSheetHandle(),
+            SizedBox(height: AppSpacing.md),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Selecciona una app',
                       style: TextStyle(
@@ -246,34 +246,34 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded),
+                    icon: Icon(Icons.close_rounded),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: AppSpacing.sm),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: TextField(
                 onChanged: _filter,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Buscar apps...',
                   prefixIcon: Icon(Icons.search_rounded, size: 18),
                   contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: AppSpacing.sm),
             if (!_loading && _systemApps.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: CheckboxListTile(
                   value: _showSystem,
                   onChanged: (v) {
                     setState(() => _showSystem = v ?? false);
                     _filter(_query);
                   },
-                  title: const Text(
+                  title: Text(
                     'Mostrar apps del sistema',
                     style: TextStyle(fontSize: 12),
                   ),
@@ -289,10 +289,10 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
             ),
             if (!_loading)
               Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: EdgeInsets.all(AppSpacing.md),
                 child: Text(
                   'Total: ${_installedApps.length} instaladas + ${_systemApps.length} sistema',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     color: AppColors.textTertiary,
                   ),
@@ -306,7 +306,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
   Widget _buildList() {
     if (_loading) {
-      return const Center(
+      return Center(
         child: Padding(
           padding: EdgeInsets.all(AppSpacing.xxl),
           child: Column(
@@ -330,10 +330,10 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
     if (_filteredInstalled.isEmpty && _filteredSystem.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xxl),
+          padding: EdgeInsets.all(AppSpacing.xxl),
           child: Text(
             _query.isEmpty ? 'No hay apps disponibles' : 'Sin resultados',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textTertiary,
               fontSize: 12,
             ),
@@ -342,15 +342,15 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
       );
     }
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       children: [
         if (_filteredInstalled.isNotEmpty) ...[
           Padding(
             padding:
-                const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.sm),
+                EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.sm),
             child: Text(
               'APPS INSTALADAS (${_filteredInstalled.length})',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textTertiary,
@@ -363,10 +363,10 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
         if (_filteredSystem.isNotEmpty) ...[
           Padding(
             padding:
-                const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.sm),
+                EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.sm),
             child: Text(
               'APPS DEL SISTEMA (${_filteredSystem.length})',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textTertiary,
@@ -390,8 +390,8 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
       onTap: () => Navigator.pop(context, app),
       child: Container(
         height: 56,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: const BoxDecoration(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(color: AppColors.surfaceVariant, width: 1),
           ),
@@ -399,7 +399,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
         child: Row(
           children: [
             _buildAppIcon(iconBytes, firstChar, packageName),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,7 +407,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
                 children: [
                   Text(
                     appName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
@@ -415,10 +415,10 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: 2),
                   Text(
                     (app['packageName'] ?? '?').toString(),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 10,
                       color: AppColors.textTertiary,
                     ),
@@ -428,7 +428,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded,
+            Icon(Icons.chevron_right_rounded,
                 color: AppColors.textTertiary, size: 18),
           ],
         ),
@@ -492,7 +492,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
       child: Center(
         child: Text(
           char,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: AppColors.primary,
@@ -502,3 +502,4 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
     );
   }
 }
+

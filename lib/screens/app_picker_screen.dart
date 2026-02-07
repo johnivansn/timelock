@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:timelock/widgets/app_picker_dialog.dart';
 
 class AppPickerScreen extends StatelessWidget {
-  const AppPickerScreen({super.key, required this.excludedPackages});
+  AppPickerScreen({super.key, required this.excludedPackages});
 
   final Set<String> excludedPackages;
 
@@ -10,7 +10,7 @@ class AppPickerScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Selecciona una app'),
+        title: Text('Selecciona una app'),
       ),
       body: AppPickerDialog(
         excludedPackages: excludedPackages,
@@ -19,3 +19,4 @@ class AppPickerScreen extends StatelessWidget {
     );
   }
 }
+

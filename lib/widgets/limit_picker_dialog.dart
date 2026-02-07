@@ -4,11 +4,12 @@ import 'package:flutter/services.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
+import 'package:timelock/utils/app_motion.dart';
 import 'package:timelock/utils/schedule_utils.dart';
 import 'package:timelock/widgets/bottom_sheet_handle.dart';
 
 class LimitPickerDialog extends StatefulWidget {
-  const LimitPickerDialog({
+  LimitPickerDialog({
     super.key,
     required this.appName,
     this.initial,
@@ -397,16 +398,16 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     final result = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Eliminar restricción'),
-        content: const Text('¿Deseas eliminar esta restricción?'),
+        title: Text('Eliminar restricción'),
+        content: Text('¿Deseas eliminar esta restricción?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar'),
+            child: Text('Eliminar'),
           ),
         ],
       ),
@@ -435,7 +436,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     final canSave = _isLimitValid();
     final borderRadius = widget.fullScreen
         ? BorderRadius.circular(0)
-        : const BorderRadius.vertical(top: Radius.circular(AppRadius.xl));
+        : BorderRadius.vertical(top: Radius.circular(AppRadius.xl));
     return WillPopScope(
       onWillPop: _handleBack,
       child: Stack(
@@ -444,7 +445,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             top: true,
             bottom: false,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: _stickyBarHeight),
+              padding: EdgeInsets.only(bottom: _stickyBarHeight),
               child: Container(
                 decoration: BoxDecoration(
                   color: AppColors.surface,
@@ -453,12 +454,12 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 child: Column(
                   children: [
                   if (!widget.fullScreen) ...[
-                    const SizedBox(height: AppSpacing.sm),
-                      const BottomSheetHandle(),
+                    SizedBox(height: AppSpacing.sm),
+                      BottomSheetHandle(),
                   ],
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: AppSpacing.md),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: Row(
                     children: [
                       IconButton(
@@ -466,12 +467,12 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                           final allow = await _handleBack();
                           if (allow && mounted) Navigator.pop(context);
                         },
-                        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+                        icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                       ),
                       Expanded(
                         child: Text(
                           widget.appName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
@@ -483,33 +484,33 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                       if (!isCreate && _packageName != null)
                         IconButton(
                           onPressed: _confirmDelete,
-                          icon: const Icon(Icons.delete_outline_rounded),
+                          icon: Icon(Icons.delete_outline_rounded),
                           color: AppColors.error,
                         ),
                     ],
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: AppSpacing.sm),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: _headerCard(),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                SizedBox(height: AppSpacing.lg),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: _limitTypeSection(),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                SizedBox(height: AppSpacing.lg),
                 if (_limitType == 'daily') _dailyConfig(),
                 if (_limitType == 'weekly') _weeklyConfig(),
                 if (_packageName != null) ...[
-                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(height: AppSpacing.lg),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                     child: _scheduleSection(),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.xl),
+                SizedBox(height: AppSpacing.xl),
                   ],
                 ),
               ),
@@ -524,15 +525,15 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             child: IgnorePointer(
               ignoring: !showSave,
               child: AnimatedSlide(
-                duration: const Duration(milliseconds: 220),
+                duration: AppMotion.duration(Duration(milliseconds: 220)),
                 curve: Curves.easeOutCubic,
-                offset: showSave ? Offset.zero : const Offset(0, 0.25),
+                offset: showSave ? Offset.zero : Offset(0, 0.25),
                 child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 180),
+                  duration: AppMotion.duration(Duration(milliseconds: 180)),
                   curve: Curves.easeOutCubic,
                   opacity: showSave ? 1 : 0,
                   child: Container(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
+                    padding: EdgeInsets.fromLTRB(AppSpacing.lg,
                         AppSpacing.sm, AppSpacing.lg, AppSpacing.md),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
@@ -570,16 +571,16 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     final result = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Descartar cambios'),
-        content: const Text('Tienes cambios sin guardar. ¿Deseas salir igual?'),
+        title: Text('Descartar cambios'),
+        content: Text('Tienes cambios sin guardar. ¿Deseas salir igual?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text('Cancelar'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Salir'),
+            child: Text('Salir'),
           ),
         ],
       ),
@@ -590,7 +591,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   Widget _buildCreateLayout() {
     final borderRadius = widget.fullScreen
         ? BorderRadius.circular(0)
-        : const BorderRadius.vertical(top: Radius.circular(AppRadius.xl));
+        : BorderRadius.vertical(top: Radius.circular(AppRadius.xl));
     return SingleChildScrollView(
       child: Container(
         decoration: BoxDecoration(
@@ -600,19 +601,19 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         child: Column(
           children: [
             if (!widget.fullScreen) ...[
-              const SizedBox(height: AppSpacing.sm),
-                const BottomSheetHandle(),
+              SizedBox(height: AppSpacing.sm),
+                BottomSheetHandle(),
             ],
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.md),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
                 children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Límite de tiempo',
                           style: TextStyle(
                             fontSize: 16,
@@ -622,7 +623,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                         ),
                         Text(
                           widget.appName,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textTertiary,
                           ),
@@ -634,28 +635,28 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded),
+                    icon: Icon(Icons.close_rounded),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.md),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
                 children: [
                   Expanded(
                     child: ChoiceChip(
-                      label: const Text('Diario'),
+                      label: Text('Diario'),
                       selected: _limitType == 'daily',
                       onSelected: (_) =>
                           setState(() => _limitType = 'daily'),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
+                  SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: ChoiceChip(
-                      label: const Text('Semanal'),
+                      label: Text('Semanal'),
                       selected: _limitType == 'weekly',
                       onSelected: (_) =>
                           setState(() => _limitType = 'weekly'),
@@ -664,18 +665,18 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.md),
             if (_limitType == 'daily') _dailyConfigCreate(),
             if (_limitType == 'weekly') _weeklyConfigCreate(),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.md),
             Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: EdgeInsets.all(AppSpacing.lg),
               child: SizedBox(
                 width: double.infinity,
                 height: 44,
                 child: FilledButton(
                   onPressed: _isLimitValid() ? _save : null,
-                  child: const Text('Crear'),
+                  child: Text('Crear'),
                 ),
               ),
             ),
@@ -688,7 +689,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   Widget _headerCard() {
     final used = _usageSummary();
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -706,28 +707,28 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 10,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: EdgeInsets.all(6),
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16),
             ),
             child: _buildAppIcon(),
           ),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   widget.appName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
@@ -735,10 +736,10 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4),
                 Text(
                   _usageLoading ? 'Cargando...' : used,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
                   ),
@@ -747,7 +748,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(
+            padding: EdgeInsets.symmetric(
                 horizontal: AppSpacing.sm, vertical: 6),
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.18),
@@ -755,7 +756,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             ),
             child: Text(
               _limitType == 'weekly' ? 'SEM' : 'DÍA',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
                 color: AppColors.primary,
@@ -788,27 +789,27 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         color: AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(14),
       ),
-      child: const Icon(Icons.apps_rounded,
+      child: Icon(Icons.apps_rounded,
           color: AppColors.textTertiary, size: 24),
     );
   }
 
   Widget _dailyConfigCreate() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Tipo de límite diario',
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               Expanded(
                 child: ChoiceChip(
-                  label: const Text('Mismo cada día'),
+                  label: Text('Mismo cada día'),
                   selected: _dailyMode == 'same',
                   onSelected: (_) => setState(() {
                     _dailyMode = 'same';
@@ -816,17 +817,17 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                   }),
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: ChoiceChip(
-                  label: const Text('Diferente por día'),
+                  label: Text('Diferente por día'),
                   selected: _dailyMode == 'per_day',
                   onSelected: (_) => setState(() => _dailyMode = 'per_day'),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: AppSpacing.md),
           if (_dailyMode == 'same')
             _minutesInput(
               label: 'Minutos por día',
@@ -841,7 +842,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
 
   Widget _weeklyConfigCreate() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -857,7 +858,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   Widget _sectionLabel(String text) {
     return Text(
       text.toUpperCase(),
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11,
         letterSpacing: 1.1,
         fontWeight: FontWeight.w700,
@@ -868,7 +869,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
 
   Widget _limitTypeSection() {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surfaceVariant.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -879,7 +880,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.tune_rounded,
                   size: 16, color: AppColors.primary),
@@ -894,12 +895,12 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          const Text(
+          SizedBox(height: 6),
+          Text(
             'Elige cómo se reinicia el tiempo',
             style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: AppSpacing.sm),
           _pillRow(
             leftLabel: 'Diario',
             rightLabel: 'Semanal',
@@ -936,7 +937,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             onTap: onLeft,
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
+        SizedBox(width: AppSpacing.sm),
         Expanded(
           child: _pillButton(
             label: rightLabel,
@@ -958,7 +959,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         : AppColors.surfaceVariant.withValues(alpha: 0.7);
     final fg = selected ? Colors.white : AppColors.textSecondary;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
+      duration: AppMotion.duration(Duration(milliseconds: 180)),
       curve: Curves.easeOutCubic,
       height: 44,
       decoration: BoxDecoration(
@@ -974,7 +975,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 BoxShadow(
                   color: AppColors.primary.withValues(alpha: 0.25),
                   blurRadius: 10,
-                  offset: const Offset(0, 4),
+                  offset: Offset(0, 4),
                 ),
               ]
             : null,
@@ -994,12 +995,12 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
 
   Widget _dailyConfig() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _dailyModeSection(),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: AppSpacing.md),
           if (_dailyMode == 'same') _dailyDurationCard(),
           if (_dailyMode == 'per_day') _perDayRows(),
         ],
@@ -1009,7 +1010,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
 
   Widget _weeklyConfig() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1037,7 +1038,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     required ValueChanged<int> onResetChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surfaceVariant.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -1048,7 +1049,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.calendar_month_rounded,
                   size: 16, color: AppColors.primary),
@@ -1063,12 +1064,12 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          const Text(
+          SizedBox(height: 6),
+          Text(
             'Define el total para toda la semana',
             style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: AppSpacing.sm),
           _durationRowCard(
             badge: 'Sem',
             daysController: _weeklyDaysController,
@@ -1087,12 +1088,12 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               _recomputeDirty();
             },
           ),
-          const SizedBox(height: AppSpacing.md),
-          const Text(
+          SizedBox(height: AppSpacing.md),
+          Text(
             'Reinicio semanal',
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: AppSpacing.xs),
           Row(
             children: [
               Expanded(
@@ -1112,7 +1113,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                   },
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: AppSpacing.sm),
               SizedBox(
                 width: 56,
                 child: TextField(
@@ -1137,18 +1138,18 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                       _recomputeDirty();
                     });
                   },
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'HH',
                     contentPadding: EdgeInsets.symmetric(vertical: 8),
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
-              const Text(
+              SizedBox(width: 6),
+              Text(
                 ':',
                 style: TextStyle(color: AppColors.textSecondary),
               ),
-              const SizedBox(width: 6),
+              SizedBox(width: 6),
               SizedBox(
                 width: 56,
                 child: TextField(
@@ -1173,7 +1174,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                       _recomputeDirty();
                     });
                   },
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'MM',
                     contentPadding: EdgeInsets.symmetric(vertical: 8),
                   ),
@@ -1188,7 +1189,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
 
   Widget _dailyModeSection() {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surfaceVariant.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -1199,7 +1200,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.calendar_view_day_rounded,
                   size: 16, color: AppColors.primary),
@@ -1214,12 +1215,12 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          const Text(
+          SizedBox(height: 6),
+          Text(
             'Define si el límite cambia por día',
             style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: AppSpacing.sm),
           _pillRow(
             leftLabel: 'Mismo',
             rightLabel: 'Por día',
@@ -1247,7 +1248,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+            style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
           ),
         ),
         TextButton(
@@ -1282,7 +1283,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     required ValueChanged<int> onChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surfaceVariant.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -1295,13 +1296,13 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         children: [
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: AppSpacing.sm),
           TextField(
             controller: controller,
             focusNode: _dailyMinutesFocus,
@@ -1333,12 +1334,12 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               }
               FocusScope.of(context).unfocus();
             },
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               hintText: '≥ 1',
               filled: true,
               fillColor: AppColors.surface,
@@ -1346,8 +1347,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                   horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          const Text(
+          SizedBox(height: AppSpacing.sm),
+          Text(
             'Rango: 1 - 480 minutos(8 hr)',
             style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
           ),
@@ -1371,7 +1372,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       children: List.generate(7, (i) {
         final day = i + 1;
         return Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          padding: EdgeInsets.only(bottom: AppSpacing.sm),
           child: _durationRowCard(
             badge: dayLabels[day] ?? '?',
             daysController: null,
@@ -1394,17 +1395,17 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             Expanded(child: _sectionLabel('Horarios (opcional)')),
             TextButton.icon(
               onPressed: _addSchedule,
-              icon: const Icon(Icons.add_rounded, size: 16),
-              label: const Text('Agregar'),
+              icon: Icon(Icons.add_rounded, size: 16),
+              label: Text('Agregar'),
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(
+                padding: EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                 textStyle:
-                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ),
-            const SizedBox(width: AppSpacing.xs),
+            SizedBox(width: AppSpacing.xs),
             Tooltip(
               message:
                   _inactiveFirst ? 'Inactivos primero' : 'Activos primero',
@@ -1423,19 +1424,19 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 style: IconButton.styleFrom(
                   backgroundColor:
                       AppColors.surfaceVariant.withValues(alpha: 0.4),
-                  padding: const EdgeInsets.all(6),
+                  padding: EdgeInsets.all(6),
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: AppSpacing.sm),
         if (_loadingSchedules)
-          const Center(child: CircularProgressIndicator(strokeWidth: 3))
+          Center(child: CircularProgressIndicator(strokeWidth: 3))
         else if (_schedules.isEmpty)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
               color: AppColors.surfaceVariant.withValues(alpha: 0.45),
               borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -1443,7 +1444,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 color: AppColors.surfaceVariant.withValues(alpha: 0.8),
               ),
             ),
-            child: const Column(
+            child: Column(
               children: [
                 Icon(Icons.calendar_today_rounded,
                     size: 28, color: AppColors.textTertiary),
@@ -1512,7 +1513,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     final iconColor = enabled ? AppColors.primary : AppColors.textTertiary;
 
     return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      margin: EdgeInsets.only(bottom: AppSpacing.sm),
       color: cardColor,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -1522,12 +1523,12 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         onTap: () => _editSchedule(s),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: EdgeInsets.all(12),
           child: Row(
             children: [
               Icon(Icons.calendar_today_rounded,
                   size: 16, color: iconColor),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1540,7 +1541,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                         color: textColor,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: 2),
                     Text(
                       dayText,
                       style: TextStyle(
@@ -1557,13 +1558,13 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               ),
               IconButton(
                 onPressed: () => _deleteSchedule(s),
-                icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                icon: Icon(Icons.delete_outline_rounded, size: 16),
                 style: IconButton.styleFrom(
                   foregroundColor: AppColors.error,
                   backgroundColor: AppColors.surfaceVariant,
-                  minimumSize: const Size(28, 28),
-                  fixedSize: const Size(28, 28),
-                  padding: const EdgeInsets.all(4),
+                  minimumSize: Size(28, 28),
+                  fixedSize: Size(28, 28),
+                  padding: EdgeInsets.all(4),
                 ),
               ),
             ],
@@ -1669,7 +1670,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Minutos por día',
           style: TextStyle(
             fontSize: 13,
@@ -1677,7 +1678,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             color: AppColors.textPrimary,
           ),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: AppSpacing.sm),
         _durationRowCard(
           badge: 'Día',
           daysController: null,
@@ -1696,8 +1697,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             });
           },
         ),
-        const SizedBox(height: AppSpacing.sm),
-        const Text(
+        SizedBox(height: AppSpacing.sm),
+        Text(
           'Rango: 1 - 480 minutos',
           style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
         ),
@@ -1714,7 +1715,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     required VoidCallback onChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding: EdgeInsets.symmetric(
           horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.surfaceVariant.withValues(alpha: 0.5),
@@ -1735,14 +1736,14 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             ),
             child: Text(
               badge,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Center(
               child: _durationInputsRow(
@@ -1774,7 +1775,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         width: 64,
         child: Container(
           height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
               color: AppColors.background,
               borderRadius: BorderRadius.circular(14),
@@ -1800,7 +1801,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 }
                 onChanged();
               },
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
@@ -1827,13 +1828,13 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         if (daysController != null)
           buildBox(controller: daysController, hint: 'D', max: 7),
         buildBox(controller: hoursController, hint: 'H', max: 23),
-        const Text(':', style: TextStyle(color: AppColors.textSecondary)),
+        Text(':', style: TextStyle(color: AppColors.textSecondary)),
         buildBox(controller: minutesController, hint: 'M', max: 59),
         Padding(
-          padding: const EdgeInsets.only(left: 4),
+          padding: EdgeInsets.only(left: 4),
           child: Text(
             unitsLabel,
-            style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
           ),
         ),
       ],
@@ -1904,7 +1905,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   Future<void> _saveAsync() async {
     if (!_isLimitValid()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('El límite debe ser mayor o igual a 1 minuto.'),
         ),
       );
@@ -2011,14 +2012,14 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
                 value: _start,
                 onTap: () => _pickTime(true),
               ),
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: AppSpacing.sm),
               _timeRow(
                 label: 'Fin',
                 value: _end,
                 onTap: () => _pickTime(false),
               ),
-              const SizedBox(height: AppSpacing.sm),
-              const Align(
+              SizedBox(height: AppSpacing.sm),
+              Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Días',
@@ -2028,7 +2029,7 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
                   ),
                 ),
               ),
-              const SizedBox(height: AppSpacing.xs),
+              SizedBox(height: AppSpacing.xs),
               Wrap(
                 spacing: AppSpacing.xs,
                 children: [
@@ -2041,8 +2042,8 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
                   _dayChip('D', 1),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              const Text(
+              SizedBox(height: AppSpacing.sm),
+              Text(
                 'Si la hora final es menor, el bloqueo cruza medianoche.',
                 style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
               ),
@@ -2053,7 +2054,7 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
+          child: Text('Cancelar'),
         ),
         FilledButton(
           onPressed: _valid
@@ -2062,7 +2063,7 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
                     _ScheduleDraft(_start, _end, _days.toList()),
                   )
               : null,
-          child: const Text('Guardar'),
+          child: Text('Guardar'),
         ),
       ],
     );
@@ -2077,7 +2078,7 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+            style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
           ),
         ),
         SizedBox(
@@ -2096,7 +2097,7 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
     return FilterChip(
       label: Text(
         label,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
       ),
       selected: selected,
       onSelected: (_) {
@@ -2108,7 +2109,7 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
           }
         });
       },
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       visualDensity: VisualDensity.compact,
     );
   }
@@ -2137,3 +2138,4 @@ class _ScheduleDraft {
   final TimeOfDay end;
   final List<int> days;
 }
+
