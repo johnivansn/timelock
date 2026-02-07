@@ -14,7 +14,9 @@ import 'package:timelock/widgets/schedule_editor_dialog.dart';
 import 'package:timelock/widgets/time_picker_dialog.dart';
 
 class AppListScreen extends StatefulWidget {
-  const AppListScreen({super.key});
+  const AppListScreen({super.key, this.initialRestrictions});
+
+  final List<Map<String, dynamic>>? initialRestrictions;
 
   @override
   State<AppListScreen> createState() => _AppListScreenState();
@@ -30,6 +32,10 @@ class _AppListScreenState extends State<AppListScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialRestrictions != null) {
+      _restrictions = widget.initialRestrictions!;
+      _loading = false;
+    }
     _init();
   }
 
@@ -42,7 +48,9 @@ class _AppListScreenState extends State<AppListScreen> {
   Future<void> _init() async {
     await _startMonitoring();
     await _checkPermissions();
-    await _loadRestrictions();
+    if (widget.initialRestrictions == null) {
+      await _loadRestrictions();
+    }
     _startAutoRefresh();
   }
 
