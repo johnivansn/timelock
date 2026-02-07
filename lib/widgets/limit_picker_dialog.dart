@@ -94,14 +94,14 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
           children: [
             const SizedBox(height: AppSpacing.sm),
             Container(
-              width: 40,
-              height: 4,
+              width: 32,
+              height: 3,
               decoration: BoxDecoration(
                 color: AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
@@ -113,15 +113,15 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                         const Text(
                           'Límite de tiempo',
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
                           ),
                         ),
                         Text(
                           widget.appName,
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             color: AppColors.textTertiary,
                           ),
                           maxLines: 1,
@@ -162,15 +162,15 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             if (_limitType == 'daily') _dailyConfig(),
             if (_limitType == 'weekly') _weeklyConfig(),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.lg),
               child: SizedBox(
                 width: double.infinity,
-                height: 52,
+                height: 44,
                 child: FilledButton(
                   onPressed: _save,
                   child: const Text('Guardar'),
@@ -191,7 +191,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         children: [
           const Text(
             'Tipo de límite diario',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.sm),
           Row(
@@ -234,7 +234,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         children: [
           const Text(
             'Minutos por semana',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.xs),
           TextField(
@@ -255,13 +255,13 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             },
             decoration: const InputDecoration(
               suffixText: 'min',
-              contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+              contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
           const Text(
             'Reinicio semanal',
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.xs),
           DropdownButtonFormField<int>(
@@ -291,7 +291,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+            style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
           ),
         ),
         TextButton(
@@ -320,8 +320,11 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         return Row(
           children: [
             SizedBox(
-              width: 48,
-              child: Text(dayLabels[day] ?? '?'),
+              width: 32,
+              child: Text(
+                dayLabels[day] ?? '?',
+                style: const TextStyle(fontSize: 11),
+              ),
             ),
             Expanded(
               child: Slider(
@@ -335,10 +338,13 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               ),
             ),
             SizedBox(
-              width: 48,
+              width: 40,
               child: Text('${value}m',
                   textAlign: TextAlign.right,
-                  style: const TextStyle(color: AppColors.textTertiary)),
+                  style: const TextStyle(
+                    color: AppColors.textTertiary,
+                    fontSize: 11,
+                  )),
             ),
           ],
         );

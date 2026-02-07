@@ -66,40 +66,40 @@ class _QuotaTimePickerState extends State<QuotaTimePicker> {
           children: [
             Center(
               child: Container(
-                width: 40,
-                height: 4,
+                width: 32,
+                height: 3,
                 decoration: BoxDecoration(
                   color: AppColors.surfaceVariant,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             const Text(
               'Tiempo diario',
               style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
             const Text(
               'Selecciona el límite máximo de uso',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
               children: _presets.map((p) => _presetChip(p)).toList(),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             _customRow(),
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.lg),
             SizedBox(
               width: double.infinity,
-              height: 52,
+              height: 44,
               child: FilledButton(
                 onPressed: _valid ? () => Navigator.pop(context, _value) : null,
                 child: Text('Confirmar — ${AppUtils.formatTime(_value)}'),
@@ -120,12 +120,12 @@ class _QuotaTimePickerState extends State<QuotaTimePicker> {
       backgroundColor: AppColors.surfaceVariant,
       selectedColor: AppColors.primary,
       labelStyle: TextStyle(
-        fontSize: 15,
+        fontSize: 13,
         fontWeight: FontWeight.w600,
         color: isActive ? Colors.white : AppColors.textSecondary,
       ),
       padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(24),
       ),
@@ -142,13 +142,13 @@ class _QuotaTimePickerState extends State<QuotaTimePicker> {
           backgroundColor: AppColors.surfaceVariant,
           selectedColor: AppColors.primary,
           labelStyle: TextStyle(
-            fontSize: 14,
+            fontSize: 12,
             fontWeight: FontWeight.w500,
             color: _useCustom ? Colors.white : AppColors.textSecondary,
           ),
         ),
         if (_useCustom) ...[
-          const SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: TextField(
               textAlign: TextAlign.center,
@@ -163,7 +163,7 @@ class _QuotaTimePickerState extends State<QuotaTimePicker> {
               },
               decoration: const InputDecoration(
                 suffixText: 'min',
-                contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
               ),
             ),
           ),

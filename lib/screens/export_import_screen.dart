@@ -95,10 +95,10 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                 AppSpacing.lg,
                 AppSpacing.lg,
                 AppSpacing.lg,
-                AppSpacing.md,
+                AppSpacing.sm,
               ),
               child: Container(
-                padding: const EdgeInsets.all(AppSpacing.lg),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   color: AppColors.info.withValues(alpha: 0.1),
                   border: Border.all(color: AppColors.info, width: 1),
@@ -107,14 +107,14 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                 child: const Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.sync_rounded, color: AppColors.info, size: 24),
-                    SizedBox(width: AppSpacing.md),
+                    Icon(Icons.sync_rounded, color: AppColors.info, size: 18),
+                    SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
                         'Exporta y comparte tu configuración entre dispositivos o como respaldo',
                         style: TextStyle(
                           color: AppColors.info,
-                          fontSize: 14,
+                          fontSize: 12,
                           height: 1.4,
                         ),
                       ),
@@ -128,17 +128,17 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 AppSpacing.lg,
-                AppSpacing.xl,
+                AppSpacing.lg,
                 AppSpacing.lg,
                 AppSpacing.xs,
               ),
               child: Text(
                 'EXPORTAR',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textTertiary,
-                  letterSpacing: 1.2,
+                  letterSpacing: 1.0,
                 ),
               ),
             ),
@@ -148,26 +148,26 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
                           Container(
-                            width: 48,
-                            height: 48,
+                            width: 36,
+                            height: 36,
                             decoration: BoxDecoration(
                               color: AppColors.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(AppRadius.md),
                             ),
                             child: const Icon(
                               Icons.upload_rounded,
-                              size: 24,
+                              size: 20,
                               color: AppColors.primary,
                             ),
                           ),
-                          const SizedBox(width: AppSpacing.md),
+                          const SizedBox(width: AppSpacing.sm),
                           const Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,7 +175,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                 Text(
                                   'Exportar configuración',
                                   style: TextStyle(
-                                    fontSize: 15,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.textPrimary,
                                   ),
@@ -184,7 +184,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                 Text(
                                   'Genera JSON con tus restricciones',
                                   style: TextStyle(
-                                    fontSize: 13,
+                                    fontSize: 11,
                                     color: AppColors.textTertiary,
                                   ),
                                 ),
@@ -193,10 +193,10 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.lg),
+                      const SizedBox(height: AppSpacing.md),
                       SizedBox(
                         width: double.infinity,
-                        height: 48,
+                        height: 40,
                         child: FilledButton.icon(
                           onPressed: _exporting ? null : _export,
                           icon: _exporting
@@ -208,7 +208,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Icon(Icons.share_rounded),
+                              : const Icon(Icons.share_rounded, size: 18),
                           label:
                               Text(_exporting ? 'Exportando...' : 'Compartir'),
                         ),
@@ -223,17 +223,17 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 AppSpacing.lg,
-                AppSpacing.xl,
+                AppSpacing.lg,
                 AppSpacing.lg,
                 AppSpacing.xs,
               ),
               child: Text(
                 'IMPORTAR',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textTertiary,
-                  letterSpacing: 1.2,
+                  letterSpacing: 1.0,
                 ),
               ),
             ),
@@ -243,26 +243,26 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
                           Container(
-                            width: 48,
-                            height: 48,
+                            width: 36,
+                            height: 36,
                             decoration: BoxDecoration(
                               color: AppColors.success.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(AppRadius.md),
                             ),
                             child: const Icon(
                               Icons.download_rounded,
-                              size: 24,
+                              size: 20,
                               color: AppColors.success,
                             ),
                           ),
-                          const SizedBox(width: AppSpacing.md),
+                          const SizedBox(width: AppSpacing.sm),
                           const Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,7 +270,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                 Text(
                                   'Importar configuración',
                                   style: TextStyle(
-                                    fontSize: 15,
+                                    fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.textPrimary,
                                   ),
@@ -279,7 +279,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                 Text(
                                   'Restaura desde JSON exportado',
                                   style: TextStyle(
-                                    fontSize: 13,
+                                    fontSize: 11,
                                     color: AppColors.textTertiary,
                                   ),
                                 ),
@@ -288,10 +288,10 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.lg),
+                      const SizedBox(height: AppSpacing.md),
                       SizedBox(
                         width: double.infinity,
-                        height: 48,
+                        height: 40,
                         child: FilledButton.icon(
                           onPressed: _importing ? null : _pasteAndImport,
                           icon: _importing
@@ -303,7 +303,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Icon(Icons.paste_rounded),
+                              : const Icon(Icons.paste_rounded, size: 18),
                           label: Text(_importing
                               ? 'Importando...'
                               : 'Pegar del portapapeles'),
@@ -322,17 +322,17 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 AppSpacing.lg,
-                AppSpacing.xl,
+                AppSpacing.lg,
                 AppSpacing.lg,
                 AppSpacing.xs,
               ),
               child: Text(
                 'NOTAS',
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textTertiary,
-                  letterSpacing: 1.2,
+                  letterSpacing: 1.0,
                 ),
               ),
             ),
@@ -342,16 +342,16 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _noteItem(
                           'Las restricciones importadas no sobreescriben las existentes'),
-                      const SizedBox(height: AppSpacing.md),
+                      const SizedBox(height: AppSpacing.sm),
                       _noteItem(
                           'El modo administrador (PIN) no se exporta por seguridad'),
-                      const SizedBox(height: AppSpacing.md),
+                      const SizedBox(height: AppSpacing.sm),
                       _noteItem('Los contadores de uso diario no se exportan'),
                     ],
                   ),
@@ -370,13 +370,13 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Icon(Icons.info_outline_rounded,
-            color: AppColors.textTertiary, size: 18),
-        const SizedBox(width: AppSpacing.md),
+            color: AppColors.textTertiary, size: 16),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             text,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 11,
               color: AppColors.textSecondary,
               height: 1.4,
             ),

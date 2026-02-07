@@ -93,10 +93,10 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                   AppSpacing.lg,
                   AppSpacing.lg,
                   AppSpacing.lg,
-                  AppSpacing.md,
+                  AppSpacing.sm,
                 ),
                 child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: AppColors.info.withValues(alpha: 0.1),
                     border: Border.all(color: AppColors.info, width: 1),
@@ -106,14 +106,14 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(Icons.speed_rounded,
-                          color: AppColors.info, size: 24),
-                      SizedBox(width: AppSpacing.md),
+                          color: AppColors.info, size: 18),
+                      SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Text(
                           'Optimiza el rendimiento y reduce el consumo de batería',
                           style: TextStyle(
                             color: AppColors.info,
-                            fontSize: 14,
+                            fontSize: 12,
                             height: 1.4,
                           ),
                         ),
@@ -127,17 +127,17 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   AppSpacing.lg,
-                  AppSpacing.xl,
+                  AppSpacing.lg,
                   AppSpacing.lg,
                   AppSpacing.xs,
                 ),
                 child: Text(
                   'MODO AHORRO DE BATERÍA',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textTertiary,
-                    letterSpacing: 1.2,
+                    letterSpacing: 1.0,
                   ),
                 ),
               ),
@@ -147,12 +147,12 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     child: Row(
                       children: [
                         Container(
-                          width: 48,
-                          height: 48,
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
                             color: _batterySaverEnabled
                                 ? AppColors.success.withValues(alpha: 0.15)
@@ -163,13 +163,13 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                             _batterySaverEnabled
                                 ? Icons.battery_saver_rounded
                                 : Icons.battery_std_rounded,
-                            size: 24,
+                            size: 20,
                             color: _batterySaverEnabled
                                 ? AppColors.success
                                 : AppColors.textTertiary,
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.md),
+                        const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,7 +177,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                               const Text(
                                 'Reducir frecuencia de tracking',
                                 style: TextStyle(
-                                  fontSize: 15,
+                                  fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.textPrimary,
                                 ),
@@ -188,7 +188,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                                     ? 'Actualización cada 2 minutos'
                                     : 'Actualización cada 30 segundos',
                                 style: const TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 11,
                                   color: AppColors.textTertiary,
                                 ),
                               ),
@@ -209,17 +209,17 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   AppSpacing.lg,
-                  AppSpacing.xl,
+                  AppSpacing.lg,
                   AppSpacing.lg,
                   AppSpacing.xs,
                 ),
                 child: Text(
                   'ESTADÍSTICAS',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textTertiary,
-                    letterSpacing: 1.2,
+                    letterSpacing: 1.0,
                   ),
                 ),
               ),
@@ -231,7 +231,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                       const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      padding: const EdgeInsets.all(AppSpacing.md),
                       child: Column(
                         children: [
                           _statRow(
@@ -239,13 +239,13 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                             label: 'Base de datos',
                             value: '${_stats!['databaseSizeMB']} MB',
                           ),
-                          const Divider(height: AppSpacing.lg),
+                          const Divider(height: AppSpacing.md),
                           _statRow(
                             icon: Icons.cached_rounded,
                             label: 'Cache',
                             value: '${_stats!['cacheSizeKB']} KB',
                           ),
-                          const Divider(height: AppSpacing.lg),
+                          const Divider(height: AppSpacing.md),
                           _statRow(
                             icon: Icons.bar_chart_rounded,
                             label: 'Registros de uso',
@@ -262,17 +262,17 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   AppSpacing.lg,
-                  AppSpacing.xl,
+                  AppSpacing.lg,
                   AppSpacing.lg,
                   AppSpacing.xs,
                 ),
                 child: Text(
                   'MANTENIMIENTO',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textTertiary,
-                    letterSpacing: 1.2,
+                    letterSpacing: 1.0,
                   ),
                 ),
               ),
@@ -285,36 +285,52 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                     children: [
                       ListTile(
                         leading: Container(
-                          width: 40,
-                          height: 40,
+                          width: 32,
+                          height: 32,
                           decoration: BoxDecoration(
                             color: AppColors.warning.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(AppRadius.sm),
                           ),
                           child: const Icon(Icons.delete_sweep_rounded,
-                              color: AppColors.warning, size: 20),
+                              color: AppColors.warning, size: 18),
                         ),
-                        title: const Text('Limpiar cache'),
-                        subtitle: const Text('Elimina datos temporales'),
-                        trailing: const Icon(Icons.chevron_right_rounded),
+                        title: const Text(
+                          'Limpiar cache',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        subtitle: const Text(
+                          'Elimina datos temporales',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                        trailing:
+                            const Icon(Icons.chevron_right_rounded, size: 18),
                         onTap: _invalidateCache,
+                        visualDensity: VisualDensity.compact,
                       ),
-                      const Divider(height: 1, indent: 72),
+                      const Divider(height: 1, indent: 56),
                       ListTile(
                         leading: Container(
-                          width: 40,
-                          height: 40,
+                          width: 32,
+                          height: 32,
                           decoration: BoxDecoration(
                             color: AppColors.error.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(AppRadius.sm),
                           ),
                           child: const Icon(Icons.cleaning_services_rounded,
-                              color: AppColors.error, size: 20),
+                              color: AppColors.error, size: 18),
                         ),
-                        title: const Text('Limpieza profunda'),
-                        subtitle: const Text('Elimina datos antiguos'),
-                        trailing: const Icon(Icons.chevron_right_rounded),
+                        title: const Text(
+                          'Limpieza profunda',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        subtitle: const Text(
+                          'Elimina datos antiguos',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                        trailing:
+                            const Icon(Icons.chevron_right_rounded, size: 18),
                         onTap: _forceCleanup,
+                        visualDensity: VisualDensity.compact,
                       ),
                     ],
                   ),
@@ -332,13 +348,13 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
       {required IconData icon, required String label, required String value}) {
     return Row(
       children: [
-        Icon(icon, color: AppColors.textSecondary, size: 20),
-        const SizedBox(width: AppSpacing.md),
+        Icon(icon, color: AppColors.textSecondary, size: 18),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             label,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 12,
               color: AppColors.textSecondary,
             ),
           ),
@@ -346,7 +362,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
         Text(
           value,
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
           ),

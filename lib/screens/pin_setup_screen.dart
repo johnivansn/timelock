@@ -125,13 +125,13 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
               Icon(
                 _confirming ? Icons.lock_rounded : Icons.lock_open_rounded,
                 color: AppColors.primary,
-                size: 56,
+                size: 48,
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 _confirming ? 'Confirma tu PIN' : 'Crea tu PIN',
                 style: const TextStyle(
-                  fontSize: 24,
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
                 ),
@@ -142,27 +142,27 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                     ? 'Ingresa el mismo PIN para confirmar'
                     : 'Entre 4 y 6 dígitos',
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: 13,
                   color: AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: AppSpacing.xxl),
+              const SizedBox(height: AppSpacing.xl),
               _dotIndicator(),
               const SizedBox(height: AppSpacing.md),
               if (_error != null)
                 Text(
                   _error!,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 12,
                     color: AppColors.error,
                     fontWeight: FontWeight.w500,
                   ),
                 )
               else
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
               const Spacer(),
               _numpad(),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
             ],
           ),
         ),
@@ -180,11 +180,11 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         final isFilled = i < filled;
         final isFocus = i == filled;
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: 18,
-            height: 18,
+            width: 14,
+            height: 14,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isFilled ? AppColors.primary : AppColors.surface,
@@ -192,7 +192,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                 color: isFocus && !isFilled
                     ? AppColors.primary
                     : AppColors.surfaceVariant,
-                width: 2,
+                width: 1,
               ),
             ),
           ),
@@ -213,15 +213,15 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            const SizedBox(width: 72, height: 72),
+            const SizedBox(width: 64, height: 64),
             _numButton(0),
             _backspaceButton(),
           ],
         ),
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.lg),
         SizedBox(
           width: double.infinity,
-          height: 56,
+          height: 48,
           child: FilledButton(
             onPressed: _saving
                 ? null
@@ -256,8 +256,8 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
       onTap: () => _onDigit(digit),
       customBorder: const CircleBorder(),
       child: Container(
-        width: 72,
-        height: 72,
+        width: 64,
+        height: 64,
         decoration: BoxDecoration(
           color: AppColors.surface,
           shape: BoxShape.circle,
@@ -267,7 +267,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
           child: Text(
             digit.toString(),
             style: const TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
             ),
@@ -282,8 +282,8 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
       onTap: _onBackspace,
       customBorder: const CircleBorder(),
       child: Container(
-        width: 72,
-        height: 72,
+        width: 64,
+        height: 64,
         decoration: BoxDecoration(
           color: AppColors.surface,
           shape: BoxShape.circle,
@@ -293,7 +293,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
           child: Icon(
             Icons.backspace_outlined,
             color: AppColors.textSecondary,
-            size: 24,
+            size: 20,
           ),
         ),
       ),

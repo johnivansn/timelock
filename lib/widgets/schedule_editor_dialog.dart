@@ -245,14 +245,14 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
           children: [
             const SizedBox(height: AppSpacing.sm),
             Container(
-              width: 40,
-              height: 4,
+              width: 32,
+              height: 3,
               decoration: BoxDecoration(
                 color: AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
@@ -264,15 +264,15 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
                         const Text(
                           'Horarios de bloqueo',
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
                           ),
                         ),
                         Text(
                           widget.appName,
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 11,
                             color: AppColors.textTertiary,
                           ),
                           maxLines: 1,
@@ -288,15 +288,15 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 36,
                 child: FilledButton.icon(
                   onPressed: _addSchedule,
-                  icon: const Icon(Icons.add_rounded),
+                  icon: const Icon(Icons.add_rounded, size: 16),
                   label: const Text('Agregar horario'),
                 ),
               ),
@@ -307,15 +307,15 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
                     AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
                 child: SizedBox(
                   width: double.infinity,
-                  height: 44,
+                  height: 36,
                   child: OutlinedButton.icon(
                     onPressed: _openTemplatePicker,
-                    icon: const Icon(Icons.bookmark_outline_rounded),
+                    icon: const Icon(Icons.bookmark_outline_rounded, size: 16),
                     label: const Text('Usar etiqueta guardada'),
                   ),
                 ),
               ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.sm),
             ConstrainedBox(
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(context).size.height * 0.45,
@@ -329,7 +329,7 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
                             'Sin horarios configurados',
                             style: TextStyle(
                               color: AppColors.textTertiary,
-                              fontSize: 14,
+                              fontSize: 13,
                             ),
                           ),
                         )
@@ -340,7 +340,7 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
                           itemBuilder: (_, i) => _scheduleTile(_schedules[i]),
                         ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
           ],
         ),
       ),
@@ -367,7 +367,7 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
         onTap: () => _editSchedule(s),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(10),
           child: Row(
             children: [
               Expanded(
@@ -377,7 +377,7 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
                     Text(
                       timeText,
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
@@ -386,7 +386,7 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
                     Text(
                       dayText,
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         color: AppColors.textTertiary,
                       ),
                     ),
@@ -399,10 +399,13 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
               ),
               IconButton(
                 onPressed: () => _deleteSchedule(s),
-                icon: const Icon(Icons.delete_outline_rounded, size: 20),
+                icon: const Icon(Icons.delete_outline_rounded, size: 16),
                 style: IconButton.styleFrom(
                   foregroundColor: AppColors.error,
                   backgroundColor: AppColors.surfaceVariant,
+                  minimumSize: const Size(28, 28),
+                  fixedSize: const Size(28, 28),
+                  padding: const EdgeInsets.all(4),
                 ),
               ),
             ],
@@ -499,14 +502,14 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
                 value: _end,
                 onTap: () => _pickTime(false),
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.sm),
               const Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Días',
                   style: TextStyle(
                     color: AppColors.textSecondary,
-                    fontSize: 13,
+                    fontSize: 12,
                   ),
                 ),
               ),
@@ -526,7 +529,7 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
               const SizedBox(height: AppSpacing.sm),
               const Text(
                 'Si la hora final es menor, el bloqueo cruza medianoche.',
-                style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+                style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
               ),
             ],
           ),
@@ -571,12 +574,15 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
+            style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
           ),
         ),
-        TextButton(
-          onPressed: onTap,
-          child: Text(_fmt(value)),
+        SizedBox(
+          height: 40,
+          child: TextButton(
+            onPressed: onTap,
+            child: Text(_fmt(value)),
+          ),
         ),
       ],
     );
@@ -588,7 +594,10 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
   Widget _dayChip(String label, int value) {
     final selected = _days.contains(value);
     return FilterChip(
-      label: Text(label),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+      ),
       selected: selected,
       onSelected: (_) {
         setState(() {
@@ -599,6 +608,8 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
           }
         });
       },
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      visualDensity: VisualDensity.compact,
     );
   }
 
@@ -644,23 +655,23 @@ class _TemplatePickerSheet extends StatelessWidget {
         children: [
           const SizedBox(height: AppSpacing.sm),
           Container(
-            width: 40,
-            height: 4,
+            width: 32,
+            height: 3,
             decoration: BoxDecoration(
               color: AppColors.surfaceVariant,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
           const Text(
             'Etiquetas guardadas',
             style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           Flexible(
             child: ListView.builder(
               shrinkWrap: true,
@@ -669,15 +680,24 @@ class _TemplatePickerSheet extends StatelessWidget {
                 final t = templates[i];
                 final name = (t['name'] ?? 'Etiqueta').toString();
                 return ListTile(
-                  leading: const Icon(Icons.bookmark_rounded),
-                  title: Text(name),
-                  subtitle: Text(_templateSummary(t)),
+                  leading: const Icon(Icons.bookmark_rounded, size: 18),
+                  title: Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    _templateSummary(t),
+                    style: const TextStyle(fontSize: 11),
+                  ),
                   onTap: () => Navigator.pop(context, t),
                 );
               },
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
         ],
       ),
     );

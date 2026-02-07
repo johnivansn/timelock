@@ -184,13 +184,13 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
               Icon(
                 isLocked ? Icons.lock_clock_rounded : Icons.shield_rounded,
                 color: isLocked ? AppColors.error : AppColors.primary,
-                size: 56,
+                size: 48,
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               const Text(
                 'Modo Administrador',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
                 ),
@@ -199,12 +199,12 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
               Text(
                 widget.reason ?? 'Ingresa tu PIN para continuar',
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: 13,
                   color: AppColors.textSecondary,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: AppSpacing.xxl),
+              const SizedBox(height: AppSpacing.xl),
               AnimatedBuilder(
                 animation: _shakeAnimation,
                 builder: (_, child) => Transform.translate(
@@ -218,16 +218,16 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
                 Text(
                   _error!,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 12,
                     color: AppColors.error,
                     fontWeight: FontWeight.w500,
                   ),
                 )
               else
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
               const Spacer(),
               _numpad(isLocked),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
             ],
           ),
         ),
@@ -244,11 +244,11 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
         final isFilled = i < filled;
         final isFocus = i == filled;
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: 18,
-            height: 18,
+            width: 14,
+            height: 14,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isFilled ? AppColors.primary : AppColors.surface,
@@ -256,7 +256,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
                 color: isFocus && !isFilled
                     ? AppColors.primary
                     : AppColors.surfaceVariant,
-                width: 2,
+                width: 1,
               ),
             ),
           ),
@@ -277,7 +277,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            const SizedBox(width: 72, height: 72),
+            const SizedBox(width: 64, height: 64),
             _numButton(0, isLocked),
             _backspaceButton(isLocked),
           ],
@@ -298,8 +298,8 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
       onTap: isLocked ? null : () => _onDigit(digit),
       customBorder: const CircleBorder(),
       child: Container(
-        width: 72,
-        height: 72,
+        width: 64,
+        height: 64,
         decoration: BoxDecoration(
           color: AppColors.surface,
           shape: BoxShape.circle,
@@ -309,7 +309,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
           child: Text(
             digit.toString(),
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.w600,
               color: isLocked ? AppColors.textTertiary : AppColors.textPrimary,
             ),
@@ -324,8 +324,8 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
       onTap: isLocked ? null : _onBackspace,
       customBorder: const CircleBorder(),
       child: Container(
-        width: 72,
-        height: 72,
+        width: 64,
+        height: 64,
         decoration: BoxDecoration(
           color: AppColors.surface,
           shape: BoxShape.circle,
@@ -335,7 +335,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
           child: Icon(
             Icons.backspace_outlined,
             color: isLocked ? AppColors.textTertiary : AppColors.textSecondary,
-            size: 24,
+            size: 20,
           ),
         ),
       ),
