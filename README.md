@@ -830,6 +830,66 @@ static const info = Color(0xFF3498DB);       // Azul
 - 🔮 **Logs exportables**: Para debugging avanzado
 - 🔮 **Anti-bypass avanzado**: Detección de side-loading, modo seguro, etc.
 - 🔮 **Widget interactivo**: Ajustar cuota directamente desde widget
+- 🔮 **Bloqueo por fechas**: Rango fecha-inicio/fecha-fin (1 día, N días o semanas)
+- 🔮 **Etiquetas de horarios/fechas**: Plantillas reutilizables para evitar reingreso repetido
+
+---
+
+## 8.1 PROPUESTA — Bloqueo por Fechas + Etiquetas
+
+### Objetivo
+Permitir bloqueos por rangos de fechas (1 día, N días o semanas) y reutilizar configuraciones frecuentes con “etiquetas” para no reingresar datos.
+
+### UX Propuesta
+1. **En Editor de horarios**: botón “Usar etiqueta” + “Guardar como etiqueta”.
+2. **En Editor de fechas**: rango inicio/fin (calendario) + “Repetición opcional” (semanal/mensual).
+3. **Etiquetas**: lista guardada con nombre, resumen y un tap para aplicar.
+
+### Modelo de Datos (nativo)
+Agregar tabla `date_blocks`:
+
+```kotlin
+data class DateBlock(
+    @PrimaryKey val id: String,
+    val packageName: String,
+    val startDate: String,   // "yyyy-MM-dd"
+    val endDate: String,     // "yyyy-MM-dd"
+    val isEnabled: Boolean,
+    val label: String?       // opcional (si proviene de etiqueta)
+)
+```
+
+Tabla `block_templates` (etiquetas):
+
+```kotlin
+data class BlockTemplate(
+    @PrimaryKey val id: String,
+    val name: String,
+    val type: String,        // "schedule" | "date"
+    val payloadJson: String  // JSON con horas/días o fechas
+)
+```
+
+### Lógica de Evaluación
+En `BlockingEngine.shouldBlock`:
+1. Evaluar cuota (diaria/semanal).
+2. Evaluar horarios (ScheduleMonitor).
+3. Evaluar bloqueos por fecha:
+   - `today in [startDate, endDate]` → bloqueado.
+
+### MethodChannel (propuesta)
+- `getDateBlocks(packageName)` → `List<Map>`
+- `addDateBlock(data)` → `void`
+- `updateDateBlock(data)` → `void`
+- `deleteDateBlock(id)` → `void`
+- `getBlockTemplates()` → `List<Map>`
+- `saveBlockTemplate(data)` → `void`
+- `deleteBlockTemplate(id)` → `void`
+
+### Notas de implementación
+- Guardar fechas como `yyyy-MM-dd` para consistencia con `DailyUsage`.
+- Reutilizar UI de etiquetas ya existente en `ScheduleEditorDialog`.
+- En Flutter, mostrar resumen: `“Bloqueado del 12 Mar al 18 Mar”`.
 
 ---
 
