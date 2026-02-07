@@ -11,6 +11,7 @@ import 'package:timelock/screens/restriction_edit_screen.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
+import 'package:timelock/utils/schedule_utils.dart';
 import 'package:timelock/screens/app_picker_screen.dart';
 import 'package:timelock/widgets/schedule_editor_dialog.dart';
 
@@ -133,7 +134,7 @@ class _AppListScreenState extends State<AppListScreen> {
         if (r['schedules'] == null || _scheduleDirty.contains(pkg)) {
           try {
             final schedules = await NativeService.getSchedules(pkg);
-            r['schedules'] = schedules.map(_normalizeScheduleDays).toList();
+            r['schedules'] = schedules.map(normalizeScheduleDays).toList();
             changed = true;
             _scheduleDirty.remove(pkg);
           } catch (_) {
@@ -1120,13 +1121,15 @@ class _AppListScreenState extends State<AppListScreen> {
           .map((e) => int.tryParse(e.toString()) ?? 0)
           .where((d) => d >= 1 && d <= 7)
           .toList();
-      final timeText = _formatTimeRange(
+      final timeText = formatTimeRange(
         s['startHour'] as int? ?? 0,
         s['startMinute'] as int? ?? 0,
         s['endHour'] as int? ?? 0,
         s['endMinute'] as int? ?? 0,
+        dash: '-',
+        nextDaySuffix: ' (día sig.)',
       );
-      final dayText = _formatDays(days);
+      final dayText = formatDays(days, separator: '·');
       final enabled = s['isEnabled'] as bool? ?? true;
       final bgColor = enabled
           ? AppColors.primary.withValues(alpha: 0.12)
@@ -1266,18 +1269,6 @@ class _AppListScreenState extends State<AppListScreen> {
     return '${now.day} $month ${now.year}';
   }
 
-  Map<String, dynamic> _normalizeScheduleDays(Map<String, dynamic> s) {
-    final days = (s['daysOfWeek'] as List<dynamic>? ?? [])
-        .map((e) => int.tryParse(e.toString()) ?? 0)
-        .toList();
-    final converted =
-        days.contains(0) ? days.map((d) => d + 1).toList() : days;
-    return {
-      ...s,
-      'daysOfWeek': converted.where((d) => d >= 1 && d <= 7).toList(),
-    };
-  }
-
   String _scheduleSummary(List<Map<String, dynamic>> schedules) {
     if (schedules.isEmpty) return 'Sin horarios';
     final first = schedules.first;
@@ -1285,42 +1276,17 @@ class _AppListScreenState extends State<AppListScreen> {
         .map((e) => int.tryParse(e.toString()) ?? 0)
         .where((d) => d >= 1 && d <= 7)
         .toList();
-    final dayText = _formatDays(days);
-    final timeText = _formatTimeRange(
+    final dayText = formatDays(days, separator: '·');
+    final timeText = formatTimeRange(
       first['startHour'] as int? ?? 0,
       first['startMinute'] as int? ?? 0,
       first['endHour'] as int? ?? 0,
       first['endMinute'] as int? ?? 0,
+      dash: '-',
+      nextDaySuffix: ' (día sig.)',
     );
     if (schedules.length == 1) return '$dayText $timeText';
     return '$dayText $timeText  +${schedules.length - 1} más';
-  }
-
-  String _formatTimeRange(int sh, int sm, int eh, int em) {
-    final start = _fmt(sh, sm);
-    final end = _fmt(eh, em);
-    if (eh * 60 + em <= sh * 60 + sm) {
-      return '$start-$end (día sig.)';
-    }
-    return '$start-$end';
-  }
-
-  String _fmt(int h, int m) {
-    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
-  }
-
-  String _formatDays(List<int> days) {
-    if (days.isEmpty) return 'Sin días';
-    const labels = {
-      1: 'D',
-      2: 'L',
-      3: 'M',
-      4: 'X',
-      5: 'J',
-      6: 'V',
-      7: 'S',
-    };
-    return days.map((d) => labels[d] ?? '?').join('·');
   }
 
   int _quotaMinutesFor(Map<String, dynamic> r) {

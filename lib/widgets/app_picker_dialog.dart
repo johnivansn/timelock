@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
+import 'package:timelock/widgets/bottom_sheet_handle.dart';
 
 class AppPickerDialog extends StatefulWidget {
   const AppPickerDialog({
@@ -183,14 +184,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
         child: Column(
           children: [
             const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: 32,
-              height: 3,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+            const BottomSheetHandle(),
             const SizedBox(height: AppSpacing.md),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),

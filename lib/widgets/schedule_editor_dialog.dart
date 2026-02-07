@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
+import 'package:timelock/utils/schedule_utils.dart';
+import 'package:timelock/widgets/bottom_sheet_handle.dart';
 
 class ScheduleEditorDialog extends StatefulWidget {
   const ScheduleEditorDialog({
@@ -34,7 +36,7 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
   Future<void> _load() async {
     try {
       final raw = await NativeService.getSchedules(widget.packageName);
-      final normalized = raw.map(_normalizeSchedule).toList();
+      final normalized = raw.map(normalizeScheduleDays).toList();
       if (!mounted) return;
       setState(() {
         _schedules = normalized;
@@ -71,18 +73,6 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
         'value': json,
       });
     } catch (_) {}
-  }
-
-  Map<String, dynamic> _normalizeSchedule(Map<String, dynamic> s) {
-    final days = (s['daysOfWeek'] as List<dynamic>? ?? [])
-        .map((e) => int.tryParse(e.toString()) ?? 0)
-        .toList();
-    final converted =
-        days.contains(0) ? days.map((d) => d + 1).toList() : days;
-    return {
-      ...s,
-      'daysOfWeek': converted.where((d) => d >= 1 && d <= 7).toList(),
-    };
   }
 
   Future<void> _addSchedule() async {
@@ -245,14 +235,7 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
           child: Column(
             children: [
             const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: 32,
-              height: 3,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
+              const BottomSheetHandle(),
             const SizedBox(height: AppSpacing.md),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -355,13 +338,13 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
         .map((e) => int.tryParse(e.toString()) ?? 0)
         .where((d) => d >= 1 && d <= 7)
         .toList();
-    final timeText = _formatTimeRange(
+    final timeText = formatTimeRange(
       s['startHour'] as int? ?? 0,
       s['startMinute'] as int? ?? 0,
       s['endHour'] as int? ?? 0,
       s['endMinute'] as int? ?? 0,
     );
-    final dayText = _formatDays(days);
+    final dayText = formatDays(days);
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -417,32 +400,6 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
     );
   }
 
-  String _formatTimeRange(int sh, int sm, int eh, int em) {
-    final start = _fmt(sh, sm);
-    final end = _fmt(eh, em);
-    if (eh * 60 + em <= sh * 60 + sm) {
-      return '$start – $end (día sig.)';
-    }
-    return '$start – $end';
-  }
-
-  String _fmt(int h, int m) {
-    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
-  }
-
-  String _formatDays(List<int> days) {
-    if (days.isEmpty) return 'Sin días';
-    const labels = {
-      1: 'D',
-      2: 'L',
-      3: 'M',
-      4: 'X',
-      5: 'J',
-      6: 'V',
-      7: 'S',
-    };
-    return days.map((d) => labels[d] ?? '?').join(' · ');
-  }
 }
 
 class _ScheduleEditDialog extends StatefulWidget {
@@ -583,15 +540,12 @@ class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
           height: 40,
           child: TextButton(
             onPressed: onTap,
-            child: Text(_fmt(value)),
+            child: Text(formatTimeOfDay(value)),
           ),
         ),
       ],
     );
   }
-
-  String _fmt(TimeOfDay t) =>
-      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
 
   Widget _dayChip(String label, int value) {
     final selected = _days.contains(value);
@@ -656,14 +610,7 @@ class _TemplatePickerSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: AppSpacing.sm),
-          Container(
-            width: 32,
-            height: 3,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
+            const BottomSheetHandle(),
           const SizedBox(height: AppSpacing.md),
           const Text(
             'Etiquetas guardadas',
@@ -714,23 +661,6 @@ class _TemplatePickerSheet extends StatelessWidget {
         .map((e) => int.tryParse(e.toString()) ?? 0)
         .where((d) => d >= 1 && d <= 7)
         .toList();
-    return '${_fmt(sh, sm)} – ${_fmt(eh, em)} · ${_formatDays(days)}';
-  }
-
-  String _fmt(int h, int m) =>
-      '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
-
-  String _formatDays(List<int> days) {
-    if (days.isEmpty) return 'Sin días';
-    const labels = {
-      1: 'D',
-      2: 'L',
-      3: 'M',
-      4: 'X',
-      5: 'J',
-      6: 'V',
-      7: 'S',
-    };
-    return days.map((d) => labels[d] ?? '?').join(' ');
+    return '${formatTime(sh, sm)} – ${formatTime(eh, em)} · ${formatDays(days, separator: ' ')}';
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:timelock/screens/app_list_screen.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
+import 'package:timelock/utils/schedule_utils.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -51,7 +52,7 @@ class _SplashScreenState extends State<SplashScreen> {
         try {
           final schedules =
               await NativeService.getSchedules(r['packageName'] as String);
-          r['schedules'] = schedules.map(_normalizeScheduleDays).toList();
+          r['schedules'] = schedules.map(normalizeScheduleDays).toList();
         } catch (_) {
           r['schedules'] = [];
         }
@@ -61,18 +62,6 @@ class _SplashScreenState extends State<SplashScreen> {
     } catch (_) {
       return [];
     }
-  }
-
-  Map<String, dynamic> _normalizeScheduleDays(Map<String, dynamic> s) {
-    final days = (s['daysOfWeek'] as List<dynamic>? ?? [])
-        .map((e) => int.tryParse(e.toString()) ?? 0)
-        .toList();
-    final converted =
-        days.contains(0) ? days.map((d) => d + 1).toList() : days;
-    return {
-      ...s,
-      'daysOfWeek': converted.where((d) => d >= 1 && d <= 7).toList(),
-    };
   }
 
   @override
