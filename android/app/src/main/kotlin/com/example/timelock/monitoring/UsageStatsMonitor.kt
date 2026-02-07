@@ -18,7 +18,7 @@ class UsageStatsMonitor(private val context: Context) {
   private val usageStatsManager =
           context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
   private val database = AppDatabase.getDatabase(context)
-  private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+  private val dateFormat = AppUtils.newDateFormat()
   private val scope = CoroutineScope(Dispatchers.IO)
   private val pillNotification = PillNotificationHelper(context)
 
@@ -130,7 +130,7 @@ class UsageStatsMonitor(private val context: Context) {
 
         val usedForLimitMinutes =
                 if (restriction.limitType == "weekly") {
-                  val weekStart = getWeekStartDate(restriction.weeklyResetDay)
+                  val weekStart = AppUtils.getWeekStartDate(restriction.weeklyResetDay)
                   val weekUsages =
                           database.dailyUsageDao()
                                   .getUsageSince(restriction.packageName, weekStart)
@@ -215,16 +215,6 @@ class UsageStatsMonitor(private val context: Context) {
         Log.i(TAG, "Notificado 50% para $packageName")
       }
     }
-  }
-
-  private fun getWeekStartDate(resetDay: Int): String {
-    val cal = Calendar.getInstance()
-    val current = cal.get(Calendar.DAY_OF_WEEK)
-    var diff = current - resetDay
-    if (diff < 0) diff += 7
-    cal.add(Calendar.DAY_OF_MONTH, -diff)
-    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-    return formatter.format(cal.time)
   }
 
   fun resetNotificationFlags() {

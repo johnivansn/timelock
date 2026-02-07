@@ -10,7 +10,7 @@ import kotlinx.coroutines.withContext
 
 class DataCleanupManager(private val context: Context) {
   private val database = AppDatabase.getDatabase(context)
-  private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+  private val dateFormat = AppUtils.newDateFormat()
   private val prefs = context.getSharedPreferences("cleanup_prefs", Context.MODE_PRIVATE)
 
   companion object {

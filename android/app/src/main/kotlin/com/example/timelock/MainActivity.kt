@@ -616,7 +616,7 @@ class MainActivity : FlutterActivity() {
                 val app = pm.getApplicationInfo(packageName, 0)
                 val drawable = pm.getApplicationIcon(app)
 
-                val bitmap = drawableToBitmap(drawable)
+                  val bitmap = AppUtils.drawableToBitmap(drawable, maxSize = 96)
                 val stream = ByteArrayOutputStream()
                 bitmap.compress(Bitmap.CompressFormat.PNG, 50, stream)
                 val iconBytes = stream.toByteArray()
@@ -702,7 +702,7 @@ class MainActivity : FlutterActivity() {
               val iconBytes =
                       try {
                         val drawable = appInfo.loadIcon(pm)
-                        val bitmap = AppUtils.drawableToBitmap(drawable)
+                          val bitmap = AppUtils.drawableToBitmap(drawable)
                         val stream = java.io.ByteArrayOutputStream()
                         bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
                         stream.toByteArray()
@@ -822,19 +822,19 @@ class MainActivity : FlutterActivity() {
   }
 
   private suspend fun getUsageToday(packageName: String): Map<String, Any> {
-    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val dateFormat = AppUtils.newDateFormat()
     val today = dateFormat.format(Date())
     val usage = database.dailyUsageDao().getUsage(packageName, today)
     val liveMillis = UsageStatsMonitor(this).getUsageToday(packageName)
     val restriction = database.appRestrictionDao().getByPackage(packageName)
-    val weekStart =
-            if (restriction != null) getWeekStartDate(
-                    restriction.weeklyResetDay,
-                    restriction.weeklyResetHour,
-                    restriction.weeklyResetMinute,
-                    dateFormat
-            )
-            else today
+              val weekStart =
+                      if (restriction != null) AppUtils.getWeekStartDate(
+                      restriction.weeklyResetDay,
+                      restriction.weeklyResetHour,
+                      restriction.weeklyResetMinute,
+                      dateFormat
+              )
+              else today
     val weekUsages = database.dailyUsageDao().getUsageSince(packageName, weekStart)
     val weekMinutes = weekUsages.sumOf { it.usedMinutes }
     return mapOf(
@@ -844,28 +844,6 @@ class MainActivity : FlutterActivity() {
             "usedMinutesWeek" to weekMinutes,
             "weekStart" to weekStart
     )
-  }
-
-  private fun getWeekStartDate(
-          resetDay: Int,
-          resetHour: Int,
-          resetMinute: Int,
-          dateFormat: SimpleDateFormat
-  ): String {
-    val now = Calendar.getInstance()
-    val cal = Calendar.getInstance()
-    val current = cal.get(Calendar.DAY_OF_WEEK)
-    var diff = current - resetDay
-    if (diff < 0) diff += 7
-    cal.add(Calendar.DAY_OF_MONTH, -diff)
-    cal.set(Calendar.HOUR_OF_DAY, resetHour)
-    cal.set(Calendar.MINUTE, resetMinute)
-    cal.set(Calendar.SECOND, 0)
-    cal.set(Calendar.MILLISECOND, 0)
-    if (now.before(cal)) {
-      cal.add(Calendar.DAY_OF_MONTH, -7)
-    }
-    return dateFormat.format(cal.time)
   }
 
   private fun parseDailyQuotas(value: Any?, fallback: String = ""): String {
@@ -900,22 +878,6 @@ class MainActivity : FlutterActivity() {
       )
       startActivityForResult(intent, REQUEST_ENABLE_ADMIN)
     }
-  }
-
-  private fun drawableToBitmap(drawable: Drawable): Bitmap {
-    if (drawable is BitmapDrawable) {
-      return drawable.bitmap
-    }
-
-    val width = if (drawable.intrinsicWidth > 0) minOf(drawable.intrinsicWidth, 96) else 96
-    val height = if (drawable.intrinsicHeight > 0) minOf(drawable.intrinsicHeight, 96) else 96
-
-    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-    drawable.setBounds(0, 0, canvas.width, canvas.height)
-    drawable.draw(canvas)
-
-    return bitmap
   }
 
   private fun isDeviceAdminEnabled(): Boolean {

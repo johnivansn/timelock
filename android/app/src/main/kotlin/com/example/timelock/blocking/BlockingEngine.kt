@@ -11,7 +11,7 @@ import java.util.*
 
 class BlockingEngine(private val context: Context) {
   private val database = AppDatabase.getDatabase(context)
-  private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+  private val dateFormat = AppUtils.newDateFormat()
   private val pillNotification = PillNotificationHelper(context)
   private val scheduleMonitor = ScheduleMonitor()
 
