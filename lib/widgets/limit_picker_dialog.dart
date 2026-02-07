@@ -11,11 +11,13 @@ class LimitPickerDialog extends StatefulWidget {
     required this.appName,
     this.initial,
     this.fullScreen = false,
+    this.useEditLayoutForCreate = false,
   });
 
   final String appName;
   final Map<String, dynamic>? initial;
   final bool fullScreen;
+  final bool useEditLayoutForCreate;
 
   @override
   State<LimitPickerDialog> createState() => _LimitPickerDialogState();
@@ -282,13 +284,16 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   @override
   Widget build(BuildContext context) {
     if (widget.initial == null) {
+      if (widget.useEditLayoutForCreate) {
+        return _buildEditLayout(isCreate: true);
+      }
       return _buildCreateLayout();
     }
-    return _buildEditLayout();
+    return _buildEditLayout(isCreate: false);
   }
 
-  Widget _buildEditLayout() {
-    final showSave = _isLimitDirty() || _isScheduleDirty();
+  Widget _buildEditLayout({required bool isCreate}) {
+    final showSave = isCreate || _isLimitDirty() || _isScheduleDirty();
     final borderRadius = widget.fullScreen
         ? BorderRadius.circular(0)
         : const BorderRadius.vertical(top: Radius.circular(AppRadius.xl));
@@ -343,7 +348,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (_packageName != null)
+                      if (!isCreate && _packageName != null)
                         IconButton(
                           onPressed: _confirmDelete,
                           icon: const Icon(Icons.delete_outline_rounded),
@@ -423,18 +428,18 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                         ),
                       ),
                     ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: FilledButton(
-                        onPressed: _save,
-                        child: const Text('Guardar cambios'),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: FilledButton(
+                          onPressed: _save,
+                          child: Text(isCreate ? 'Crear' : 'Guardar cambios'),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
           ),
         ),
       ],

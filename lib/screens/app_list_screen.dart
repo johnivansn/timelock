@@ -12,7 +12,6 @@ import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
 import 'package:timelock/widgets/app_picker_dialog.dart';
-import 'package:timelock/widgets/limit_picker_dialog.dart';
 import 'package:timelock/widgets/schedule_editor_dialog.dart';
 
 class AppListScreen extends StatefulWidget {
@@ -218,11 +217,14 @@ class _AppListScreenState extends State<AppListScreen> {
       builder: (_) => AppPickerDialog(excludedPackages: existing),
     );
     if (app == null || !mounted) return;
-    final limit = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => LimitPickerDialog(appName: app['appName'] as String),
+    final limit = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RestrictionEditScreen(
+          appName: app['appName'] as String,
+          isCreate: true,
+        ),
+      ),
     );
     if (limit == null) return;
 

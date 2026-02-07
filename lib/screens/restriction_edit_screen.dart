@@ -5,11 +5,13 @@ class RestrictionEditScreen extends StatelessWidget {
   const RestrictionEditScreen({
     super.key,
     required this.appName,
-    required this.initial,
+    this.initial,
+    this.isCreate = false,
   });
 
   final String appName;
-  final Map<String, dynamic> initial;
+  final Map<String, dynamic>? initial;
+  final bool isCreate;
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +20,7 @@ class RestrictionEditScreen extends StatelessWidget {
         appName: appName,
         initial: initial,
         fullScreen: true,
+        useEditLayoutForCreate: isCreate,
       ),
     );
   }
