@@ -29,6 +29,8 @@ class _AppListScreenState extends State<AppListScreen> {
   bool _permissionsOk = false;
   bool _adminEnabled = false;
   Timer? _refreshTimer;
+  final Set<String> _expandedSchedules = {};
+  final Set<String> _scheduleDirty = {};
 
   @override
   void initState() {
@@ -128,11 +130,12 @@ class _AppListScreenState extends State<AppListScreen> {
           // Keep previous values on error to avoid flicker.
         }
 
-        if (r['schedules'] == null) {
+        if (r['schedules'] == null || _scheduleDirty.contains(pkg)) {
           try {
             final schedules = await NativeService.getSchedules(pkg);
             r['schedules'] = schedules.map(_normalizeScheduleDays).toList();
             changed = true;
+            _scheduleDirty.remove(pkg);
           } catch (_) {
             r['schedules'] = [];
           }
@@ -308,6 +311,13 @@ class _AppListScreenState extends State<AppListScreen> {
       ),
     );
     if (limit == null) return;
+    if (limit['deleted'] == true) {
+      await _loadRestrictions();
+      return;
+    }
+    if (limit['schedulesChanged'] == true) {
+      _scheduleDirty.add(r['packageName'].toString());
+    }
 
     await NativeService.updateRestriction({
       'packageName': r['packageName'],
@@ -1025,39 +1035,208 @@ class _AppListScreenState extends State<AppListScreen> {
     final schedules = (r['schedules'] as List<dynamic>? ?? [])
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
-    final summary = _scheduleSummary(schedules);
+    if (schedules.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final activeSchedules = schedules
+        .where((s) => (s['isEnabled'] as bool? ?? true) == true)
+        .toList();
+    if (activeSchedules.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final pkg = r['packageName']?.toString() ?? '';
+    final isExpanded = _expandedSchedules.contains(pkg);
+    final summary = _scheduleSummary(activeSchedules);
 
-      return SizedBox(
-        width: double.infinity,
-        child: Row(
-          children: [
-            const Icon(Icons.schedule_rounded,
-                color: AppColors.textTertiary, size: 16),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                summary,
-                style:
-                    const TextStyle(fontSize: 11, color: AppColors.textTertiary),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+    final titleRow = Container(
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.schedule_rounded,
+                color: AppColors.primary, size: 16),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              summary,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+            if (activeSchedules.length > 1)
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                isExpanded
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
+                color: AppColors.textSecondary,
+                size: 18,
               ),
             ),
-            const SizedBox(width: AppSpacing.sm),
-            IconButton(
-              onPressed: () => _openScheduleEditor(r),
-              icon: const Icon(Icons.edit_rounded, size: 16),
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.surfaceVariant,
-                padding: const EdgeInsets.all(6),
-                minimumSize: const Size(32, 32),
-                fixedSize: const Size(32, 32),
+        ],
+      ),
+    );
+
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+            if (activeSchedules.length > 1)
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    if (isExpanded) {
+                    _expandedSchedules.remove(pkg);
+                  } else {
+                    _expandedSchedules.add(pkg);
+                  }
+                });
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: titleRow,
               ),
+            )
+          else
+            titleRow,
+            if (activeSchedules.length > 1)
+              AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topLeft,
+                child: isExpanded
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: AppSpacing.xs),
+                          ..._scheduleDetails(activeSchedules),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _scheduleDetails(List<Map<String, dynamic>> schedules) {
+    final active = schedules
+        .where((s) => (s['isEnabled'] as bool? ?? true) == true)
+        .toList();
+    return active.map((s) {
+      final days = (s['daysOfWeek'] as List<dynamic>? ?? [])
+          .map((e) => int.tryParse(e.toString()) ?? 0)
+          .where((d) => d >= 1 && d <= 7)
+          .toList();
+      final timeText = _formatTimeRange(
+        s['startHour'] as int? ?? 0,
+        s['startMinute'] as int? ?? 0,
+        s['endHour'] as int? ?? 0,
+        s['endMinute'] as int? ?? 0,
+      );
+      final dayText = _formatDays(days);
+      final enabled = s['isEnabled'] as bool? ?? true;
+      final bgColor = enabled
+          ? AppColors.primary.withValues(alpha: 0.12)
+          : AppColors.error.withValues(alpha: 0.12);
+      final borderColor = enabled
+          ? AppColors.primary.withValues(alpha: 0.35)
+          : AppColors.error.withValues(alpha: 0.35);
+
+      return Padding(
+        padding: const EdgeInsets.only(left: 20, bottom: 6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: borderColor,
             ),
-          ],
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: const Icon(
+                  Icons.calendar_today_rounded,
+                  size: 12,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Row(
+                  children: [
+                    Text(
+                      timeText,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        dayText,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textTertiary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       );
-    }
+    }).toList();
+  }
 
     Widget _buildAppIcon(Map<String, dynamic> r) {
       final bytes = r['iconBytes'];

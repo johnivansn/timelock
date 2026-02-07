@@ -446,8 +446,7 @@ class MainActivity : FlutterActivity() {
 
   private suspend fun updateSchedule(args: Map<*, *>) {
     val id = args["id"] as String
-    val schedules = database.appScheduleDao().getAllEnabled()
-    val existing = schedules.find { it.id == id } ?: return
+    val existing = database.appScheduleDao().getById(id) ?: return
 
     val daysList =
             (args["daysOfWeek"] as? List<*>)?.map { it.toString().toInt() }
@@ -467,8 +466,7 @@ class MainActivity : FlutterActivity() {
   }
 
   private suspend fun deleteSchedule(scheduleId: String) {
-    val schedules = database.appScheduleDao().getAllEnabled()
-    val schedule = schedules.find { it.id == scheduleId } ?: return
+    val schedule = database.appScheduleDao().getById(scheduleId) ?: return
     database.appScheduleDao().delete(schedule)
     Log.i("MainActivity", "Schedule deleted: $scheduleId")
   }
