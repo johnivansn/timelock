@@ -11,15 +11,29 @@ class QuotaTimePicker extends StatefulWidget {
 }
 
 class _QuotaTimePickerState extends State<QuotaTimePicker> {
-  static const _presets = [5, 10, 15, 30, 60, 120];
+  static const _presets = [1, 5, 10, 15, 30, 60, 120];
   int? _selected;
   int _custom = 30;
   bool _useCustom = false;
+  late final TextEditingController _customController;
+
+  @override
+  void initState() {
+    super.initState();
+    _customController = TextEditingController(text: _custom.toString());
+  }
+
+  @override
+  void dispose() {
+    _customController.dispose();
+    super.dispose();
+  }
 
   void _pick(int val) {
     setState(() {
       _selected = val;
       _useCustom = false;
+      _customController.text = _custom.toString();
     });
   }
 
@@ -27,12 +41,13 @@ class _QuotaTimePickerState extends State<QuotaTimePicker> {
     setState(() {
       _useCustom = true;
       _selected = null;
+      _customController.text = _custom.toString();
     });
   }
 
   int get _value => _useCustom ? _custom : (_selected ?? _custom);
 
-  bool get _valid => _value >= 5 && _value <= 480;
+  bool get _valid => _value >= 1 && _value <= 480;
 
   @override
   Widget build(BuildContext context) {
@@ -135,48 +150,21 @@ class _QuotaTimePickerState extends State<QuotaTimePicker> {
         if (_useCustom) ...[
           const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.remove_rounded),
-                  onPressed: _custom > 5
-                      ? () =>
-                          setState(() => _custom = (_custom - 5).clamp(5, 480))
-                      : null,
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.surfaceVariant,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: TextField(
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    controller: TextEditingController(text: _custom.toString()),
-                    onChanged: (v) {
-                      final n = int.tryParse(v);
-                      if (n != null) setState(() => _custom = n.clamp(5, 480));
-                    },
-                    decoration: const InputDecoration(
-                      suffixText: 'min',
-                      contentPadding:
-                          EdgeInsets.symmetric(vertical: AppSpacing.md),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                IconButton(
-                  icon: const Icon(Icons.add_rounded),
-                  onPressed: _custom < 480
-                      ? () =>
-                          setState(() => _custom = (_custom + 5).clamp(5, 480))
-                      : null,
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.surfaceVariant,
-                  ),
-                ),
-              ],
+            child: TextField(
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              controller: _customController,
+              onChanged: (v) {
+                final n = int.tryParse(v);
+                if (n != null) {
+                  setState(() => _custom = n.clamp(1, 480));
+                }
+              },
+              decoration: const InputDecoration(
+                suffixText: 'min',
+                contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+              ),
             ),
           ),
         ],
