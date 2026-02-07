@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:timelock/extensions/context_extensions.dart';
 import 'package:timelock/screens/export_import_screen.dart';
@@ -86,34 +87,75 @@ class _AppListScreenState extends State<AppListScreen> {
   Future<void> _loadRestrictions() async {
     try {
       final list = await NativeService.getRestrictions();
+      final existingByPkg = {
+        for (final r in _restrictions) r['packageName'] as String: r
+      };
+      var changed = false;
 
       for (final r in list) {
-        try {
-          final usage = await NativeService.getUsageToday(r['packageName']);
-          r['usedMinutes'] = usage['usedMinutes'] ?? 0;
-          r['isBlocked'] = usage['isBlocked'] ?? false;
-          r['usedMillis'] = usage['usedMillis'] ?? (r['usedMinutes'] * 60000);
-          r['usedMinutesWeek'] = usage['usedMinutesWeek'] ?? 0;
-        } catch (_) {
-          r['usedMinutes'] = 0;
-          r['isBlocked'] = false;
-          r['usedMillis'] = 0;
-          r['usedMinutesWeek'] = 0;
+        final pkg = r['packageName'] as String;
+        final existing = existingByPkg[pkg];
+
+        // Preserve cached fields to avoid rebuild flicker.
+        if (existing != null) {
+          r['iconBytes'] = existing['iconBytes'];
+          r['schedules'] = existing['schedules'];
+          r['usedMinutes'] = existing['usedMinutes'];
+          r['isBlocked'] = existing['isBlocked'];
+          r['usedMillis'] = existing['usedMillis'];
+          r['usedMinutesWeek'] = existing['usedMinutesWeek'];
         }
+
         try {
-          final schedules =
-              await NativeService.getSchedules(r['packageName'] as String);
-          r['schedules'] = schedules.map(_normalizeScheduleDays).toList();
+          final usage = await NativeService.getUsageToday(pkg);
+          final usedMinutes = usage['usedMinutes'] ?? 0;
+          final isBlocked = usage['isBlocked'] ?? false;
+          final usedMillis = usage['usedMillis'] ?? (usedMinutes * 60000);
+          final usedMinutesWeek = usage['usedMinutesWeek'] ?? 0;
+
+          if (r['usedMinutes'] != usedMinutes ||
+              r['isBlocked'] != isBlocked ||
+              r['usedMillis'] != usedMillis ||
+              r['usedMinutesWeek'] != usedMinutesWeek) {
+            changed = true;
+          }
+
+          r['usedMinutes'] = usedMinutes;
+          r['isBlocked'] = isBlocked;
+          r['usedMillis'] = usedMillis;
+          r['usedMinutesWeek'] = usedMinutesWeek;
         } catch (_) {
-          r['schedules'] = [];
+          // Keep previous values on error to avoid flicker.
+        }
+
+        if (r['schedules'] == null) {
+          try {
+            final schedules = await NativeService.getSchedules(pkg);
+            r['schedules'] = schedules.map(_normalizeScheduleDays).toList();
+            changed = true;
+          } catch (_) {
+            r['schedules'] = [];
+          }
+        }
+
+        if (r['iconBytes'] == null) {
+          try {
+            final bytes = await NativeService.getAppIcon(pkg);
+            if (bytes != null && bytes.isNotEmpty) {
+              r['iconBytes'] = bytes;
+              changed = true;
+            }
+          } catch (_) {}
         }
       }
 
       if (mounted) {
-        setState(() {
-          _restrictions = list;
-          _loading = false;
-        });
+        if (changed || _loading || _restrictions.length != list.length) {
+          setState(() {
+            _restrictions = list;
+            _loading = false;
+          });
+        }
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
@@ -300,60 +342,211 @@ class _AppListScreenState extends State<AppListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          _buildAppBar(),
-          if (!_permissionsOk)
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(child: _buildHeader()),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xs),
-                child: _permissionsBanner(),
+                    AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+                child: _buildStatsCard(),
               ),
             ),
-          if (_loading)
-            const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(strokeWidth: 3),
-              ),
-            )
-          else if (_restrictions.isEmpty)
-            SliverFillRemaining(child: _emptyState())
-          else
-            SliverPadding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              sliver: SliverList.separated(
-                itemCount: _restrictions.length,
-                itemBuilder: (_, i) => _restrictionCard(_restrictions[i]),
-                separatorBuilder: (_, __) =>
-                    const SizedBox(height: AppSpacing.md),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, AppSpacing.lg, AppSpacing.md, 0),
+                child: _buildSectionHeader(),
               ),
             ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAddFlow,
-        icon: const Icon(Icons.add_rounded, size: 24),
-        label: const Text('Agregar'),
+            if (!_permissionsOk)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+                  child: _permissionsBanner(),
+                ),
+              ),
+            if (_loading)
+              const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(strokeWidth: 3),
+                ),
+              )
+            else if (_restrictions.isEmpty)
+              SliverFillRemaining(child: _emptyState())
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xl),
+                sliver: SliverList.separated(
+                  itemCount: _restrictions.length,
+                  itemBuilder: (_, i) => _restrictionCard(_restrictions[i]),
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: AppSpacing.md),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  SliverAppBar _buildAppBar() {
-    return SliverAppBar(
-      expandedHeight: 120,
-      pinned: true,
-      flexibleSpace: const FlexibleSpaceBar(
-        titlePadding:
-            EdgeInsets.only(left: AppSpacing.lg, bottom: AppSpacing.md),
-        title: Text('AppTimeControl'),
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'AppTimeControl',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings_outlined, size: 20),
+                onPressed: () => _showSettingsMenu(),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Container(
+            height: 1,
+            color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+          ),
+        ],
       ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.settings_outlined, size: 24),
-          onPressed: () => _showSettingsMenu(),
+    );
+  }
+
+  Widget _buildStatsCard() {
+    final active = _activeCount();
+    final blocked = _blockedCount();
+    final expiring = _expiringCount();
+    final date = _formatShortDate();
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF1B1B2D),
+            Color(0xFF1A1A2E),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        const SizedBox(width: AppSpacing.xs),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Estado del día',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              Text(
+                date,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              _statItem(
+                value: active.toString(),
+                label: 'Apps activas',
+                color: AppColors.info,
+              ),
+              _statItem(
+                value: blocked.toString(),
+                label: 'Bloqueadas',
+                color: AppColors.error,
+              ),
+              _statItem(
+                value: expiring.toString(),
+                label: 'Por expirar',
+                color: AppColors.warning,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statItem(
+      {required String value, required String label, required Color color}) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader() {
+    return Row(
+      children: [
+        const Expanded(
+          child: Text(
+            'Aplicaciones restringidas',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        TextButton.icon(
+          onPressed: _openAddFlow,
+          icon: const Icon(Icons.add_rounded, size: 18),
+          label: const Text('Agregar'),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+            foregroundColor: AppColors.primary,
+            textStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -444,22 +637,22 @@ class _AppListScreenState extends State<AppListScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: 0.1),
-        border: Border.all(color: AppColors.warning, width: 1),
+        color: const Color(0xFF2B2012),
+        border: Border.all(color: const Color(0xFF5A3B12), width: 1),
         borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Row(
         children: [
           const Icon(Icons.warning_amber_rounded,
-              color: AppColors.warning, size: 24),
+              color: AppColors.warning, size: 22),
           const SizedBox(width: AppSpacing.md),
           const Expanded(
             child: Text(
-              'Faltan permisos necesarios',
+              'Faltan permisos críticos',
               style: TextStyle(
                 color: AppColors.warning,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -468,6 +661,15 @@ class _AppListScreenState extends State<AppListScreen> {
               context,
               MaterialPageRoute(builder: (_) => const PermissionsScreen()),
             ).then((_) => _checkPermissions()),
+            style: TextButton.styleFrom(
+              backgroundColor: const Color(0xFF4A2F10),
+              foregroundColor: AppColors.warning,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             child: const Text('Configurar'),
           ),
         ],
@@ -565,23 +767,36 @@ class _AppListScreenState extends State<AppListScreen> {
           onTap: () => _openLimitEditor(r),
           borderRadius: BorderRadius.circular(AppRadius.lg),
           child: Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: blocked
-                ? BoxDecoration(
-                    border: Border.all(color: AppColors.error, width: 2),
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                  )
-                : null,
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFF1A1A2E),
+                  Color(0xFF1C1C30),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(
+                color: blocked
+                    ? AppColors.error
+                    : AppColors.surfaceVariant.withValues(alpha: 0.8),
+                width: blocked ? 1.5 : 1,
+              ),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
+                    _buildAppIcon(r),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
                         r['appName'],
                         style: const TextStyle(
-                          fontSize: 17,
+                          fontSize: 16,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
                         ),
@@ -592,23 +807,20 @@ class _AppListScreenState extends State<AppListScreen> {
                     if (blocked)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.md,
-                          vertical: AppSpacing.xs,
+                          horizontal: AppSpacing.sm,
+                          vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.2),
+                          color: AppColors.error.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.lock_rounded,
-                                color: AppColors.error, size: 14),
-                            SizedBox(width: AppSpacing.xs),
                             Text(
                               'BLOQUEADA',
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.error,
                                 letterSpacing: 0.5,
@@ -619,47 +831,29 @@ class _AppListScreenState extends State<AppListScreen> {
                       ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                   child: LinearProgressIndicator(
                     value: progress,
-                    minHeight: 6,
+                    minHeight: 4,
                     color: progressColor,
                     backgroundColor: AppColors.surfaceVariant,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _formatUsageText(usedMinutes, usedMillis, quota, limitType),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                    Text(
-                      blocked
-                          ? (limitType == 'weekly'
-                              ? 'Se abre en reinicio semanal'
-                              : 'Se abre a medianoche')
-                          : _formatRemainingText(
-                              remainingMinutes, remainingMillis, quota, limitType),
-                      style: TextStyle(
-                        fontSize: 13,
-                        color:
-                            blocked ? AppColors.error : AppColors.textTertiary,
-                        fontWeight:
-                            blocked ? FontWeight.w500 : FontWeight.normal,
-                      ),
-                    ),
-                  ],
+                const SizedBox(height: AppSpacing.xs),
+                _usageSummaryTextRich(
+                  usedMinutes,
+                  usedMillis,
+                  remainingMinutes,
+                  remainingMillis,
+                  quota,
+                  limitType,
+                  progressColor,
                 ),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
                 const Divider(height: 1),
-                const SizedBox(height: AppSpacing.md),
+                const SizedBox(height: AppSpacing.sm),
                 _scheduleRow(r),
               ],
             ),
@@ -680,13 +874,13 @@ class _AppListScreenState extends State<AppListScreen> {
       child: Row(
         children: [
           const Icon(Icons.schedule_rounded,
-              color: AppColors.textTertiary, size: 20),
+              color: AppColors.textTertiary, size: 18),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               summary,
               style:
-                  const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+                  const TextStyle(fontSize: 12, color: AppColors.textTertiary),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -694,15 +888,79 @@ class _AppListScreenState extends State<AppListScreen> {
           const SizedBox(width: AppSpacing.sm),
           IconButton(
             onPressed: () => _openScheduleEditor(r),
-            icon: const Icon(Icons.edit_calendar_rounded, size: 20),
+            icon: const Icon(Icons.edit_rounded, size: 18),
             style: IconButton.styleFrom(
               backgroundColor: AppColors.surfaceVariant,
-              padding: const EdgeInsets.all(AppSpacing.sm),
+              padding: const EdgeInsets.all(6),
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildAppIcon(Map<String, dynamic> r) {
+    final bytes = r['iconBytes'];
+    if (bytes is Uint8List && bytes.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Image.memory(
+          bytes,
+          width: 22,
+          height: 22,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: const Icon(
+        Icons.apps_rounded,
+        size: 14,
+        color: AppColors.textTertiary,
+      ),
+    );
+  }
+
+  int _activeCount() {
+    return _restrictions.where((r) => (r['isEnabled'] ?? true) == true).length;
+  }
+
+  int _blockedCount() {
+    return _restrictions.where((r) => r['isBlocked'] == true).length;
+  }
+
+  int _expiringCount() {
+    return _restrictions.where((r) {
+      if (r['isBlocked'] == true) return false;
+      final progress = _progressFor(r);
+      return progress >= 0.8 && progress < 1.0;
+    }).length;
+  }
+
+  String _formatShortDate() {
+    final now = DateTime.now();
+    const months = [
+      'ene',
+      'feb',
+      'mar',
+      'abr',
+      'may',
+      'jun',
+      'jul',
+      'ago',
+      'sep',
+      'oct',
+      'nov',
+      'dic'
+    ];
+    final month = months[now.month - 1];
+    return '${now.day} $month ${now.year}';
   }
 
   Map<String, dynamic> _normalizeScheduleDays(Map<String, dynamic> s) {
@@ -731,17 +989,17 @@ class _AppListScreenState extends State<AppListScreen> {
       first['endHour'] as int? ?? 0,
       first['endMinute'] as int? ?? 0,
     );
-    if (schedules.length == 1) return '$dayText · $timeText';
-    return '$dayText · $timeText  +${schedules.length - 1} más';
+    if (schedules.length == 1) return '$dayText $timeText';
+    return '$dayText $timeText  +${schedules.length - 1} más';
   }
 
   String _formatTimeRange(int sh, int sm, int eh, int em) {
     final start = _fmt(sh, sm);
     final end = _fmt(eh, em);
     if (eh * 60 + em <= sh * 60 + sm) {
-      return '$start – $end (día sig.)';
+      return '$start-$end (día sig.)';
     }
-    return '$start – $end';
+    return '$start-$end';
   }
 
   String _fmt(int h, int m) {
@@ -759,7 +1017,7 @@ class _AppListScreenState extends State<AppListScreen> {
       6: 'V',
       7: 'S',
     };
-    return days.map((d) => labels[d] ?? '?').join(' ');
+    return days.map((d) => labels[d] ?? '?').join('·');
   }
 
   int _quotaMinutesFor(Map<String, dynamic> r) {
@@ -813,7 +1071,7 @@ class _AppListScreenState extends State<AppListScreen> {
   String _formatUsageText(
       int usedMinutes, int usedMillis, int quotaMinutes, String limitType) {
     if (limitType == 'weekly') {
-      return '${AppUtils.formatTime(usedMinutes)} usados semana';
+      return '${AppUtils.formatTime(usedMinutes)} usados';
     }
     if (quotaMinutes <= 1) {
       final seconds = (usedMillis / 1000).floor();
@@ -825,12 +1083,55 @@ class _AppListScreenState extends State<AppListScreen> {
   String _formatRemainingText(
       int remainingMinutes, int remainingMillis, int quotaMinutes, String limitType) {
     if (limitType == 'weekly') {
-      return '${AppUtils.formatTime(remainingMinutes)} restantes semana';
+      return '${AppUtils.formatTime(remainingMinutes)} restantes';
     }
     if (quotaMinutes <= 1) {
       final seconds = (remainingMillis / 1000).ceil();
       return '${seconds}s restantes';
     }
     return '${AppUtils.formatTime(remainingMinutes)} restantes';
+  }
+
+  String _usageSummaryText(int usedMinutes, int usedMillis, int remainingMinutes,
+      int remainingMillis, int quotaMinutes, String limitType) {
+    final used = _formatUsageText(usedMinutes, usedMillis, quotaMinutes, limitType);
+    final remaining =
+        _formatRemainingText(remainingMinutes, remainingMillis, quotaMinutes, limitType);
+    return '$used · $remaining';
+  }
+
+  Widget _usageSummaryTextRich(
+      int usedMinutes,
+      int usedMillis,
+      int remainingMinutes,
+      int remainingMillis,
+      int quotaMinutes,
+      String limitType,
+      Color usedColor) {
+    final used = _formatUsageText(usedMinutes, usedMillis, quotaMinutes, limitType);
+    final remaining =
+        _formatRemainingText(remainingMinutes, remainingMillis, quotaMinutes, limitType);
+    return RichText(
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: used,
+            style: TextStyle(
+              fontSize: 12,
+              color: usedColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const TextSpan(
+            text: ' · ',
+            style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+          ),
+          TextSpan(
+            text: remaining,
+            style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
+          ),
+        ],
+      ),
+    );
   }
 }
