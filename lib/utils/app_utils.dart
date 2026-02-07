@@ -8,4 +8,81 @@ class AppUtils {
     }
     return '${minutes}m';
   }
+
+  static String formatDurationMillis(int millis) {
+    final totalSeconds = (millis / 1000).floor().clamp(0, 1 << 31);
+    var remaining = totalSeconds;
+    final days = remaining ~/ 86400;
+    remaining %= 86400;
+    final hours = remaining ~/ 3600;
+    remaining %= 3600;
+    final minutes = remaining ~/ 60;
+    final seconds = remaining % 60;
+
+    final parts = <String>[];
+    if (days > 0) parts.add('${days}d');
+    if (hours > 0) parts.add('${hours}h');
+    if (minutes > 0) parts.add('${minutes}m');
+    if (seconds > 0 || parts.isEmpty) parts.add('${seconds}s');
+    return parts.join(' ');
+  }
+
+  static DateTime lastWeeklyReset(
+      DateTime now, int resetDay, int resetHour, int resetMinute) {
+    final targetWeekday = resetDay == 1 ? 7 : resetDay - 1;
+    final todayReset =
+        DateTime(now.year, now.month, now.day, resetHour, resetMinute);
+    final daysBack = (now.weekday - targetWeekday) % 7;
+    var candidate = todayReset.subtract(Duration(days: daysBack));
+    if (now.isBefore(candidate)) {
+      candidate = candidate.subtract(const Duration(days: 7));
+    }
+    return candidate;
+  }
+
+  static String formatWeeklyResetLabel(
+      int resetDay, int resetHour, int resetMinute,
+      {DateTime? now}) {
+    final anchor = lastWeeklyReset(
+        now ?? DateTime.now(), resetDay, resetHour, resetMinute);
+    const labels = {
+      1: 'Lun',
+      2: 'Mar',
+      3: 'Mié',
+      4: 'Jue',
+      5: 'Vie',
+      6: 'Sáb',
+      7: 'Dom',
+    };
+    final dayLabel = labels[anchor.weekday] ?? 'Día';
+    final h = anchor.hour.toString().padLeft(2, '0');
+    final m = anchor.minute.toString().padLeft(2, '0');
+    return 'desde $dayLabel $h:$m';
+  }
+
+  static DateTime nextWeeklyReset(
+      DateTime now, int resetDay, int resetHour, int resetMinute) {
+    final last = lastWeeklyReset(now, resetDay, resetHour, resetMinute);
+    return last.add(const Duration(days: 7));
+  }
+
+  static String formatWeeklyNextResetLabel(
+      int resetDay, int resetHour, int resetMinute,
+      {DateTime? now}) {
+    final anchor = nextWeeklyReset(
+        now ?? DateTime.now(), resetDay, resetHour, resetMinute);
+    const labels = {
+      1: 'Lun',
+      2: 'Mar',
+      3: 'Mié',
+      4: 'Jue',
+      5: 'Vie',
+      6: 'Sáb',
+      7: 'Dom',
+    };
+    final dayLabel = labels[anchor.weekday] ?? 'Día';
+    final h = anchor.hour.toString().padLeft(2, '0');
+    final m = anchor.minute.toString().padLeft(2, '0');
+    return 'hasta $dayLabel $h:$m';
+  }
 }

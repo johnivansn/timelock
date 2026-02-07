@@ -982,6 +982,9 @@ class _AppListScreenState extends State<AppListScreen> {
                   remainingMillis,
                   quota,
                   limitType,
+                  (r['weeklyResetDay'] as int?) ?? 2,
+                  (r['weeklyResetHour'] as int?) ?? 0,
+                  (r['weeklyResetMinute'] as int?) ?? 0,
                   progressColor,
                 ),
                   const SizedBox(height: AppSpacing.xs),
@@ -1337,23 +1340,36 @@ class _AppListScreenState extends State<AppListScreen> {
     return {};
   }
 
-  String _formatUsageText(
-      int usedMinutes, int usedMillis, int quotaMinutes, String limitType) {
-    if (limitType == 'weekly') {
-      return '${AppUtils.formatTime(usedMinutes)} usados';
+    String _formatUsageText(
+        int usedMinutes,
+        int usedMillis,
+        int quotaMinutes,
+        String limitType,
+        int weeklyResetDay,
+        int weeklyResetHour,
+        int weeklyResetMinute) {
+      if (limitType == 'weekly') {
+        final weeklyMillis = usedMinutes * 60000;
+        final resetLabel = AppUtils.formatWeeklyResetLabel(
+            weeklyResetDay, weeklyResetHour, weeklyResetMinute);
+        return '${AppUtils.formatDurationMillis(weeklyMillis)} usados $resetLabel';
+      }
+      return '${AppUtils.formatDurationMillis(usedMillis)} usados';
     }
-    if (quotaMinutes <= 1) {
-      final seconds = (usedMillis / 1000).floor();
-      return '${seconds}s usados';
-    }
-    return '${AppUtils.formatTime(usedMinutes)} usados';
-  }
 
   String _formatRemainingText(
-      int remainingMinutes, int remainingMillis, int quotaMinutes, String limitType) {
-    if (limitType == 'weekly') {
-      return '${AppUtils.formatTime(remainingMinutes)} restantes';
-    }
+        int remainingMinutes,
+        int remainingMillis,
+        int quotaMinutes,
+        String limitType,
+        int weeklyResetDay,
+        int weeklyResetHour,
+        int weeklyResetMinute) {
+      if (limitType == 'weekly') {
+        final nextLabel = AppUtils.formatWeeklyNextResetLabel(
+            weeklyResetDay, weeklyResetHour, weeklyResetMinute);
+        return '${AppUtils.formatTime(remainingMinutes)} restantes esta semana ($nextLabel)';
+      }
     if (quotaMinutes <= 1) {
       final seconds = (remainingMillis / 1000).ceil();
       return '${seconds}s restantes';
@@ -1361,25 +1377,62 @@ class _AppListScreenState extends State<AppListScreen> {
     return '${AppUtils.formatTime(remainingMinutes)} restantes';
   }
 
-  String _usageSummaryText(int usedMinutes, int usedMillis, int remainingMinutes,
-      int remainingMillis, int quotaMinutes, String limitType) {
-    final used = _formatUsageText(usedMinutes, usedMillis, quotaMinutes, limitType);
-    final remaining =
-        _formatRemainingText(remainingMinutes, remainingMillis, quotaMinutes, limitType);
+  String _usageSummaryText(
+      int usedMinutes,
+      int usedMillis,
+      int remainingMinutes,
+      int remainingMillis,
+      int quotaMinutes,
+      String limitType,
+      int weeklyResetDay,
+      int weeklyResetHour,
+      int weeklyResetMinute) {
+    final used = _formatUsageText(
+        usedMinutes,
+        usedMillis,
+        quotaMinutes,
+        limitType,
+        weeklyResetDay,
+        weeklyResetHour,
+        weeklyResetMinute);
+    final remaining = _formatRemainingText(
+        remainingMinutes,
+        remainingMillis,
+        quotaMinutes,
+        limitType,
+        weeklyResetDay,
+        weeklyResetHour,
+        weeklyResetMinute);
     return '$used · $remaining';
   }
 
-    Widget _usageSummaryTextRich(
-        int usedMinutes,
-        int usedMillis,
-        int remainingMinutes,
-        int remainingMillis,
-        int quotaMinutes,
-        String limitType,
-        Color usedColor) {
-      final used = _formatUsageText(usedMinutes, usedMillis, quotaMinutes, limitType);
-      final remaining =
-          _formatRemainingText(remainingMinutes, remainingMillis, quotaMinutes, limitType);
+  Widget _usageSummaryTextRich(
+      int usedMinutes,
+      int usedMillis,
+      int remainingMinutes,
+      int remainingMillis,
+      int quotaMinutes,
+      String limitType,
+      int weeklyResetDay,
+      int weeklyResetHour,
+      int weeklyResetMinute,
+      Color usedColor) {
+    final used = _formatUsageText(
+        usedMinutes,
+        usedMillis,
+        quotaMinutes,
+        limitType,
+        weeklyResetDay,
+        weeklyResetHour,
+        weeklyResetMinute);
+    final remaining = _formatRemainingText(
+        remainingMinutes,
+        remainingMillis,
+        quotaMinutes,
+        limitType,
+        weeklyResetDay,
+        weeklyResetHour,
+        weeklyResetMinute);
       return RichText(
         text: TextSpan(
           children: [
