@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:timelock/extensions/context_extensions.dart';
 import 'package:timelock/screens/export_import_screen.dart';
@@ -24,6 +25,7 @@ class _AppListScreenState extends State<AppListScreen> {
   bool _loading = true;
   bool _permissionsOk = false;
   bool _adminEnabled = false;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
@@ -31,10 +33,25 @@ class _AppListScreenState extends State<AppListScreen> {
     _init();
   }
 
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _init() async {
     await _startMonitoring();
     await _checkPermissions();
     await _loadRestrictions();
+    _startAutoRefresh();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!mounted || _loading) return;
+      _loadRestrictions();
+    });
   }
 
   Future<bool> _checkPermissions() async {
