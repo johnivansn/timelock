@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
-import 'package:timelock/widgets/time_picker_dialog.dart';
 
 class LimitPickerDialog extends StatefulWidget {
   const LimitPickerDialog({
@@ -29,6 +29,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   late int _weeklyMinutes;
   late int _weeklyResetDay;
   late final TextEditingController _weeklyController;
+  late final TextEditingController _dailyMinutesController;
   bool _loadingSchedules = false;
   List<Map<String, dynamic>> _schedules = [];
   bool _schedulesChanged = false;
@@ -38,6 +39,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   final Set<String> _updatedScheduleIds = {};
   int _localScheduleCounter = 0;
   bool _inactiveFirst = false;
+  final Map<int, TextEditingController> _dayControllers = {};
   late String _initialLimitType;
   late String _initialDailyMode;
   late int _initialDailyMinutes;
@@ -57,8 +59,15 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     _weeklyResetDay = (init['weeklyResetDay'] as int?) ?? 2;
     _weeklyController =
         TextEditingController(text: _weeklyMinutes.toString());
+    _dailyMinutesController =
+        TextEditingController(text: _dailyMinutes.toString());
     _dailyQuotas = _parseDailyQuotas(init['dailyQuotas']) ??
         {2: _dailyMinutes, 3: _dailyMinutes, 4: _dailyMinutes, 5: _dailyMinutes, 6: _dailyMinutes};
+    for (var day = 1; day <= 7; day++) {
+      final value = _dailyQuotas[day] ?? 0;
+      _dayControllers[day] =
+          TextEditingController(text: value > 0 ? value.toString() : '');
+    }
     _initialLimitType = _limitType;
     _initialDailyMode = _dailyMode;
     _initialDailyMinutes = _dailyMinutes;
@@ -73,6 +82,10 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   @override
   void dispose() {
     _weeklyController.dispose();
+    _dailyMinutesController.dispose();
+    for (final c in _dayControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -101,14 +114,6 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       return map;
     }
     return null;
-  }
-
-  Future<void> _pickMinutes(ValueChanged<int> onPicked) async {
-    final minutes = await showDialog<int>(
-      context: context,
-      builder: (_) => const QuotaTimePicker(),
-    );
-    if (minutes != null) onPicked(minutes);
   }
 
   String? get _packageName {
@@ -657,7 +662,10 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 child: ChoiceChip(
                   label: const Text('Mismo cada día'),
                   selected: _dailyMode == 'same',
-                  onSelected: (_) => setState(() => _dailyMode = 'same'),
+                  onSelected: (_) => setState(() {
+                    _dailyMode = 'same';
+                    _dailyMinutesController.text = _dailyMinutes.toString();
+                  }),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -672,10 +680,10 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
           ),
           const SizedBox(height: AppSpacing.md),
           if (_dailyMode == 'same')
-            _minutesRow(
+            _minutesInput(
               label: 'Minutos por día',
-              value: _dailyMinutes,
-              onTap: () => _pickMinutes((m) => setState(() => _dailyMinutes = m)),
+              controller: _dailyMinutesController,
+              onChanged: (m) => setState(() => _dailyMinutes = m),
             ),
           if (_dailyMode == 'per_day') _perDayRows(),
         ],
@@ -832,6 +840,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             rightSelected: _dailyMode == 'per_day',
             onLeft: () => setState(() {
               _dailyMode = 'same';
+              _dailyMinutesController.text = _dailyMinutes.toString();
               _recomputeDirty();
             }),
             onRight: () => setState(() {
@@ -930,7 +939,24 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     int? value,
     VoidCallback? onTap,
   }) {
-    final shown = value ?? _dailyMinutes;
+    final _ = value;
+    return _minutesInput(
+      label: label,
+      controller: _dailyMinutesController,
+      onChanged: (m) {
+        setState(() {
+          _dailyMinutes = m;
+          _recomputeDirty();
+        });
+      },
+    );
+  }
+
+  Widget _minutesInput({
+    required String label,
+    required TextEditingController controller,
+    required ValueChanged<int> onChanged,
+  }) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -952,31 +978,22 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          InkWell(
-            onTap: onTap ??
-                () => _pickMinutes((m) => setState(() {
-                      _dailyMinutes = m;
-                      _recomputeDirty();
-                    })),
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              height: 50,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: AppColors.surfaceVariant.withValues(alpha: 0.8),
-                ),
-              ),
-              child: Text(
-                shown.toString(),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            textAlign: TextAlign.center,
+            onChanged: (v) {
+              final n = int.tryParse(v) ?? 0;
+              onChanged(n.clamp(0, 480));
+            },
+            decoration: InputDecoration(
+              hintText: '0',
+              suffixText: 'min',
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+              filled: true,
+              fillColor: AppColors.surface,
             ),
           ),
         ],
@@ -1011,43 +1028,51 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 ),
               ),
               Expanded(
-                child: InkWell(
-                  onTap: () => _pickMinutes((m) => setState(() {
-                        _dailyQuotas[day] = m;
-                        _recomputeDirty();
-                      })),
-                  borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      height: 40,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant.withValues(alpha: 0.6),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.surfaceVariant.withValues(alpha: 0.9),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.schedule_rounded,
-                              size: 14, color: AppColors.textSecondary),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${value}m',
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
+                child: TextField(
+                  controller: _dayControllers[day],
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textAlign: TextAlign.center,
+                  onChanged: (v) {
+                    final n = int.tryParse(v);
+                    setState(() {
+                      _dailyQuotas[day] = (n ?? 0).clamp(0, 480);
+                      _recomputeDirty();
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Sin límite',
+                    hintStyle: TextStyle(
+                      color: AppColors.textTertiary.withValues(alpha: 0.8),
                     ),
+                    suffixText: 'min',
+                    suffixStyle: const TextStyle(color: AppColors.textSecondary),
+                    filled: true,
+                    fillColor: (value <= 0
+                            ? AppColors.surfaceVariant
+                            : AppColors.primary.withValues(alpha: 0.12))
+                        .withValues(alpha: 0.6),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
                   ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              SizedBox(
+                width: 84,
+                child: Text(
+                  value <= 0 ? 'Sin límite' : 'Límite',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: value <= 0
+                        ? AppColors.warning
+                        : AppColors.textTertiary,
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
       }),
     );
