@@ -5,11 +5,13 @@ class RestrictionEditScreen extends StatelessWidget {
   const RestrictionEditScreen({
     super.key,
     required this.appName,
+    this.packageName,
     this.initial,
     this.isCreate = false,
   });
 
   final String appName;
+  final String? packageName;
   final Map<String, dynamic>? initial;
   final bool isCreate;
 
@@ -21,6 +23,7 @@ class RestrictionEditScreen extends StatelessWidget {
         initial: initial,
         fullScreen: true,
         useEditLayoutForCreate: isCreate,
+        packageName: packageName,
       ),
     );
   }

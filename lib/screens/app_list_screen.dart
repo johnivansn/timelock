@@ -222,6 +222,7 @@ class _AppListScreenState extends State<AppListScreen> {
       MaterialPageRoute(
         builder: (_) => RestrictionEditScreen(
           appName: app['appName'] as String,
+          packageName: app['packageName'] as String,
           isCreate: true,
         ),
       ),
@@ -235,51 +236,7 @@ class _AppListScreenState extends State<AppListScreen> {
       limit: limit,
     );
 
-    if (!mounted) return;
-    final addSchedule = await _confirmAddSchedule();
-    if (addSchedule == 'manual') {
-      await _openScheduleEditor({
-        'appName': app['appName'],
-        'packageName': app['packageName'],
-      });
-    } else if (addSchedule == 'template') {
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => ScheduleEditorDialog(
-          appName: app['appName'],
-          packageName: app['packageName'],
-          openTemplatePicker: true,
-        ),
-      );
-      await _loadRestrictions();
-    }
-  }
-
-  Future<String?> _confirmAddSchedule() {
-    return showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Agregar horario'),
-        content:
-            const Text('¿Deseas configurar un horario de bloqueo ahora?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, 'no'),
-            child: const Text('Ahora no'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, 'manual'),
-            child: const Text('Manual'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, 'template'),
-            child: const Text('Usar etiqueta'),
-          ),
-        ],
-      ),
-    );
+    // Horarios se configuran desde la pantalla de edición.
   }
 
   Future<void> _openScheduleEditor(Map<String, dynamic> r) async {

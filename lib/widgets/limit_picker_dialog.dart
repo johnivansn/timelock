@@ -12,12 +12,14 @@ class LimitPickerDialog extends StatefulWidget {
     this.initial,
     this.fullScreen = false,
     this.useEditLayoutForCreate = false,
+    this.packageName,
   });
 
   final String appName;
   final Map<String, dynamic>? initial;
   final bool fullScreen;
   final bool useEditLayoutForCreate;
+  final String? packageName;
 
   @override
   State<LimitPickerDialog> createState() => _LimitPickerDialogState();
@@ -167,7 +169,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   }
 
   String? get _packageName {
-    final value = widget.initial?['packageName'];
+    final value = widget.initial?['packageName'] ?? widget.packageName;
     if (value == null) return null;
     return value.toString();
   }
@@ -1236,40 +1238,40 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         const SizedBox(height: AppSpacing.sm),
         if (_loadingSchedules)
           const Center(child: CircularProgressIndicator(strokeWidth: 3))
-          else if (_schedules.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(
-                  color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+        else if (_schedules.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(
+                color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+              ),
+            ),
+            child: const Column(
+              children: [
+                Icon(Icons.calendar_today_rounded,
+                    size: 28, color: AppColors.textTertiary),
+                SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Sin horarios configurados',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              child: const Column(
-                children: [
-                  Icon(Icons.calendar_today_rounded,
-                      size: 28, color: AppColors.textTertiary),
-                  SizedBox(height: AppSpacing.sm),
-                  Text(
-                    'Sin horarios configurados',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Bloquea la app en rangos horarios específicos',
-                    style:
-                        TextStyle(fontSize: 11, color: AppColors.textTertiary),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            )
+                SizedBox(height: 4),
+                Text(
+                  'Bloquea la app en rangos horarios específicos',
+                  style:
+                      TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
         else
           Column(
             children: _schedules.map(_scheduleTile).toList(),
