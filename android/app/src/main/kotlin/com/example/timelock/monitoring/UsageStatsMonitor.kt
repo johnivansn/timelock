@@ -8,6 +8,7 @@ import com.example.timelock.database.DailyUsage
 import com.example.timelock.notifications.PillNotificationHelper
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.ceil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -125,11 +126,11 @@ class UsageStatsMonitor(private val context: Context) {
         checkAndNotifyQuota(
                 restriction.packageName,
                 restriction.appName,
-                usageMinutes,
+                usageMillis,
                 restriction.dailyQuotaMinutes
         )
 
-        if (usageMinutes >= restriction.dailyQuotaMinutes && !dailyUsage.isBlocked) {
+        if (usageMillis >= restriction.dailyQuotaMinutes * 60000L && !dailyUsage.isBlocked) {
           dailyUsage = dailyUsage.copy(isBlocked = true)
           database.dailyUsageDao().update(dailyUsage)
           pillNotification.notifyAppBlocked(
@@ -160,10 +161,12 @@ class UsageStatsMonitor(private val context: Context) {
   private fun checkAndNotifyQuota(
           packageName: String,
           appName: String,
-          usedMinutes: Int,
+          usedMillis: Long,
           quotaMinutes: Int
   ) {
-    val remainingMinutes = quotaMinutes - usedMinutes
+    val quotaMillis = quotaMinutes * 60000L
+    val remainingMillis = quotaMillis - usedMillis
+    val remainingMinutes = ceil(remainingMillis / 60000.0).toInt()
 
     when {
       remainingMinutes == 1 && !notifiedLastMinute.contains(packageName) -> {
@@ -171,15 +174,15 @@ class UsageStatsMonitor(private val context: Context) {
         notifiedLastMinute.add(packageName)
         Log.i(TAG, "Notificado último minuto para $packageName")
       }
-      usedMinutes >= (quotaMinutes * 0.75).toInt() &&
+      usedMillis >= (quotaMillis * 0.75).toLong() &&
               remainingMinutes > 1 &&
               !notified75Percent.contains(packageName) -> {
         pillNotification.notifyQuota75(appName, packageName, remainingMinutes)
         notified75Percent.add(packageName)
         Log.i(TAG, "Notificado 75% para $packageName")
       }
-      usedMinutes >= (quotaMinutes * 0.5).toInt() &&
-              usedMinutes < (quotaMinutes * 0.75).toInt() &&
+      usedMillis >= (quotaMillis * 0.5).toLong() &&
+              usedMillis < (quotaMillis * 0.75).toLong() &&
               !notified50Percent.contains(packageName) -> {
         pillNotification.notifyQuota50(appName, packageName, remainingMinutes)
         notified50Percent.add(packageName)

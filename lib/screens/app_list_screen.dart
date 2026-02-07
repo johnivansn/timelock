@@ -67,9 +67,11 @@ class _AppListScreenState extends State<AppListScreen> {
           final usage = await NativeService.getUsageToday(r['packageName']);
           r['usedMinutes'] = usage['usedMinutes'] ?? 0;
           r['isBlocked'] = usage['isBlocked'] ?? false;
+          r['usedMillis'] = usage['usedMillis'] ?? (r['usedMinutes'] * 60000);
         } catch (_) {
           r['usedMinutes'] = 0;
           r['isBlocked'] = false;
+          r['usedMillis'] = 0;
         }
         try {
           final schedules =
@@ -166,9 +168,14 @@ class _AppListScreenState extends State<AppListScreen> {
   }
 
   double _progressFor(Map<String, dynamic> r) {
+    final usedMillis = (r['usedMillis'] as num?)?.toDouble();
+    final quotaMinutes = (r['dailyQuotaMinutes'] as int).toDouble();
+    if (usedMillis != null) {
+      final quotaMillis = quotaMinutes * 60000.0;
+      return (usedMillis / quotaMillis).clamp(0.0, 1.0);
+    }
     final used = (r['usedMinutes'] as int).toDouble();
-    final quota = (r['dailyQuotaMinutes'] as int).toDouble();
-    return (used / quota).clamp(0.0, 1.0);
+    return (used / quotaMinutes).clamp(0.0, 1.0);
   }
 
   @override
@@ -400,7 +407,9 @@ class _AppListScreenState extends State<AppListScreen> {
     final progress = _progressFor(r);
     final used = r['usedMinutes'] as int;
     final quota = r['dailyQuotaMinutes'] as int;
-    final remaining = (quota - used).clamp(0, quota);
+    final usedMillis = (r['usedMillis'] as num?)?.toInt() ?? used * 60000;
+    final remainingMillis = (quota * 60000 - usedMillis).clamp(0, quota * 60000);
+    final remainingMinutes = (quota - used).clamp(0, quota);
 
     final progressColor = blocked
         ? AppColors.error
@@ -502,7 +511,7 @@ class _AppListScreenState extends State<AppListScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '${AppUtils.formatTime(used)} usados',
+                      _formatUsageText(used, usedMillis, quota),
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.textTertiary,
@@ -511,7 +520,7 @@ class _AppListScreenState extends State<AppListScreen> {
                     Text(
                       blocked
                           ? 'Se abre a medianoche'
-                          : '${AppUtils.formatTime(remaining)} restantes',
+                          : _formatRemainingText(remainingMinutes, remainingMillis, quota),
                       style: TextStyle(
                         fontSize: 13,
                         color:
@@ -625,5 +634,22 @@ class _AppListScreenState extends State<AppListScreen> {
       7: 'S',
     };
     return days.map((d) => labels[d] ?? '?').join(' ');
+  }
+
+  String _formatUsageText(int usedMinutes, int usedMillis, int quotaMinutes) {
+    if (quotaMinutes <= 1) {
+      final seconds = (usedMillis / 1000).floor();
+      return '${seconds}s usados';
+    }
+    return '${AppUtils.formatTime(usedMinutes)} usados';
+  }
+
+  String _formatRemainingText(
+      int remainingMinutes, int remainingMillis, int quotaMinutes) {
+    if (quotaMinutes <= 1) {
+      final seconds = (remainingMillis / 1000).ceil();
+      return '${seconds}s restantes';
+    }
+    return '${AppUtils.formatTime(remainingMinutes)} restantes';
   }
 }

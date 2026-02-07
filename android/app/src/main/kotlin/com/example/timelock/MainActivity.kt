@@ -26,6 +26,7 @@ import com.example.timelock.optimization.DataCleanupManager
 import com.example.timelock.services.AppBlockAccessibilityService
 import com.example.timelock.services.UsageMonitorService
 import com.example.timelock.utils.AppUtils
+import com.example.timelock.monitoring.UsageStatsMonitor
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -747,9 +748,11 @@ class MainActivity : FlutterActivity() {
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val today = dateFormat.format(Date())
     val usage = database.dailyUsageDao().getUsage(packageName, today)
+    val liveMillis = UsageStatsMonitor(this).getUsageToday(packageName)
     return mapOf(
             "usedMinutes" to (usage?.usedMinutes ?: 0),
-            "isBlocked" to (usage?.isBlocked ?: false)
+            "isBlocked" to (usage?.isBlocked ?: false),
+            "usedMillis" to liveMillis
     )
   }
 
