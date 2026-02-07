@@ -6,6 +6,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
 object AppUtils {
@@ -90,8 +91,8 @@ object AppUtils {
       Calendar.SUNDAY to "Dom"
     )
     val dayLabel = labels[cal.get(Calendar.DAY_OF_WEEK)] ?: "Día"
-    val h = cal.get(Calendar.HOUR_OF_DAY).toString().padLeft(2, '0')
-    val m = cal.get(Calendar.MINUTE).toString().padLeft(2, '0')
+    val h = cal.get(Calendar.HOUR_OF_DAY).toString().padStart(2, '0')
+    val m = cal.get(Calendar.MINUTE).toString().padStart(2, '0')
     return "desde $dayLabel $h:$m"
   }
 
@@ -115,8 +116,8 @@ object AppUtils {
       Calendar.SUNDAY to "Dom"
     )
     val dayLabel = labels[cal.get(Calendar.DAY_OF_WEEK)] ?: "Día"
-    val h = cal.get(Calendar.HOUR_OF_DAY).toString().padLeft(2, '0')
-    val m = cal.get(Calendar.MINUTE).toString().padLeft(2, '0')
+    val h = cal.get(Calendar.HOUR_OF_DAY).toString().padStart(2, '0')
+    val m = cal.get(Calendar.MINUTE).toString().padStart(2, '0')
     return "hasta $dayLabel $h:$m"
   }
 

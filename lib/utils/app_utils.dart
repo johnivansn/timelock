@@ -151,4 +151,24 @@ class AppUtils {
 
     return base;
   }
+
+  static double computeIconCacheLimitMb({
+    required int memoryClassMb,
+    required bool powerSave,
+  }) {
+    double base;
+    if (memoryClassMb <= 256) {
+      base = 5;
+    } else if (memoryClassMb <= 384) {
+      base = 10;
+    } else {
+      base = 20;
+    }
+
+    if (powerSave) {
+      base *= 0.6;
+    }
+
+    return base;
+  }
 }

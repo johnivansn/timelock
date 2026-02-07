@@ -7,6 +7,7 @@ import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.DailyUsage
 import com.example.timelock.database.getDailyQuotaForDay
 import com.example.timelock.notifications.PillNotificationHelper
+import com.example.timelock.utils.AppUtils
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.ceil

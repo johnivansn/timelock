@@ -6,6 +6,7 @@ import android.util.Log
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.monitoring.ScheduleMonitor
 import com.example.timelock.notifications.PillNotificationHelper
+import com.example.timelock.utils.AppUtils
 import java.text.SimpleDateFormat
 import java.util.*
 

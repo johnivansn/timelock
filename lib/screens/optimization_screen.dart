@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:timelock/extensions/context_extensions.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
+import 'package:timelock/utils/app_utils.dart';
 
 class OptimizationScreen extends StatefulWidget {
   const OptimizationScreen({super.key});
@@ -14,6 +15,9 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
   bool _batterySaverEnabled = false;
   bool _loading = true;
   Map<String, dynamic>? _stats;
+  int _memoryClassMb = 0;
+  double _iconCacheLimitMb = 0;
+  int _iconPrefetchCount = 0;
 
   @override
   void initState() {
@@ -24,11 +28,22 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
   Future<void> _loadSettings() async {
     try {
       final enabled = await NativeService.isBatterySaverEnabled();
+      final memoryClass = await NativeService.getMemoryClass();
       final stats = await NativeService.getOptimizationStats();
 
       if (mounted) {
         setState(() {
           _batterySaverEnabled = enabled;
+          _memoryClassMb = memoryClass;
+          _iconCacheLimitMb = AppUtils.computeIconCacheLimitMb(
+            memoryClassMb: memoryClass,
+            powerSave: enabled,
+          );
+          _iconPrefetchCount = AppUtils.computeIconPrefetchCount(
+            screenWidth: MediaQuery.of(context).size.width,
+            memoryClassMb: memoryClass,
+            powerSave: enabled,
+          );
           _stats = stats;
           _loading = false;
         });
@@ -245,6 +260,24 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                             icon: Icons.cached_rounded,
                             label: 'Cache',
                             value: '${_stats!['cacheSizeKB']} KB',
+                          ),
+                          const Divider(height: AppSpacing.md),
+                          _statRow(
+                            icon: Icons.memory_rounded,
+                            label: 'RAM clase',
+                            value: '$_memoryClassMb MB',
+                          ),
+                          const Divider(height: AppSpacing.md),
+                          _statRow(
+                            icon: Icons.folder_special_rounded,
+                            label: 'Límite cache íconos',
+                            value: '${_iconCacheLimitMb.toStringAsFixed(1)} MB',
+                          ),
+                          const Divider(height: AppSpacing.md),
+                          _statRow(
+                            icon: Icons.download_for_offline_rounded,
+                            label: 'Prefetch íconos',
+                            value: '$_iconPrefetchCount',
                           ),
                           const Divider(height: AppSpacing.md),
                           _statRow(
