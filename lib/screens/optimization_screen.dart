@@ -76,8 +76,9 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
           const SliverAppBar(
             pinned: true,
             title: Text('Optimización'),
@@ -339,7 +340,8 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
             ),
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
           ],
-        ],
+          ],
+        ),
       ),
     );
   }

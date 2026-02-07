@@ -83,8 +83,9 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
           const SliverAppBar(
             pinned: true,
             title: Text('Export / Import'),
@@ -360,7 +361,8 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
-        ],
+          ],
+        ),
       ),
     );
   }

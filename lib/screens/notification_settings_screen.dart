@@ -69,8 +69,9 @@ class _NotificationSettingsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
           const SliverAppBar(
             pinned: true,
             title: Text('Notificaciones'),
@@ -256,7 +257,8 @@ class _NotificationSettingsScreenState
             ),
             const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
           ],
-        ],
+          ],
+        ),
       ),
     );
   }

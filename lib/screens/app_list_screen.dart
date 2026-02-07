@@ -7,6 +7,7 @@ import 'package:timelock/screens/notification_settings_screen.dart';
 import 'package:timelock/screens/optimization_screen.dart';
 import 'package:timelock/screens/permissions_screen.dart';
 import 'package:timelock/screens/pin_verify_screen.dart';
+import 'package:timelock/screens/restriction_edit_screen.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
@@ -301,13 +302,13 @@ class _AppListScreenState extends State<AppListScreen> {
         await _requireAdmin('Ingresa tu PIN para modificar límites');
     if (!allowed || !mounted) return;
 
-    final limit = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => LimitPickerDialog(
-        appName: r['appName'],
-        initial: r,
+    final limit = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RestrictionEditScreen(
+          appName: r['appName'],
+          initial: r,
+        ),
       ),
     );
     if (limit == null) return;

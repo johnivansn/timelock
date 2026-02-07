@@ -10,10 +10,12 @@ class LimitPickerDialog extends StatefulWidget {
     super.key,
     required this.appName,
     this.initial,
+    this.fullScreen = false,
   });
 
   final String appName;
   final Map<String, dynamic>? initial;
+  final bool fullScreen;
 
   @override
   State<LimitPickerDialog> createState() => _LimitPickerDialogState();
@@ -36,6 +38,13 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   final Set<String> _updatedScheduleIds = {};
   int _localScheduleCounter = 0;
   bool _inactiveFirst = false;
+  late String _initialLimitType;
+  late String _initialDailyMode;
+  late int _initialDailyMinutes;
+  late Map<int, int> _initialDailyQuotas;
+  late int _initialWeeklyMinutes;
+  late int _initialWeeklyResetDay;
+  final Map<String, Map<String, dynamic>> _originalSchedulesById = {};
 
   @override
   void initState() {
@@ -50,6 +59,12 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         TextEditingController(text: _weeklyMinutes.toString());
     _dailyQuotas = _parseDailyQuotas(init['dailyQuotas']) ??
         {2: _dailyMinutes, 3: _dailyMinutes, 4: _dailyMinutes, 5: _dailyMinutes, 6: _dailyMinutes};
+    _initialLimitType = _limitType;
+    _initialDailyMode = _dailyMode;
+    _initialDailyMinutes = _dailyMinutes;
+    _initialWeeklyMinutes = _weeklyMinutes;
+    _initialWeeklyResetDay = _weeklyResetDay;
+    _initialDailyQuotas = Map<int, int>.from(_dailyQuotas);
     if (_packageName != null) {
       _loadSchedules();
     }
@@ -123,6 +138,15 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         _deletedScheduleIds.clear();
         _updatedScheduleIds.clear();
         _sortSchedules();
+        _originalSchedulesById
+          ..clear()
+          ..addEntries(
+            normalized
+                .where((s) => s['id'] != null)
+                .map((s) => MapEntry(s['id'] as String,
+                    Map<String, dynamic>.from(s))),
+          );
+        _recomputeDirty();
       });
     } catch (_) {
       if (mounted) setState(() => _loadingSchedules = false);
@@ -157,8 +181,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         'daysOfWeek': draft.days,
         'isEnabled': true,
       });
-      _schedulesChanged = true;
-      _dirty = true;
+      _schedulesChanged = _isScheduleDirty();
+      _dirty = _isLimitDirty();
     });
   }
 
@@ -171,12 +195,16 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       schedule['endHour'] = draft.end.hour;
       schedule['endMinute'] = draft.end.minute;
       schedule['daysOfWeek'] = draft.days;
-      _schedulesChanged = true;
-      _dirty = true;
       final id = schedule['id'];
       if (id is String && id.isNotEmpty) {
-        _updatedScheduleIds.add(id);
+        if (_scheduleEquals(_originalSchedulesById[id], schedule)) {
+          _updatedScheduleIds.remove(id);
+        } else {
+          _updatedScheduleIds.add(id);
+        }
       }
+      _schedulesChanged = _isScheduleDirty();
+      _dirty = _isLimitDirty();
     });
   }
 
@@ -184,12 +212,16 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     final enabled = !(schedule['isEnabled'] as bool? ?? true);
     setState(() {
       schedule['isEnabled'] = enabled;
-      _schedulesChanged = true;
-      _dirty = true;
       final id = schedule['id'];
       if (id is String && id.isNotEmpty) {
-        _updatedScheduleIds.add(id);
+        if (_scheduleEquals(_originalSchedulesById[id], schedule)) {
+          _updatedScheduleIds.remove(id);
+        } else {
+          _updatedScheduleIds.add(id);
+        }
       }
+      _schedulesChanged = _isScheduleDirty();
+      _dirty = _isLimitDirty();
     });
   }
 
@@ -201,8 +233,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         _updatedScheduleIds.remove(id);
       }
       _schedules.remove(schedule);
-      _schedulesChanged = true;
-      _dirty = true;
+      _schedulesChanged = _isScheduleDirty();
+      _dirty = _isLimitDirty();
     });
   }
 
@@ -251,31 +283,38 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   }
 
   Widget _buildEditLayout() {
-    final showSave = _dirty || _schedulesChanged;
+    final showSave = _isLimitDirty() || _isScheduleDirty();
+    final borderRadius = widget.fullScreen
+        ? BorderRadius.circular(0)
+        : const BorderRadius.vertical(top: Radius.circular(AppRadius.xl));
     return WillPopScope(
       onWillPop: _handleBack,
       child: Stack(
-      children: [
-        SingleChildScrollView(
-          padding: EdgeInsets.only(bottom: showSave ? _stickyBarHeight : 0),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-            ),
-            child: Column(
-              children: [
-                const SizedBox(height: AppSpacing.sm),
-                Container(
-                  width: 32,
-                  height: 3,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+        children: [
+          SafeArea(
+            top: true,
+            bottom: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: _stickyBarHeight),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: borderRadius,
                 ),
-                const SizedBox(height: AppSpacing.md),
+                child: Column(
+                  children: [
+                  if (!widget.fullScreen) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Container(
+                      width: 32,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.md),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: Row(
@@ -328,11 +367,11 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                     rightSelected: _limitType == 'weekly',
                     onLeft: () => setState(() {
                       _limitType = 'daily';
-                      _dirty = true;
+                      _recomputeDirty();
                     }),
                     onRight: () => setState(() {
                       _limitType = 'weekly';
-                      _dirty = true;
+                      _recomputeDirty();
                     }),
                   ),
                 ),
@@ -347,10 +386,11 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                   ),
                 ],
                 const SizedBox(height: AppSpacing.xl),
-              ],
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
         Positioned(
           left: 0,
           right: 0,
@@ -398,7 +438,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   }
 
   Future<bool> _handleBack() async {
-    if (!(_dirty || _schedulesChanged)) return true;
+    if (!(_isLimitDirty() || _isScheduleDirty())) return true;
     return await _confirmDiscard();
   }
 
@@ -424,24 +464,28 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   }
 
   Widget _buildCreateLayout() {
+    final borderRadius = widget.fullScreen
+        ? BorderRadius.circular(0)
+        : const BorderRadius.vertical(top: Radius.circular(AppRadius.xl));
     return SingleChildScrollView(
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius:
-              BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+          borderRadius: borderRadius,
         ),
         child: Column(
           children: [
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: 32,
-              height: 3,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(2),
+            if (!widget.fullScreen) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Container(
+                width: 32,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: AppSpacing.md),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -788,11 +832,11 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             rightSelected: _dailyMode == 'per_day',
             onLeft: () => setState(() {
               _dailyMode = 'same';
-              _dirty = true;
+              _recomputeDirty();
             }),
             onRight: () => setState(() {
               _dailyMode = 'per_day';
-              _dirty = true;
+              _recomputeDirty();
             }),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -821,7 +865,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 final clamped = n.clamp(1, 10080);
                 setState(() {
                   _weeklyMinutes = clamped;
-                  _dirty = true;
+                  _recomputeDirty();
                 });
                 if (clamped.toString() != _weeklyController.text) {
                   _weeklyController.text = clamped.toString();
@@ -853,7 +897,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               if (v != null) {
                 setState(() {
                   _weeklyResetDay = v;
-                  _dirty = true;
+                  _recomputeDirty();
                 });
               }
             },
@@ -912,7 +956,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             onTap: onTap ??
                 () => _pickMinutes((m) => setState(() {
                       _dailyMinutes = m;
-                      _dirty = true;
+                      _recomputeDirty();
                     })),
             borderRadius: BorderRadius.circular(14),
             child: Container(
@@ -955,38 +999,55 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       children: List.generate(7, (i) {
         final day = i + 1;
         final value = _dailyQuotas[day] ?? 0;
-        return Row(
-          children: [
-            SizedBox(
-              width: 32,
-              child: Text(
-                dayLabels[day] ?? '?',
-                style: const TextStyle(fontSize: 11),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 32,
+                child: Text(
+                  dayLabels[day] ?? '?',
+                  style: const TextStyle(fontSize: 11),
+                ),
               ),
+              Expanded(
+                child: InkWell(
+                  onTap: () => _pickMinutes((m) => setState(() {
+                        _dailyQuotas[day] = m;
+                        _recomputeDirty();
+                      })),
+                  borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      height: 40,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant.withValues(alpha: 0.6),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.surfaceVariant.withValues(alpha: 0.9),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.schedule_rounded,
+                              size: 14, color: AppColors.textSecondary),
+                          const SizedBox(width: 6),
+                          Text(
+                            '${value}m',
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            Expanded(
-              child: Slider(
-                min: 0,
-                max: 480,
-                divisions: 480,
-                value: value.toDouble(),
-                label: '${value}m',
-                onChanged: (v) => setState(() {
-                  _dailyQuotas[day] = v.round();
-                  _dirty = true;
-                }),
-              ),
-            ),
-            SizedBox(
-              width: 40,
-              child: Text('${value}m',
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(
-                    color: AppColors.textTertiary,
-                    fontSize: 11,
-                  )),
-            ),
-          ],
         );
       }),
     );
@@ -1236,8 +1297,72 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     _saveAsync();
   }
 
+  void _recomputeDirty() {
+    _dirty = _isLimitDirty();
+    _schedulesChanged = _isScheduleDirty();
+  }
+
+  bool _isLimitDirty() {
+    if (_limitType != _initialLimitType) return true;
+    if (_dailyMode != _initialDailyMode) return true;
+    if (_dailyMode == 'same' && _dailyMinutes != _initialDailyMinutes) {
+      return true;
+    }
+    if (_dailyMode == 'per_day' &&
+        !_mapEquals(_dailyQuotas, _initialDailyQuotas)) {
+      return true;
+    }
+    if (_weeklyMinutes != _initialWeeklyMinutes) return true;
+    if (_weeklyResetDay != _initialWeeklyResetDay) return true;
+    return false;
+  }
+
+  bool _isScheduleDirty() {
+    if (_deletedScheduleIds.isNotEmpty) return true;
+    if (_updatedScheduleIds.isNotEmpty) return true;
+    for (final s in _schedules) {
+      final id = s['id'];
+      if (id == null || id.toString().isEmpty) return true;
+    }
+    return false;
+  }
+
+  bool _mapEquals(Map<int, int> a, Map<int, int> b) {
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      if (b[entry.key] != entry.value) return false;
+    }
+    return true;
+  }
+
+  bool _scheduleEquals(
+      Map<String, dynamic>? original, Map<String, dynamic> current) {
+    if (original == null) return false;
+    return original['startHour'] == current['startHour'] &&
+        original['startMinute'] == current['startMinute'] &&
+        original['endHour'] == current['endHour'] &&
+        original['endMinute'] == current['endMinute'] &&
+        _listEqualsInt(original['daysOfWeek'], current['daysOfWeek']) &&
+        (original['isEnabled'] ?? true) == (current['isEnabled'] ?? true);
+  }
+
+  bool _listEqualsInt(dynamic a, dynamic b) {
+    final la = (a as List<dynamic>? ?? [])
+        .map((e) => int.tryParse(e.toString()) ?? 0)
+        .toList();
+    final lb = (b as List<dynamic>? ?? [])
+        .map((e) => int.tryParse(e.toString()) ?? 0)
+        .toList();
+    if (la.length != lb.length) return false;
+    for (var i = 0; i < la.length; i++) {
+      if (la[i] != lb[i]) return false;
+    }
+    return true;
+  }
+
   Future<void> _saveAsync() async {
-    if (_schedulesChanged && _packageName != null) {
+    final scheduleDirty = _isScheduleDirty();
+    if (scheduleDirty && _packageName != null) {
       try {
         for (final id in _deletedScheduleIds) {
           await NativeService.deleteSchedule(id);
@@ -1277,7 +1402,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       'dailyQuotas': isDaily && _dailyMode == 'per_day' ? _dailyQuotas : {},
       'weeklyQuotaMinutes': _weeklyMinutes,
       'weeklyResetDay': _weeklyResetDay,
-      'schedulesChanged': _schedulesChanged,
+      'schedulesChanged': scheduleDirty,
     };
     if (mounted) Navigator.pop(context, result);
   }

@@ -234,15 +234,16 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius:
-              BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-        ),
-        child: Column(
-          children: [
+    return SafeArea(
+      child: SingleChildScrollView(
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius:
+                BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+          ),
+          child: Column(
+            children: [
             const SizedBox(height: AppSpacing.sm),
             Container(
               width: 32,
@@ -341,7 +342,8 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
                         ),
             ),
             const SizedBox(height: AppSpacing.md),
-          ],
+            ],
+          ),
         ),
       ),
     );
