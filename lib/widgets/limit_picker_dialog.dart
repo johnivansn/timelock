@@ -1591,60 +1591,25 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         .clamp(0, quotaMinutes * 60000);
     final remainingMinutes = (quotaMinutes - usedMinutes).clamp(0, quotaMinutes);
 
-    final usedText = _formatUsageText(
-        usedMinutes,
-        usedMillis,
-        quotaMinutes,
-        limitType,
-        _weeklyResetDay,
-        _weeklyResetHour,
-        _weeklyResetMinute);
-    final remainingText = _formatRemainingText(
-        remainingMinutes,
-        remainingMillis,
-        quotaMinutes,
-        limitType,
-        _weeklyResetDay,
-        _weeklyResetHour,
-        _weeklyResetMinute);
+    final usedText = AppUtils.formatUsageText(
+      usedMinutes: usedMinutes,
+      usedMillis: usedMillis,
+      limitType: limitType,
+      weeklyResetDay: _weeklyResetDay,
+      weeklyResetHour: _weeklyResetHour,
+      weeklyResetMinute: _weeklyResetMinute,
+      dailySuffix: 'hoy',
+    );
+    final remainingText = AppUtils.formatRemainingText(
+      remainingMinutes: remainingMinutes,
+      remainingMillis: remainingMillis,
+      quotaMinutes: quotaMinutes,
+      limitType: limitType,
+      weeklyResetDay: _weeklyResetDay,
+      weeklyResetHour: _weeklyResetHour,
+      weeklyResetMinute: _weeklyResetMinute,
+    );
     return '$usedText · $remainingText';
-  }
-
-    String _formatUsageText(
-        int usedMinutes,
-        int usedMillis,
-        int quotaMinutes,
-        String limitType,
-        int weeklyResetDay,
-        int weeklyResetHour,
-        int weeklyResetMinute) {
-      if (limitType == 'weekly') {
-        final weeklyMillis = usedMinutes * 60000;
-        final resetLabel = AppUtils.formatWeeklyResetLabel(
-            weeklyResetDay, weeklyResetHour, weeklyResetMinute);
-        return '${AppUtils.formatDurationMillis(weeklyMillis)} usados $resetLabel';
-      }
-      return '${AppUtils.formatDurationMillis(usedMillis)} usados hoy';
-    }
-
-  String _formatRemainingText(
-        int remainingMinutes,
-        int remainingMillis,
-        int quotaMinutes,
-        String limitType,
-        int weeklyResetDay,
-        int weeklyResetHour,
-        int weeklyResetMinute) {
-      if (limitType == 'weekly') {
-        final nextLabel = AppUtils.formatWeeklyNextResetLabel(
-            weeklyResetDay, weeklyResetHour, weeklyResetMinute);
-        return '${AppUtils.formatTime(remainingMinutes)} restantes esta semana ($nextLabel)';
-      }
-    if (quotaMinutes <= 1) {
-      final seconds = (remainingMillis / 1000).ceil();
-      return '${seconds}s restantes';
-    }
-    return '${AppUtils.formatTime(remainingMinutes)} restantes';
   }
 
   int _todayDayOfWeek() {

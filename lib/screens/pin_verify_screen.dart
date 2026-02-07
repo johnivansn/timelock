@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
+import 'package:timelock/utils/app_utils.dart';
 
 class PinVerifyScreen extends StatefulWidget {
   const PinVerifyScreen({super.key, this.reason});
@@ -53,7 +54,8 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
       if (status == 'locked') {
         setState(() {
           _lockedSeconds = res['remainingSeconds'] as int;
-          _error = 'Bloqueado por ${_formatTime(_lockedSeconds)}';
+          _error =
+              'Bloqueado por ${AppUtils.formatDurationMillis(_lockedSeconds * 1000)}';
         });
         _startCountdown();
       }
@@ -92,7 +94,8 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
             setState(() {
               _verifying = false;
               _lockedSeconds = secs;
-              _error = 'Bloqueado por ${_formatTime(secs)}';
+              _error =
+                  'Bloqueado por ${AppUtils.formatDurationMillis(secs * 1000)}';
               _clearPin();
             });
             _shakeController.forward(from: 0);
@@ -119,17 +122,12 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
         if (_lockedSeconds <= 0) {
           _error = null;
         } else {
-          _error = 'Bloqueado por ${_formatTime(_lockedSeconds)}';
+          _error =
+              'Bloqueado por ${AppUtils.formatDurationMillis(_lockedSeconds * 1000)}';
         }
       });
       if (_lockedSeconds > 0) _startCountdown();
     });
-  }
-
-  String _formatTime(int secs) {
-    final m = secs ~/ 60;
-    final s = secs % 60;
-    return '${m}m ${s.toString().padLeft(2, '0')}s';
   }
 
   void _onDigit(int d) {

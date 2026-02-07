@@ -1340,43 +1340,6 @@ class _AppListScreenState extends State<AppListScreen> {
     return {};
   }
 
-    String _formatUsageText(
-        int usedMinutes,
-        int usedMillis,
-        int quotaMinutes,
-        String limitType,
-        int weeklyResetDay,
-        int weeklyResetHour,
-        int weeklyResetMinute) {
-      if (limitType == 'weekly') {
-        final weeklyMillis = usedMinutes * 60000;
-        final resetLabel = AppUtils.formatWeeklyResetLabel(
-            weeklyResetDay, weeklyResetHour, weeklyResetMinute);
-        return '${AppUtils.formatDurationMillis(weeklyMillis)} usados $resetLabel';
-      }
-      return '${AppUtils.formatDurationMillis(usedMillis)} usados';
-    }
-
-  String _formatRemainingText(
-        int remainingMinutes,
-        int remainingMillis,
-        int quotaMinutes,
-        String limitType,
-        int weeklyResetDay,
-        int weeklyResetHour,
-        int weeklyResetMinute) {
-      if (limitType == 'weekly') {
-        final nextLabel = AppUtils.formatWeeklyNextResetLabel(
-            weeklyResetDay, weeklyResetHour, weeklyResetMinute);
-        return '${AppUtils.formatTime(remainingMinutes)} restantes esta semana ($nextLabel)';
-      }
-    if (quotaMinutes <= 1) {
-      final seconds = (remainingMillis / 1000).ceil();
-      return '${seconds}s restantes';
-    }
-    return '${AppUtils.formatTime(remainingMinutes)} restantes';
-  }
-
   String _usageSummaryText(
       int usedMinutes,
       int usedMillis,
@@ -1387,22 +1350,23 @@ class _AppListScreenState extends State<AppListScreen> {
       int weeklyResetDay,
       int weeklyResetHour,
       int weeklyResetMinute) {
-    final used = _formatUsageText(
-        usedMinutes,
-        usedMillis,
-        quotaMinutes,
-        limitType,
-        weeklyResetDay,
-        weeklyResetHour,
-        weeklyResetMinute);
-    final remaining = _formatRemainingText(
-        remainingMinutes,
-        remainingMillis,
-        quotaMinutes,
-        limitType,
-        weeklyResetDay,
-        weeklyResetHour,
-        weeklyResetMinute);
+    final used = AppUtils.formatUsageText(
+      usedMinutes: usedMinutes,
+      usedMillis: usedMillis,
+      limitType: limitType,
+      weeklyResetDay: weeklyResetDay,
+      weeklyResetHour: weeklyResetHour,
+      weeklyResetMinute: weeklyResetMinute,
+    );
+    final remaining = AppUtils.formatRemainingText(
+      remainingMinutes: remainingMinutes,
+      remainingMillis: remainingMillis,
+      quotaMinutes: quotaMinutes,
+      limitType: limitType,
+      weeklyResetDay: weeklyResetDay,
+      weeklyResetHour: weeklyResetHour,
+      weeklyResetMinute: weeklyResetMinute,
+    );
     return '$used · $remaining';
   }
 
@@ -1417,25 +1381,26 @@ class _AppListScreenState extends State<AppListScreen> {
       int weeklyResetHour,
       int weeklyResetMinute,
       Color usedColor) {
-    final used = _formatUsageText(
-        usedMinutes,
-        usedMillis,
-        quotaMinutes,
-        limitType,
-        weeklyResetDay,
-        weeklyResetHour,
-        weeklyResetMinute);
-    final remaining = _formatRemainingText(
-        remainingMinutes,
-        remainingMillis,
-        quotaMinutes,
-        limitType,
-        weeklyResetDay,
-        weeklyResetHour,
-        weeklyResetMinute);
-      return RichText(
-        text: TextSpan(
-          children: [
+    final used = AppUtils.formatUsageText(
+      usedMinutes: usedMinutes,
+      usedMillis: usedMillis,
+      limitType: limitType,
+      weeklyResetDay: weeklyResetDay,
+      weeklyResetHour: weeklyResetHour,
+      weeklyResetMinute: weeklyResetMinute,
+    );
+    final remaining = AppUtils.formatRemainingText(
+      remainingMinutes: remainingMinutes,
+      remainingMillis: remainingMillis,
+      quotaMinutes: quotaMinutes,
+      limitType: limitType,
+      weeklyResetDay: weeklyResetDay,
+      weeklyResetHour: weeklyResetHour,
+      weeklyResetMinute: weeklyResetMinute,
+    );
+    return RichText(
+      text: TextSpan(
+        children: [
             TextSpan(
               text: used,
               style: TextStyle(

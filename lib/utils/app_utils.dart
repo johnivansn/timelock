@@ -85,4 +85,45 @@ class AppUtils {
     final m = anchor.minute.toString().padLeft(2, '0');
     return 'hasta $dayLabel $h:$m';
   }
+
+  static String formatUsageText({
+    required int usedMinutes,
+    required int usedMillis,
+    required String limitType,
+    required int weeklyResetDay,
+    required int weeklyResetHour,
+    required int weeklyResetMinute,
+    String dailySuffix = '',
+  }) {
+    if (limitType == 'weekly') {
+      final weeklyMillis = usedMinutes * 60000;
+      final resetLabel = formatWeeklyResetLabel(
+          weeklyResetDay, weeklyResetHour, weeklyResetMinute);
+      return '${formatDurationMillis(weeklyMillis)} usados $resetLabel';
+    }
+    final suffix = dailySuffix.isNotEmpty ? ' $dailySuffix' : '';
+    return '${formatDurationMillis(usedMillis)} usados$suffix';
+  }
+
+  static String formatRemainingText({
+    required int remainingMinutes,
+    required int remainingMillis,
+    required int quotaMinutes,
+    required String limitType,
+    required int weeklyResetDay,
+    required int weeklyResetHour,
+    required int weeklyResetMinute,
+    String weeklySuffix = 'esta semana',
+  }) {
+    if (limitType == 'weekly') {
+      final nextLabel = formatWeeklyNextResetLabel(
+          weeklyResetDay, weeklyResetHour, weeklyResetMinute);
+      return '${formatTime(remainingMinutes)} restantes $weeklySuffix ($nextLabel)';
+    }
+    if (quotaMinutes <= 1) {
+      final seconds = (remainingMillis / 1000).ceil();
+      return '${seconds}s restantes';
+    }
+    return '${formatTime(remainingMinutes)} restantes';
+  }
 }
