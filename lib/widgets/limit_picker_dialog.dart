@@ -46,6 +46,9 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   final Map<int, TextEditingController> _dayControllers = {};
   final FocusNode _dailyMinutesFocus = FocusNode();
   final Map<int, FocusNode> _dayFocusNodes = {};
+  Map<String, dynamic>? _usageData;
+  bool _usageLoading = false;
+  Uint8List? _appIconBytes;
   late String _initialLimitType;
   late String _initialDailyMode;
   late int _initialDailyMinutes;
@@ -87,6 +90,13 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     _initialDailyQuotas = Map<int, int>.from(_dailyQuotas);
     if (_packageName != null) {
       _loadSchedules();
+      if (widget.initial == null) {
+        _loadUsage();
+        _loadAppIcon();
+      }
+    }
+    if (widget.initial != null) {
+      _appIconBytes = _iconBytes;
     }
   }
 
@@ -208,6 +218,34 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     } catch (_) {
       if (mounted) setState(() => _loadingSchedules = false);
     }
+  }
+
+  Future<void> _loadUsage() async {
+    final pkg = _packageName;
+    if (pkg == null) return;
+    setState(() => _usageLoading = true);
+    try {
+      final usage = await NativeService.getUsageToday(pkg);
+      if (!mounted) return;
+      setState(() {
+        _usageData = usage;
+        _usageLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _usageLoading = false);
+    }
+  }
+
+  Future<void> _loadAppIcon() async {
+    final pkg = _packageName;
+    if (pkg == null) return;
+    try {
+      final bytes = await NativeService.getAppIcon(pkg);
+      if (!mounted) return;
+      if (bytes != null && bytes.isNotEmpty) {
+        setState(() => _appIconBytes = bytes);
+      }
+    } catch (_) {}
   }
 
   Map<String, dynamic> _normalizeSchedule(Map<String, dynamic> s) {
@@ -634,17 +672,36 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1B1B2D), Color(0xFF1A1A2E)],
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withValues(alpha: 0.12),
+            AppColors.surface.withValues(alpha: 0.9),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.surfaceVariant.withValues(alpha: 0.8)),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.35),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          _buildAppIcon(),
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: _buildAppIcon(),
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -662,13 +719,30 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  used,
+                  _usageLoading ? 'Cargando...' : used,
                   style: const TextStyle(
                     fontSize: 12,
-                    color: AppColors.textTertiary,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              _limitType == 'weekly' ? 'SEM' : 'DÍA',
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+                letterSpacing: 0.4,
+              ),
             ),
           ),
         ],
@@ -677,7 +751,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   }
 
   Widget _buildAppIcon() {
-    final bytes = _iconBytes;
+    final bytes = _appIconBytes ?? _iconBytes;
     if (bytes != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(14),
@@ -1407,7 +1481,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   }
 
   String _usageSummary() {
-    final init = widget.initial ?? {};
+    final init = _usageData ?? widget.initial ?? {};
     final limitType = _limitType;
     final usedMinutes = limitType == 'weekly'
         ? (init['usedMinutesWeek'] as int? ?? 0)
