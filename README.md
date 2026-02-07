@@ -893,6 +893,38 @@ En `BlockingEngine.shouldBlock`:
 
 ---
 
+## 8.2 PROPUESTA — Temas y Colores Opcionales (Contextuales)
+
+### Objetivo
+Agregar temas opcionales según contexto (hora del día, modo ahorro, estado de bloqueo) sin romper la identidad visual minimalista.
+
+### UX Propuesta
+1. **Selector de tema** en Ajustes: `Automático`, `Clásico Oscuro`, `Alto Contraste`, `Calmo`.
+2. **Automático**:
+   - Si `Battery Saver` activo → paleta más neutra y bajo contraste para reducir “ruido”.
+   - Si app bloqueada → acento más visible (warning/error).
+3. **Manual**: fuerza un tema fijo.
+
+### Implementación (Flutter)
+- Definir variantes en `lib/theme/app_theme.dart`:
+  - `AppTheme.darkTheme` (actual)
+  - `AppTheme.darkHighContrast`
+  - `AppTheme.darkCalm`
+- Persistir selección en preferencias nativas (MethodChannel) o local (SharedPreferences).
+- En `main.dart` leer preferencia y usar `ThemeMode`/`ThemeData` correspondiente.
+- Opción adicional: **reducir/quitar animaciones** desde Ajustes (flag global).
+
+### Consideraciones
+- Mantener accesibilidad (contraste AA).
+- Evitar animaciones o cambios abruptos de paleta.
+- Respetar “reducir animaciones” en:
+  - Transiciones de pantalla.
+  - Shake/overlay/notificaciones.
+  - Animaciones de listas.
+- No tocar lógica de negocio; solo UI.
+
+---
+
 ## 9. GUÍA DE DESARROLLO
 
 ### 9.1 Setup del Entorno
