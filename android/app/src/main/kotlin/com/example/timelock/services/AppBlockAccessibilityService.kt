@@ -103,13 +103,13 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
     if (currentPackage == packageName) {
       Log.e(TAG, "  ✅ App ACTIVA - bloqueando")
-      blockApp(packageName)
+      blockApp(packageName, BlockingEngine.BlockReason.TimeQuota)
       return
     }
 
     if (currentPackage == null || isIgnoredPackage(currentPackage)) {
       Log.w(TAG, "  ⚠️ Ventana actual no confiable/ignorada - forzando bloqueo")
-      blockApp(packageName)
+      blockApp(packageName, BlockingEngine.BlockReason.TimeQuota)
       return
     }
 
@@ -159,13 +159,13 @@ class AppBlockAccessibilityService : AccessibilityService() {
     }
 
     scope.launch {
-      val shouldBlock = blockingEngine.shouldBlock(packageName)
-      Log.d(TAG, "  🔍 shouldBlock($packageName) = $shouldBlock")
+      val reason = blockingEngine.shouldBlockSync(packageName)
+      Log.d(TAG, "  🔍 shouldBlock($packageName) = ${reason != null} ($reason)")
 
-      if (shouldBlock) {
+      if (reason != null) {
         handler.post {
           Log.w(TAG, "  🚫 Iniciando bloqueo de $packageName")
-          blockApp(packageName)
+          blockApp(packageName, reason)
         }
       } else if (currentBlockedPackage != null && currentBlockedPackage != packageName) {
         handler.post {
@@ -182,7 +182,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
             packageName.contains("home", ignoreCase = true)
   }
 
-  private fun blockApp(packageName: String) {
+  private fun blockApp(packageName: String, reason: BlockingEngine.BlockReason) {
     val now = System.currentTimeMillis()
 
     if (overlayState == OverlayState.VISIBLE || overlayState == OverlayState.SHOWING) {
@@ -201,11 +201,11 @@ class AppBlockAccessibilityService : AccessibilityService() {
     lastBlockedPackage = packageName
     lastBlockTime = now
 
-    showOverlay(packageName)
+    showOverlay(packageName, reason)
     forceHomeScreen()
   }
 
-  private fun showOverlay(packageName: String) {
+  private fun showOverlay(packageName: String, reason: BlockingEngine.BlockReason) {
     if (overlayState == OverlayState.VISIBLE || overlayState == OverlayState.SHOWING) {
       Log.w(TAG, "⚠️ Overlay ya visible/mostrándose - SALTANDO")
       return
@@ -225,6 +225,10 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
       val appIcon = overlayView?.findViewById<ImageView>(R.id.block_app_icon)
       val appNameText = overlayView?.findViewById<TextView>(R.id.block_app_name)
+      val titleText = overlayView?.findViewById<TextView>(R.id.block_title)
+      val reasonText = overlayView?.findViewById<TextView>(R.id.block_reason)
+      val messageText = overlayView?.findViewById<TextView>(R.id.block_message)
+      val footerText = overlayView?.findViewById<TextView>(R.id.block_footer_text)
 
       try {
         val pm = packageManager
@@ -238,6 +242,27 @@ class AppBlockAccessibilityService : AccessibilityService() {
         Log.e(TAG, "Error cargando info de app: $packageName", e)
         appIcon?.setImageResource(android.R.drawable.ic_menu_info_details)
         appNameText?.text = "Aplicación"
+      }
+
+      when (reason) {
+        BlockingEngine.BlockReason.TimeQuota -> {
+          titleText?.text = "🚫 Bloqueada"
+          reasonText?.text = "Límite de tiempo alcanzado"
+          messageText?.text = "La aplicación se cerrará automáticamente"
+          footerText?.text = "Intenta de nuevo mañana o ajusta tu límite de tiempo"
+        }
+        BlockingEngine.BlockReason.ScheduleBlocked -> {
+          titleText?.text = "⏰ Fuera de horario"
+          reasonText?.text = "Bloqueo por horario activo"
+          messageText?.text = "Este uso no está permitido en este momento"
+          footerText?.text = "Intenta de nuevo dentro de tu horario permitido"
+        }
+        BlockingEngine.BlockReason.Combined -> {
+          titleText?.text = "⛔ Bloqueada"
+          reasonText?.text = "Límite y horario activos"
+          messageText?.text = "La aplicación se cerrará automáticamente"
+          footerText?.text = "Intenta mañana o ajusta tus restricciones"
+        }
       }
 
       val params =
