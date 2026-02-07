@@ -32,6 +32,8 @@ class _AppListScreenState extends State<AppListScreen> {
   Timer? _refreshTimer;
   final Set<String> _expandedSchedules = {};
   final Set<String> _scheduleDirty = {};
+  final Set<String> _iconLoading = {};
+  int _iconPrefetchCount = 0;
 
   @override
   void initState() {
@@ -40,6 +42,9 @@ class _AppListScreenState extends State<AppListScreen> {
       _restrictions = widget.initialRestrictions!;
       _loading = false;
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _updatePrefetchCount();
+    });
     _init();
   }
 
@@ -56,6 +61,20 @@ class _AppListScreenState extends State<AppListScreen> {
       await _loadRestrictions();
     }
     _startAutoRefresh();
+  }
+
+  Future<void> _updatePrefetchCount() async {
+    final memoryClass = await NativeService.getMemoryClass();
+    final powerSave = await NativeService.isBatterySaverEnabled();
+    final width = MediaQuery.of(context).size.width;
+    if (!mounted) return;
+    setState(() {
+      _iconPrefetchCount = AppUtils.computeIconPrefetchCount(
+        screenWidth: width,
+        memoryClassMb: memoryClass,
+        powerSave: powerSave,
+      );
+    });
   }
 
   void _startAutoRefresh() {
@@ -93,6 +112,12 @@ class _AppListScreenState extends State<AppListScreen> {
       final existingByPkg = {
         for (final r in _restrictions) r['packageName'] as String: r
       };
+      final prefetchCount =
+          _iconPrefetchCount == 0 ? 12 : _iconPrefetchCount;
+      final prefetchSet = list
+          .take(prefetchCount.clamp(0, list.length))
+          .map((r) => r['packageName'] as String)
+          .toSet();
       var changed = false;
 
       for (final r in list) {
@@ -142,7 +167,7 @@ class _AppListScreenState extends State<AppListScreen> {
           }
         }
 
-        if (r['iconBytes'] == null) {
+        if (r['iconBytes'] == null && prefetchSet.contains(pkg)) {
           try {
             final bytes = await NativeService.getAppIcon(pkg);
             if (bytes != null && bytes.isNotEmpty) {
@@ -1210,22 +1235,34 @@ class _AppListScreenState extends State<AppListScreen> {
 
     Widget _buildAppIcon(Map<String, dynamic> r) {
       final bytes = r['iconBytes'];
-      if (bytes is Uint8List && bytes.isNotEmpty) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.memory(
-            bytes,
-            width: 40,
-            height: 40,
-            fit: BoxFit.cover,
-          ),
-        );
-      }
-      return Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceVariant,
+    if (bytes is Uint8List && bytes.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.memory(
+          bytes,
+          width: 40,
+          height: 40,
+          fit: BoxFit.cover,
+        ),
+      );
+    }
+    final pkg = r['packageName'] as String?;
+    if (pkg != null && !_iconLoading.contains(pkg)) {
+      _iconLoading.add(pkg);
+      NativeService.getAppIcon(pkg).then((icon) {
+        if (!mounted) return;
+        if (icon != null && icon.isNotEmpty) {
+          setState(() {
+            r['iconBytes'] = icon;
+          });
+        }
+      }).whenComplete(() => _iconLoading.remove(pkg));
+    }
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Icon(

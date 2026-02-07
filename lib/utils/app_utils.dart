@@ -126,4 +126,29 @@ class AppUtils {
     }
     return '${formatTime(remainingMinutes)} restantes';
   }
+
+  static int computeIconPrefetchCount({
+    required double screenWidth,
+    required int memoryClassMb,
+    required bool powerSave,
+  }) {
+    int base;
+    if (memoryClassMb <= 256) {
+      base = 12;
+    } else if (memoryClassMb <= 384) {
+      base = 20;
+    } else {
+      base = 30;
+    }
+
+    if (screenWidth < 360) {
+      base = base.clamp(8, 16);
+    }
+
+    if (powerSave) {
+      base = (base * 0.5).round().clamp(6, base);
+    }
+
+    return base;
+  }
 }

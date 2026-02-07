@@ -1,6 +1,7 @@
 package com.example.timelock
 
 import android.app.AppOpsManager
+import android.app.ActivityManager
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
@@ -269,12 +270,16 @@ class MainActivity : FlutterActivity() {
           }
         }
       }
-      "checkOverlayPermission" -> {
-        result.success(android.provider.Settings.canDrawOverlays(this))
-      }
-      "requestOverlayPermission" -> {
-        val intent =
-                Intent(
+        "checkOverlayPermission" -> {
+          result.success(android.provider.Settings.canDrawOverlays(this))
+        }
+        "getMemoryClass" -> {
+          val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+          result.success(am.memoryClass)
+        }
+        "requestOverlayPermission" -> {
+          val intent =
+                  Intent(
                         android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                         android.net.Uri.parse("package:$packageName")
                 )
@@ -584,20 +589,21 @@ class MainActivity : FlutterActivity() {
                 val pm = packageManager
                 val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
 
-                val appList =
-                        apps.mapNotNull { app ->
-                          try {
-                            mapOf(
-                                    "appName" to pm.getApplicationLabel(app).toString(),
-                                    "packageName" to app.packageName,
-                                    "isSystem" to
-                                            ((app.flags and ApplicationInfo.FLAG_SYSTEM) != 0),
-                                    "icon" to null // Sin ícono por ahora
-                            )
-                          } catch (e: Exception) {
-                            null
+                  val appList =
+                          apps.mapNotNull { app ->
+                            try {
+                              val cachedIcon = appCacheManager.getCachedIconBytes(app.packageName)
+                              mapOf(
+                                      "appName" to pm.getApplicationLabel(app).toString(),
+                                      "packageName" to app.packageName,
+                                      "isSystem" to
+                                              ((app.flags and ApplicationInfo.FLAG_SYSTEM) != 0),
+                                      "icon" to cachedIcon
+                              )
+                            } catch (e: Exception) {
+                              null
+                            }
                           }
-                        }
 
                 Handler(Looper.getMainLooper()).post { result.success(appList) }
               } catch (e: Exception) {
@@ -610,24 +616,30 @@ class MainActivity : FlutterActivity() {
   }
 
   private fun getAppIcon(packageName: String, result: MethodChannel.Result) {
-    Thread {
-              try {
-                val pm = packageManager
-                val app = pm.getApplicationInfo(packageName, 0)
-                val drawable = pm.getApplicationIcon(app)
-
-                  val bitmap = AppUtils.drawableToBitmap(drawable, maxSize = 96)
-                val stream = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.PNG, 50, stream)
-                val iconBytes = stream.toByteArray()
-
-                Handler(Looper.getMainLooper()).post { result.success(iconBytes) }
-              } catch (e: Exception) {
-                Handler(Looper.getMainLooper()).post { result.success(null) }
+      Thread {
+                try {
+                  val cached = appCacheManager.getCachedIconBytes(packageName)
+                  if (cached != null && cached.isNotEmpty()) {
+                    Handler(Looper.getMainLooper()).post { result.success(cached) }
+                    return@Thread
+                  }
+                  val pm = packageManager
+                  val app = pm.getApplicationInfo(packageName, 0)
+                  val drawable = pm.getApplicationIcon(app)
+  
+                    val bitmap = AppUtils.drawableToBitmap(drawable, maxSize = 96)
+                  val stream = ByteArrayOutputStream()
+                  bitmap.compress(Bitmap.CompressFormat.PNG, 50, stream)
+                  val iconBytes = stream.toByteArray()
+  
+                  appCacheManager.cacheIconBytes(packageName, iconBytes)
+                  Handler(Looper.getMainLooper()).post { result.success(iconBytes) }
+                } catch (e: Exception) {
+                  Handler(Looper.getMainLooper()).post { result.success(null) }
+                }
               }
-            }
-            .start()
-  }
+              .start()
+    }
 
   private fun requestUsageStatsPermission() {
     startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))

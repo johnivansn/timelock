@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
+import 'package:timelock/utils/app_utils.dart';
 import 'package:timelock/widgets/bottom_sheet_handle.dart';
 
 class AppPickerDialog extends StatefulWidget {
@@ -28,6 +29,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
   bool _showSystem = false;
   final Map<String, Uint8List?> _iconCache = {};
   final Set<String> _iconLoading = {};
+  int _prefetchCount = 0;
 
   @override
   void initState() {
@@ -78,9 +80,51 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
           _loading = false;
         });
       }
+      await _prefetchIcons();
     } catch (e) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _prefetchIcons() async {
+    if (!mounted) return;
+    if (_prefetchCount == 0) {
+      final memoryClass = await NativeService.getMemoryClass();
+      final powerSave = await NativeService.isBatterySaverEnabled();
+      final width = MediaQuery.of(context).size.width;
+      _prefetchCount = AppUtils.computeIconPrefetchCount(
+        screenWidth: width,
+        memoryClassMb: memoryClass,
+        powerSave: powerSave,
+      );
+    }
+
+    final items = <Map<String, dynamic>>[
+      ..._installedApps,
+      ..._systemApps,
+    ];
+    final limit = _prefetchCount.clamp(0, items.length);
+    if (limit == 0) return;
+
+    final Map<String, Uint8List?> fetched = {};
+    final List<Future<void>> tasks = [];
+    for (final app in items.take(limit)) {
+      final pkg = app['packageName'] as String?;
+      if (pkg == null || _iconCache.containsKey(pkg)) continue;
+      if (_iconLoading.contains(pkg)) continue;
+      _iconLoading.add(pkg);
+      tasks.add(NativeService.getAppIcon(pkg).then((bytes) {
+        fetched[pkg] = bytes;
+      }).whenComplete(() {
+        _iconLoading.remove(pkg);
+      }));
+    }
+
+    await Future.wait(tasks);
+    if (!mounted || fetched.isEmpty) return;
+    setState(() {
+      _iconCache.addAll(fetched);
+    });
   }
 
   void _filter(String q) {

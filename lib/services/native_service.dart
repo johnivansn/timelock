@@ -32,6 +32,10 @@ class NativeService {
     return await _channel.invokeMethod<bool>('checkOverlayPermission') ?? false;
   }
 
+  static Future<int> getMemoryClass() async {
+    return await _channel.invokeMethod<int>('getMemoryClass') ?? 0;
+  }
+
   static Future<void> requestOverlayPermission() async {
     await _channel.invokeMethod('requestOverlayPermission');
   }
