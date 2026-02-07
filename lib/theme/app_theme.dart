@@ -33,14 +33,14 @@ class AppTheme {
         elevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
-          fontSize: 24,
+          fontSize: 18,
           fontWeight: FontWeight.w600,
           color: Colors.white,
           letterSpacing: -0.5,
         ),
         iconTheme: IconThemeData(
           color: Colors.white70,
-          size: 24,
+          size: 20,
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
@@ -56,12 +56,12 @@ class AppTheme {
           backgroundColor: _seedColor,
           foregroundColor: Colors.white,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
           textStyle: const TextStyle(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.2,
           ),
@@ -70,7 +70,7 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: _seedColor,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -92,7 +92,7 @@ class AppTheme {
           borderSide: const BorderSide(color: _seedColor, width: 2),
         ),
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         hintStyle: const TextStyle(color: Colors.white38),
       ),
       dividerTheme: const DividerThemeData(
@@ -102,7 +102,7 @@ class AppTheme {
       ),
       iconTheme: const IconThemeData(
         color: Colors.white70,
-        size: 24,
+        size: 20,
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: _seedColor,
@@ -167,10 +167,10 @@ class AppColors {
 class AppSpacing {
   static const double xs = 4.0;
   static const double sm = 8.0;
-  static const double md = 16.0;
-  static const double lg = 24.0;
-  static const double xl = 32.0;
-  static const double xxl = 48.0;
+  static const double md = 12.0;
+  static const double lg = 16.0;
+  static const double xl = 20.0;
+  static const double xxl = 28.0;
 }
 
 class AppRadius {

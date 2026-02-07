@@ -393,31 +393,31 @@ class _AppListScreenState extends State<AppListScreen> {
     );
   }
 
-  Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-          AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
-      child: Column(
+    Widget _buildHeader() {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+        child: Column(
         children: [
           Row(
             children: [
-              const Expanded(
-                child: Text(
-                  'AppTimeControl',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                const Expanded(
+                  child: Text(
+                    'AppTimeControl',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.settings_outlined, size: 20),
-                onPressed: () => _showSettingsMenu(),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined, size: 20),
+                  onPressed: () => _showSettingsMenu(),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
           Container(
             height: 1,
             color: AppColors.surfaceVariant.withValues(alpha: 0.5),
@@ -433,9 +433,9 @@ class _AppListScreenState extends State<AppListScreen> {
     final expiring = _expiringCount();
     final date = _formatShortDate();
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [
             Color(0xFF1B1B2D),
@@ -451,29 +451,29 @@ class _AppListScreenState extends State<AppListScreen> {
       ),
       child: Column(
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Estado del día',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Estado del día',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ),
-              ),
-              Text(
-                date,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textTertiary,
+                Text(
+                  date,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textTertiary,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Row(
             children: [
               _statItem(
                 value: active.toString(),
@@ -499,19 +499,19 @@ class _AppListScreenState extends State<AppListScreen> {
 
   Widget _statItem(
       {required String value, required String label, required Color color}) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: color,
+      return Expanded(
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
+            const SizedBox(height: 2),
+            Text(
             label,
             style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
             textAlign: TextAlign.center,
@@ -524,199 +524,357 @@ class _AppListScreenState extends State<AppListScreen> {
   Widget _buildSectionHeader() {
     return Row(
       children: [
-        const Expanded(
-          child: Text(
-            'Aplicaciones restringidas',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        ),
-        TextButton.icon(
-          onPressed: _openAddFlow,
-          icon: const Icon(Icons.add_rounded, size: 18),
-          label: const Text('Agregar'),
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-            foregroundColor: AppColors.primary,
-            textStyle: const TextStyle(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _showSettingsMenu() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _menuItem(
-              icon: Icons.security_outlined,
-              title: 'Permisos',
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const PermissionsScreen()),
-                ).then((_) => _checkPermissions());
-              },
-            ),
-            _menuItem(
-              icon: Icons.notifications_outlined,
-              title: 'Notificaciones',
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const NotificationSettingsScreen()),
-                );
-              },
-            ),
-            _menuItem(
-              icon: Icons.sync_outlined,
-              title: 'Export / Import',
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ExportImportScreen()),
-                ).then((_) => _loadRestrictions());
-              },
-            ),
-            _menuItem(
-              icon: Icons.speed_outlined,
-              title: 'Optimización',
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const OptimizationScreen()),
-                );
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _menuItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: AppColors.textSecondary),
-      title: Text(title, style: const TextStyle(color: AppColors.textPrimary)),
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-    );
-  }
-
-  Widget _permissionsBanner() {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: const Color(0xFF2B2012),
-        border: Border.all(color: const Color(0xFF5A3B12), width: 1),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.warning_amber_rounded,
-              color: AppColors.warning, size: 22),
-          const SizedBox(width: AppSpacing.md),
           const Expanded(
             child: Text(
-              'Faltan permisos críticos',
+              'Aplicaciones restringidas',
               style: TextStyle(
-                color: AppColors.warning,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: _openAddFlow,
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('Agregar'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+              foregroundColor: AppColors.primary,
+              textStyle: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          TextButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PermissionsScreen()),
-            ).then((_) => _checkPermissions()),
-            style: TextButton.styleFrom(
-              backgroundColor: const Color(0xFF4A2F10),
-              foregroundColor: AppColors.warning,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md, vertical: AppSpacing.xs),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+        ],
+      );
+  }
+
+  void _showSettingsMenu() {
+    final screen = MediaQuery.of(context).size;
+    final panelWidth = (screen.width * 0.78).clamp(240.0, 340.0);
+
+    showGeneralDialog(
+      context: context,
+      barrierLabel: 'settings',
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      transitionDuration: const Duration(milliseconds: 260),
+      pageBuilder: (context, _, __) {
+        return Align(
+          alignment: Alignment.centerRight,
+          child: SafeArea(
+            left: false,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: panelWidth,
+                height: double.infinity,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF21213A),
+                      Color(0xFF1A1A2E),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius:
+                      const BorderRadius.horizontal(left: Radius.circular(28)),
+                  border: Border.all(
+                    color: AppColors.surfaceVariant.withValues(alpha: 0.7),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      blurRadius: 28,
+                      offset: const Offset(-8, 0),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: AppSpacing.md),
+                    Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                          child: Text(
+                            'Configuración',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close_rounded),
+                            color: AppColors.textSecondary,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Expanded(
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.lg,
+                            AppSpacing.sm,
+                            AppSpacing.lg,
+                            AppSpacing.xl),
+                        children: [
+                          _settingsItem(
+                            icon: Icons.shield_rounded,
+                            title: 'Permisos',
+                            subtitle: 'Gestionar permisos del sistema',
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const PermissionsScreen()),
+                              ).then((_) => _checkPermissions());
+                            },
+                          ),
+                          _settingsItem(
+                            icon: Icons.lock_rounded,
+                            title: 'Protección con PIN',
+                            subtitle: 'Configurar PIN de administrador',
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const PermissionsScreen()),
+                              ).then((_) => _checkPermissions());
+                            },
+                          ),
+                          _settingsItem(
+                            icon: Icons.notifications_rounded,
+                            title: 'Notificaciones',
+                            subtitle: 'Configurar alertas y avisos',
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const NotificationSettingsScreen()),
+                              );
+                            },
+                          ),
+                          _settingsItem(
+                            icon: Icons.file_download_rounded,
+                            title: 'Export / Import',
+                            subtitle: 'Backup y restauración',
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => const ExportImportScreen()),
+                              ).then((_) => _loadRestrictions());
+                            },
+                          ),
+                          _settingsItem(
+                            icon: Icons.speed_rounded,
+                            title: 'Optimización',
+                            subtitle: 'Rendimiento y almacenamiento',
+                            onTap: () {
+                              Navigator.pop(context);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const OptimizationScreen()),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            child: const Text('Configurar'),
           ),
-        ],
+        );
+      },
+      transitionBuilder: (context, animation, __, child) {
+        final curved =
+            CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: Offset.zero,
+          ).animate(curved),
+          child: FadeTransition(opacity: curved, child: child),
+        );
+      },
+    );
+  }
+
+  Widget _settingsItem({
+      required IconData icon,
+      required String title,
+      required String subtitle,
+      required VoidCallback onTap,
+    }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.surface.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: AppColors.surfaceVariant.withValues(alpha: 0.7),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: AppColors.primary, size: 20),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded,
+                    color: AppColors.textSecondary, size: 18),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
+
+    Widget _permissionsBanner() {
+      return Container(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF39C12).withValues(alpha: 0.12),
+          border: Border.all(
+              color: const Color(0xFFF39C12).withValues(alpha: 0.35), width: 1),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded,
+                color: AppColors.warning, size: 16),
+            const SizedBox(width: AppSpacing.sm),
+            const Expanded(
+              child: Text(
+                'Faltan permisos críticos',
+                style: TextStyle(
+                  color: AppColors.warning,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PermissionsScreen()),
+              ).then((_) => _checkPermissions()),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFFF39C12).withValues(alpha: 0.2),
+                foregroundColor: AppColors.warning,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Configurar',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
 
   Widget _emptyState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xxl),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+          padding: const EdgeInsets.all(AppSpacing.xxl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.shield_outlined,
+                  size: 40,
+                  color: AppColors.primary,
+                ),
               ),
-              child: const Icon(
-                Icons.shield_outlined,
-                size: 40,
-                color: AppColors.primary,
+              const SizedBox(height: AppSpacing.md),
+              const Text(
+                'Sin restricciones',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            const Text(
-              'Sin restricciones',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+              const SizedBox(height: AppSpacing.sm),
+              const Text(
+                'Toca "Agregar" para comenzar a\nmonitorear el tiempo de tus apps',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textTertiary,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            const Text(
-              'Toca "Agregar" para comenzar a\nmonitorear el tiempo de tus apps',
-              style: TextStyle(
-                fontSize: 15,
-                color: AppColors.textTertiary,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
           ],
         ),
       ),
@@ -766,9 +924,9 @@ class _AppListScreenState extends State<AppListScreen> {
         child: InkWell(
           onTap: () => _openLimitEditor(r),
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
+            child: Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.lg),
               gradient: const LinearGradient(
                 colors: [
@@ -785,63 +943,63 @@ class _AppListScreenState extends State<AppListScreen> {
                 width: blocked ? 1.5 : 1,
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _buildAppIcon(r),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        r['appName'],
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _buildAppIcon(r),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          r['appName'],
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    if (blocked)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.error.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'BLOQUEADA',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.error,
-                                letterSpacing: 0.5,
+                      if (blocked)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'BLOQUEADA',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.error,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 4,
-                    color: progressColor,
-                    backgroundColor: AppColors.surfaceVariant,
+                    ],
                   ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
+                  const SizedBox(height: AppSpacing.sm),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 6,
+                      color: progressColor,
+                      backgroundColor: AppColors.surfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
                 _usageSummaryTextRich(
                   usedMinutes,
                   usedMillis,
@@ -851,17 +1009,17 @@ class _AppListScreenState extends State<AppListScreen> {
                   limitType,
                   progressColor,
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                const Divider(height: 1),
-                const SizedBox(height: AppSpacing.sm),
-                _scheduleRow(r),
-              ],
+                  const SizedBox(height: AppSpacing.xs),
+                  const Divider(height: 1),
+                  const SizedBox(height: AppSpacing.xs),
+                  _scheduleRow(r),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
   Widget _scheduleRow(Map<String, dynamic> r) {
     final schedules = (r['schedules'] as List<dynamic>? ?? [])
@@ -869,63 +1027,65 @@ class _AppListScreenState extends State<AppListScreen> {
         .toList();
     final summary = _scheduleSummary(schedules);
 
-    return SizedBox(
-      width: double.infinity,
-      child: Row(
-        children: [
-          const Icon(Icons.schedule_rounded,
-              color: AppColors.textTertiary, size: 18),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              summary,
-              style:
-                  const TextStyle(fontSize: 12, color: AppColors.textTertiary),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+      return SizedBox(
+        width: double.infinity,
+        child: Row(
+          children: [
+            const Icon(Icons.schedule_rounded,
+                color: AppColors.textTertiary, size: 16),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                summary,
+                style:
+                    const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          IconButton(
-            onPressed: () => _openScheduleEditor(r),
-            icon: const Icon(Icons.edit_rounded, size: 18),
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.surfaceVariant,
-              padding: const EdgeInsets.all(6),
+            const SizedBox(width: AppSpacing.sm),
+            IconButton(
+              onPressed: () => _openScheduleEditor(r),
+              icon: const Icon(Icons.edit_rounded, size: 16),
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.surfaceVariant,
+                padding: const EdgeInsets.all(6),
+                minimumSize: const Size(32, 32),
+                fixedSize: const Size(32, 32),
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAppIcon(Map<String, dynamic> r) {
-    final bytes = r['iconBytes'];
-    if (bytes is Uint8List && bytes.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: Image.memory(
-          bytes,
-          width: 22,
-          height: 22,
-          fit: BoxFit.cover,
+          ],
         ),
       );
     }
-    return Container(
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: const Icon(
-        Icons.apps_rounded,
-        size: 14,
-        color: AppColors.textTertiary,
-      ),
-    );
-  }
+
+    Widget _buildAppIcon(Map<String, dynamic> r) {
+      final bytes = r['iconBytes'];
+      if (bytes is Uint8List && bytes.isNotEmpty) {
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.memory(
+            bytes,
+            width: 40,
+            height: 40,
+            fit: BoxFit.cover,
+          ),
+        );
+      }
+      return Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(
+          Icons.apps_rounded,
+          size: 20,
+          color: AppColors.textTertiary,
+        ),
+      );
+    }
 
   int _activeCount() {
     return _restrictions.where((r) => (r['isEnabled'] ?? true) == true).length;
@@ -1100,38 +1260,38 @@ class _AppListScreenState extends State<AppListScreen> {
     return '$used · $remaining';
   }
 
-  Widget _usageSummaryTextRich(
-      int usedMinutes,
-      int usedMillis,
-      int remainingMinutes,
-      int remainingMillis,
-      int quotaMinutes,
-      String limitType,
-      Color usedColor) {
-    final used = _formatUsageText(usedMinutes, usedMillis, quotaMinutes, limitType);
-    final remaining =
-        _formatRemainingText(remainingMinutes, remainingMillis, quotaMinutes, limitType);
-    return RichText(
-      text: TextSpan(
-        children: [
-          TextSpan(
-            text: used,
-            style: TextStyle(
-              fontSize: 12,
-              color: usedColor,
-              fontWeight: FontWeight.w600,
+    Widget _usageSummaryTextRich(
+        int usedMinutes,
+        int usedMillis,
+        int remainingMinutes,
+        int remainingMillis,
+        int quotaMinutes,
+        String limitType,
+        Color usedColor) {
+      final used = _formatUsageText(usedMinutes, usedMillis, quotaMinutes, limitType);
+      final remaining =
+          _formatRemainingText(remainingMinutes, remainingMillis, quotaMinutes, limitType);
+      return RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: used,
+              style: TextStyle(
+                fontSize: 11,
+                color: usedColor,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-          const TextSpan(
-            text: ' · ',
-            style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
-          ),
-          TextSpan(
-            text: remaining,
-            style: const TextStyle(fontSize: 12, color: AppColors.textTertiary),
-          ),
-        ],
-      ),
-    );
-  }
+            const TextSpan(
+              text: ' · ',
+              style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+            ),
+            TextSpan(
+              text: remaining,
+              style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
+            ),
+          ],
+        ),
+      );
+    }
 }
