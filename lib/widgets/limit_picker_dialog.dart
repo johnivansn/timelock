@@ -42,6 +42,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   int _localScheduleCounter = 0;
   bool _inactiveFirst = false;
   final Map<int, TextEditingController> _dayControllers = {};
+  final FocusNode _dailyMinutesFocus = FocusNode();
+  final Map<int, FocusNode> _dayFocusNodes = {};
   late String _initialLimitType;
   late String _initialDailyMode;
   late int _initialDailyMinutes;
@@ -61,14 +63,19 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     _weeklyResetDay = (init['weeklyResetDay'] as int?) ?? 2;
     _weeklyController =
         TextEditingController(text: _weeklyMinutes.toString());
-    _dailyMinutesController =
-        TextEditingController(text: _dailyMinutes.toString());
+    _dailyMinutesController = TextEditingController(
+        text: _dailyMinutes > 0 ? _dailyMinutes.toString() : '');
     _dailyQuotas = _parseDailyQuotas(init['dailyQuotas']) ??
         {2: _dailyMinutes, 3: _dailyMinutes, 4: _dailyMinutes, 5: _dailyMinutes, 6: _dailyMinutes};
     for (var day = 1; day <= 7; day++) {
       final value = _dailyQuotas[day] ?? 0;
       _dayControllers[day] =
           TextEditingController(text: value > 0 ? value.toString() : '');
+      _dayFocusNodes[day] = FocusNode();
+    }
+    _dailyMinutesFocus.addListener(_handleDailyFocusChange);
+    for (final entry in _dayFocusNodes.entries) {
+      entry.value.addListener(() => _handleDayFocusChange(entry.key));
     }
     _initialLimitType = _limitType;
     _initialDailyMode = _dailyMode;
@@ -88,7 +95,48 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     for (final c in _dayControllers.values) {
       c.dispose();
     }
+    _dailyMinutesFocus.dispose();
+    for (final f in _dayFocusNodes.values) {
+      f.dispose();
+    }
     super.dispose();
+  }
+
+  void _handleDailyFocusChange() {
+    if (_dailyMinutesFocus.hasFocus) return;
+    final text = _dailyMinutesController.text.trim();
+    if (text.isEmpty) {
+      setState(() {
+        _dailyMinutes = 0;
+        _recomputeDirty();
+      });
+    }
+  }
+
+  void _handleDayFocusChange(int day) {
+    final node = _dayFocusNodes[day];
+    if (node == null || node.hasFocus) return;
+    final controller = _dayControllers[day];
+    if (controller == null) return;
+    final text = controller.text.trim();
+    if (text.isEmpty) {
+      setState(() {
+        _dailyQuotas[day] = 0;
+        _recomputeDirty();
+      });
+      return;
+    }
+    final n = int.tryParse(text) ?? 0;
+    final clamped = n.clamp(1, 480);
+    if (clamped.toString() != controller.text) {
+      controller.text = clamped.toString();
+      controller.selection =
+          TextSelection.collapsed(offset: controller.text.length);
+      setState(() {
+        _dailyQuotas[day] = clamped;
+        _recomputeDirty();
+      });
+    }
   }
 
   Map<int, int>? _parseDailyQuotas(dynamic value) {
@@ -294,6 +342,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
 
   Widget _buildEditLayout({required bool isCreate}) {
     final showSave = isCreate || _isLimitDirty() || _isScheduleDirty();
+    final canSave = _isLimitValid();
     final borderRadius = widget.fullScreen
         ? BorderRadius.circular(0)
         : const BorderRadius.vertical(top: Radius.circular(AppRadius.xl));
@@ -432,7 +481,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                         width: double.infinity,
                         height: 44,
                         child: FilledButton(
-                          onPressed: _save,
+                          onPressed: canSave ? _save : null,
                           child: Text(isCreate ? 'Crear' : 'Guardar cambios'),
                         ),
                       ),
@@ -567,8 +616,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 width: double.infinity,
                 height: 44,
                 child: FilledButton(
-                  onPressed: _save,
-                  child: const Text('Guardar'),
+                  onPressed: _isLimitValid() ? _save : null,
+                  child: const Text('Crear'),
                 ),
               ),
             ),
@@ -965,7 +1014,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant.withValues(alpha: 0.6),
+        color: AppColors.surfaceVariant.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
           color: AppColors.surfaceVariant.withValues(alpha: 0.9),
@@ -985,21 +1034,52 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
           const SizedBox(height: AppSpacing.sm),
           TextField(
             controller: controller,
+            focusNode: _dailyMinutesFocus,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             textAlign: TextAlign.center,
+            onTapOutside: (_) => FocusScope.of(context).unfocus(),
+            onSubmitted: (_) => FocusScope.of(context).unfocus(),
             onChanged: (v) {
+              if (v.isEmpty) {
+                onChanged(0);
+                return;
+              }
               final n = int.tryParse(v) ?? 0;
-              onChanged(n.clamp(0, 480));
+              final clamped = n.clamp(1, 480);
+              if (clamped.toString() != controller.text) {
+                controller.text = clamped.toString();
+                controller.selection = TextSelection.collapsed(
+                    offset: controller.text.length);
+              }
+              onChanged(clamped);
             },
+            onEditingComplete: () {
+              if (controller.text.trim().isEmpty) {
+                controller.text = '1';
+                controller.selection =
+                    TextSelection.collapsed(offset: controller.text.length);
+                onChanged(1);
+              }
+              FocusScope.of(context).unfocus();
+            },
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
             decoration: const InputDecoration(
-              hintText: '0',
-              suffixText: 'min',
-              contentPadding: EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+              hintText: '≥ 1',
               filled: true,
               fillColor: AppColors.surface,
+              contentPadding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
             ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const Text(
+            'Rango: 1 - 480 minutos(8 hr)',
+            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
           ),
         ],
       ),
@@ -1035,28 +1115,54 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               Expanded(
                 child: TextField(
                   controller: _dayControllers[day],
+                  focusNode: _dayFocusNodes[day],
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   textAlign: TextAlign.center,
+                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                  onSubmitted: (_) => FocusScope.of(context).unfocus(),
                   onChanged: (v) {
-                    final n = int.tryParse(v);
+                    if (v.isEmpty) {
+                      setState(() {
+                        _dailyQuotas[day] = 0;
+                        _recomputeDirty();
+                      });
+                      return;
+                    }
+                    final n = int.tryParse(v) ?? 0;
+                    final clamped = n.clamp(1, 480);
+                    if (clamped.toString() != _dayControllers[day]?.text) {
+                      _dayControllers[day]?.text = clamped.toString();
+                      _dayControllers[day]?.selection = TextSelection.collapsed(
+                          offset: _dayControllers[day]!.text.length);
+                    }
                     setState(() {
-                      _dailyQuotas[day] = (n ?? 0).clamp(0, 480);
+                      _dailyQuotas[day] = clamped;
                       _recomputeDirty();
                     });
                   },
+                  onEditingComplete: () {
+                    final controller = _dayControllers[day];
+                    if (controller != null && controller.text.trim().isEmpty) {
+                      controller.text = '1';
+                      controller.selection = TextSelection.collapsed(
+                          offset: controller.text.length);
+                      setState(() {
+                        _dailyQuotas[day] = 1;
+                        _recomputeDirty();
+                      });
+                    }
+                    FocusScope.of(context).unfocus();
+                  },
                   decoration: InputDecoration(
-                    hintText: 'Sin límite',
+                    hintText: '≥ 1',
                     hintStyle: TextStyle(
                       color: AppColors.textTertiary.withValues(alpha: 0.8),
                     ),
                     suffixText: 'min',
                     suffixStyle: const TextStyle(color: AppColors.textSecondary),
                     filled: true,
-                    fillColor: (value <= 0
-                            ? AppColors.surfaceVariant
-                            : AppColors.primary.withValues(alpha: 0.12))
-                        .withValues(alpha: 0.6),
+                    fillColor: AppColors.surfaceVariant.withValues(alpha: 0.6),
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
                   ),
@@ -1066,7 +1172,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               SizedBox(
                 width: 84,
                 child: Text(
-                  value <= 0 ? 'Sin límite' : 'Límite',
+                  value <= 0 ? '≥ 1' : 'Límite',
                   textAlign: TextAlign.right,
                   style: TextStyle(
                     fontSize: 10,
@@ -1089,7 +1195,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       children: [
         Row(
           children: [
-            Expanded(child: _sectionLabel('Horarios')),
+            Expanded(child: _sectionLabel('Horarios (opcional)')),
             TextButton.icon(
               onPressed: _addSchedule,
               icon: const Icon(Icons.add_rounded, size: 16),
@@ -1130,11 +1236,40 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         const SizedBox(height: AppSpacing.sm),
         if (_loadingSchedules)
           const Center(child: CircularProgressIndicator(strokeWidth: 3))
-        else if (_schedules.isEmpty)
-          const Text(
-            'Sin horarios configurados',
-            style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
-          )
+          else if (_schedules.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceVariant.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(
+                  color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+                ),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.calendar_today_rounded,
+                      size: 28, color: AppColors.textTertiary),
+                  SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Sin horarios configurados',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Bloquea la app en rangos horarios específicos',
+                    style:
+                        TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            )
         else
           Column(
             children: _schedules.map(_scheduleTile).toList(),
@@ -1347,6 +1482,20 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     return false;
   }
 
+  bool _isLimitValid() {
+    if (_limitType == 'weekly') {
+      return _weeklyMinutes >= 1;
+    }
+    if (_dailyMode == 'same') {
+      return _dailyMinutes >= 1;
+    }
+    for (var day = 1; day <= 7; day++) {
+      final value = _dailyQuotas[day] ?? 0;
+      if (value < 1) return false;
+    }
+    return true;
+  }
+
   bool _isScheduleDirty() {
     if (_deletedScheduleIds.isNotEmpty) return true;
     if (_updatedScheduleIds.isNotEmpty) return true;
@@ -1391,6 +1540,14 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   }
 
   Future<void> _saveAsync() async {
+    if (!_isLimitValid()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El límite debe ser mayor o igual a 1 minuto.'),
+        ),
+      );
+      return;
+    }
     final scheduleDirty = _isScheduleDirty();
     if (scheduleDirty && _packageName != null) {
       try {
