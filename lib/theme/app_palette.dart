@@ -68,5 +68,47 @@ class AppPalette {
     textSecondary: Colors.white70,
     textTertiary: Colors.white38,
   );
+
+  static const forest = AppPalette(
+    primary: Color(0xFF2ECC71),
+    success: Color(0xFF27AE60),
+    warning: Color(0xFFF39C12),
+    error: Color(0xFFE74C3C),
+    info: Color(0xFF1ABC9C),
+    background: Color(0xFF0B1410),
+    surface: Color(0xFF15201A),
+    surfaceVariant: Color(0xFF223026),
+    textPrimary: Colors.white,
+    textSecondary: Colors.white70,
+    textTertiary: Colors.white38,
+  );
+
+  static const sunset = AppPalette(
+    primary: Color(0xFFFF7A59),
+    success: Color(0xFF2ECC71),
+    warning: Color(0xFFF6C453),
+    error: Color(0xFFF25C54),
+    info: Color(0xFF6DD6FF),
+    background: Color(0xFF120C14),
+    surface: Color(0xFF1E1623),
+    surfaceVariant: Color(0xFF2A2031),
+    textPrimary: Colors.white,
+    textSecondary: Colors.white70,
+    textTertiary: Colors.white38,
+  );
+
+  static const mono = AppPalette(
+    primary: Color(0xFF9E9E9E),
+    success: Color(0xFF7E7E7E),
+    warning: Color(0xFF8C8C8C),
+    error: Color(0xFFB0B0B0),
+    info: Color(0xFF9E9E9E),
+    background: Color(0xFF0E0E0E),
+    surface: Color(0xFF171717),
+    surfaceVariant: Color(0xFF242424),
+    textPrimary: Colors.white,
+    textSecondary: Colors.white70,
+    textTertiary: Colors.white38,
+  );
 }
 

@@ -310,6 +310,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                               : 'Pegar del portapapeles'),
                           style: FilledButton.styleFrom(
                             backgroundColor: AppColors.success,
+                            foregroundColor: AppColors.onColor(AppColors.success),
                           ),
                         ),
                       ),

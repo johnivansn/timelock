@@ -86,6 +86,15 @@ class AppSettings {
       case 'calm':
         AppColors.apply(AppPalette.calm);
         return AppTheme.darkCalm;
+      case 'forest':
+        AppColors.apply(AppPalette.forest);
+        return AppTheme.darkForest;
+      case 'sunset':
+        AppColors.apply(AppPalette.sunset);
+        return AppTheme.darkSunset;
+      case 'mono':
+        AppColors.apply(AppPalette.mono);
+        return AppTheme.darkMono;
       case 'classic':
         AppColors.apply(AppPalette.classic);
         return AppTheme.darkTheme;

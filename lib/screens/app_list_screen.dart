@@ -438,12 +438,12 @@ class _AppListScreenState extends State<AppListScreen> {
       return Container(
         padding: EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFF1B1B2D),
-            Color(0xFF1A1A2E),
-          ],
-          begin: Alignment.topLeft,
+          gradient: LinearGradient(
+            colors: [
+              AppColors.background,
+              AppColors.surface,
+            ],
+            begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -562,7 +562,7 @@ class _AppListScreenState extends State<AppListScreen> {
       context: context,
       barrierLabel: 'settings',
       barrierDismissible: true,
-      barrierColor: Colors.black.withValues(alpha: 0.45),
+      barrierColor: AppColors.background.withValues(alpha: 0.55),
       transitionDuration: AppMotion.duration(Duration(milliseconds: 260)),
       pageBuilder: (context, _, __) {
         return Align(
@@ -577,8 +577,8 @@ class _AppListScreenState extends State<AppListScreen> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      Color(0xFF21213A),
-                      Color(0xFF1A1A2E),
+                      AppColors.surfaceVariant,
+                      AppColors.surface,
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -590,7 +590,7 @@ class _AppListScreenState extends State<AppListScreen> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.45),
+                        color: AppColors.background.withValues(alpha: 0.55),
                       blurRadius: 28,
                       offset: Offset(-8, 0),
                     ),
@@ -805,12 +805,12 @@ class _AppListScreenState extends State<AppListScreen> {
     Widget _permissionsBanner() {
       return Container(
         padding: EdgeInsets.all(AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: Color(0xFFF39C12).withValues(alpha: 0.12),
-          border: Border.all(
-              color: Color(0xFFF39C12).withValues(alpha: 0.35), width: 1),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
+          decoration: BoxDecoration(
+            color: AppColors.warning.withValues(alpha: 0.12),
+            border: Border.all(
+                color: AppColors.warning.withValues(alpha: 0.35), width: 1),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
         child: Row(
           children: [
             Icon(Icons.warning_amber_rounded,
@@ -831,10 +831,10 @@ class _AppListScreenState extends State<AppListScreen> {
                 context,
                 MaterialPageRoute(builder: (_) => PermissionsScreen()),
               ).then((_) => _checkPermissions()),
-              style: TextButton.styleFrom(
-                backgroundColor: Color(0xFFF39C12).withValues(alpha: 0.2),
-                foregroundColor: AppColors.warning,
-                padding: EdgeInsets.symmetric(
+                style: TextButton.styleFrom(
+                  backgroundColor: AppColors.warning.withValues(alpha: 0.2),
+                      foregroundColor: AppColors.onColor(AppColors.warning),
+                  padding: EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -943,12 +943,12 @@ class _AppListScreenState extends State<AppListScreen> {
               padding: EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              gradient: LinearGradient(
-                colors: [
-                  Color(0xFF1A1A2E),
-                  Color(0xFF1C1C30),
-                ],
-                begin: Alignment.topLeft,
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.surface,
+                    AppColors.surfaceVariant,
+                  ],
+                  begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               border: Border.all(
@@ -1192,13 +1192,13 @@ class _AppListScreenState extends State<AppListScreen> {
             border: Border.all(
               color: borderColor,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 6,
-                offset: Offset(0, 2),
-              ),
-            ],
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.background.withValues(alpha: 0.2),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
           ),
           child: Row(
             children: [

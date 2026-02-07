@@ -206,6 +206,10 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
           child: Text('Cancelar'),
         ),
         FilledButton(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.onColor(AppColors.primary),
+          ),
           onPressed: _valid
               ? () => Navigator.pop(
                   context,

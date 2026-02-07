@@ -9,7 +9,14 @@ class AppTheme {
 
   static ThemeData get darkCalm => _buildTheme(AppPalette.calm);
 
+  static ThemeData get darkForest => _buildTheme(AppPalette.forest);
+
+  static ThemeData get darkSunset => _buildTheme(AppPalette.sunset);
+
+  static ThemeData get darkMono => _buildTheme(AppPalette.mono);
+
   static ThemeData _buildTheme(AppPalette palette) {
+    final onPrimary = _onColor(palette.primary);
     final colorScheme = ColorScheme.fromSeed(
       seedColor: palette.primary,
       brightness: Brightness.dark,
@@ -18,7 +25,7 @@ class AppTheme {
       surface: palette.surface,
       // ignore: deprecated_member_use
       surfaceVariant: palette.surfaceVariant,
-    );
+    ).copyWith(onPrimary: onPrimary);
 
     return ThemeData(
       useMaterial3: true,
@@ -48,7 +55,7 @@ class AppTheme {
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: palette.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: onPrimary,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -57,8 +64,23 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: palette.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: onPrimary,
           elevation: 0,
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.2,
+          ),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: palette.primary,
+          foregroundColor: onPrimary,
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -150,6 +172,10 @@ class AppTheme {
     );
   }
 
+  static Color _onColor(Color color) {
+    return color.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+  }
+
   static ThemeData withReducedAnimations(ThemeData base) {
     return base.copyWith(
       pageTransitionsTheme: PageTransitionsTheme(
@@ -195,6 +221,10 @@ class AppColors {
   static Color get textPrimary => _palette.textPrimary;
   static Color get textSecondary => _palette.textSecondary;
   static Color get textTertiary => _palette.textTertiary;
+
+  static Color onColor(Color color) {
+    return color.computeLuminance() > 0.5 ? Colors.black : Colors.white;
+  }
 }
 
 class AppSpacing {

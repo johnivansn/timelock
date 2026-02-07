@@ -119,6 +119,12 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                                   child: Text('Alto contraste')),
                               DropdownMenuItem(
                                   value: 'calm', child: Text('Calmo')),
+                              DropdownMenuItem(
+                                  value: 'forest', child: Text('Bosque')),
+                              DropdownMenuItem(
+                                  value: 'sunset', child: Text('Atardecer')),
+                              DropdownMenuItem(
+                                  value: 'mono', child: Text('Monocromo')),
                             ],
                             onChanged: (value) async {
                               if (value == null) return;

@@ -704,13 +704,13 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         border: Border.all(
           color: AppColors.primary.withValues(alpha: 0.35),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.background.withValues(alpha: 0.25),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
       ),
       child: Row(
         children: [
@@ -1425,6 +1425,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 style: IconButton.styleFrom(
                   backgroundColor:
                       AppColors.surfaceVariant.withValues(alpha: 0.4),
+                  foregroundColor:
+                      AppColors.onColor(AppColors.surfaceVariant),
                   padding: EdgeInsets.all(6),
                 ),
               ),
