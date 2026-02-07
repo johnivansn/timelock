@@ -2,7 +2,6 @@ package com.example.timelock.blocking
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.wifi.WifiManager
 import android.util.Log
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.monitoring.ScheduleMonitor
@@ -18,7 +17,6 @@ class BlockingEngine(private val context: Context) {
 
   sealed class BlockReason {
     object TimeQuota : BlockReason()
-    object WifiBlocked : BlockReason()
     object ScheduleBlocked : BlockReason()
     object Combined : BlockReason()
   }
@@ -26,16 +24,13 @@ class BlockingEngine(private val context: Context) {
   suspend fun shouldBlock(packageName: String): Boolean {
     val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
     if (!restriction.isEnabled) return false
-    return isQuotaBlocked(packageName) ||
-            isWifiBlocked(packageName) ||
-            isScheduleBlocked(packageName)
+    return isQuotaBlocked(packageName) || isScheduleBlocked(packageName)
   }
 
   suspend fun shouldBlockSync(packageName: String): BlockReason? {
     return when {
       isQuotaBlocked(packageName) && isScheduleBlocked(packageName) -> BlockReason.Combined
       isQuotaBlocked(packageName) -> BlockReason.TimeQuota
-      isWifiBlocked(packageName) -> BlockReason.WifiBlocked
       isScheduleBlocked(packageName) -> BlockReason.ScheduleBlocked
       else -> null
     }
@@ -48,38 +43,9 @@ class BlockingEngine(private val context: Context) {
     return usage.usedMinutes >= restriction.dailyQuotaMinutes
   }
 
-  suspend fun isWifiBlocked(packageName: String): Boolean {
-    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
-    val blockedSSIDs = restriction.getBlockedWifiList()
-    if (blockedSSIDs.isEmpty()) return false
-    val currentSSID = getCurrentSSID() ?: return false
-    return currentSSID in blockedSSIDs
-  }
-
   suspend fun isScheduleBlocked(packageName: String): Boolean {
     val schedules = database.appScheduleDao().getByPackage(packageName)
     return scheduleMonitor.isCurrentlyBlocked(schedules)
-  }
-
-  private fun getCurrentSSID(): String? {
-    return try {
-      val wifiManager =
-              context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
-                      ?: return null
-
-      @Suppress("DEPRECATION") val info = wifiManager.connectionInfo
-      if (info != null && info.networkId != -1) {
-        val ssid = info.ssid?.removeSurrounding("\"") ?: return null
-        if (ssid.isNotEmpty() && ssid != "<unknown ssid>") {
-          Log.d(TAG, "WiFi detected: $ssid")
-          return ssid
-        }
-      }
-      null
-    } catch (e: Exception) {
-      Log.e(TAG, "Error getting SSID", e)
-      null
-    }
   }
 
   suspend fun blockApp(packageName: String, reason: BlockReason): Boolean {
@@ -94,7 +60,6 @@ class BlockingEngine(private val context: Context) {
     val notificationReason =
             when (reason) {
               BlockReason.TimeQuota -> PillNotificationHelper.BlockReason.QUOTA_EXCEEDED
-              BlockReason.WifiBlocked -> PillNotificationHelper.BlockReason.WIFI_BLOCKED
               BlockReason.ScheduleBlocked -> PillNotificationHelper.BlockReason.SCHEDULE_BLOCKED
               BlockReason.Combined -> PillNotificationHelper.BlockReason.QUOTA_EXCEEDED
             }

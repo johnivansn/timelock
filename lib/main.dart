@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:timelock/screens/app_list_screen.dart';
+import 'package:timelock/screens/splash_screen.dart';
 import 'package:timelock/theme/app_theme.dart';
 
 void main() {
@@ -16,7 +16,7 @@ class AppTimeControlApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
       themeMode: ThemeMode.dark,
-      home: const AppListScreen(),
+      home: const SplashScreen(),
     );
   }
 }

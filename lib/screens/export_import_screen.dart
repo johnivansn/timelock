@@ -353,8 +353,6 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                           'El modo administrador (PIN) no se exporta por seguridad'),
                       const SizedBox(height: AppSpacing.md),
                       _noteItem('Los contadores de uso diario no se exportan'),
-                      const SizedBox(height: AppSpacing.md),
-                      _noteItem('Las redes WiFi bloqueadas sí se incluyen'),
                     ],
                   ),
                 ),

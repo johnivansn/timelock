@@ -24,8 +24,8 @@ class DailyResetReceiver : BroadcastReceiver() {
     val scheduleMonitor = ScheduleMonitor(context)
     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     val today = dateFormat.format(Date())
-    val yesterday =
-            Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, -1) }.let {
+    val sevenDaysAgo =
+            Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, -7) }.let {
               dateFormat.format(it.time)
             }
     val pendingResult = goAsync()
@@ -33,10 +33,10 @@ class DailyResetReceiver : BroadcastReceiver() {
     scope.launch {
       try {
         database.dailyUsageDao().resetUsageForDate(today)
-        database.dailyUsageDao().deleteOldUsage(yesterday)
+        database.dailyUsageDao().deleteOldUsage(sevenDaysAgo)
         usageStatsMonitor.resetNotificationFlags()
         scheduleMonitor.resetNotificationFlags()
-        Log.i("DailyResetReceiver", "Reset completed for $today, purged before $yesterday")
+        Log.i("DailyResetReceiver", "Reset completed for $today, purged before $sevenDaysAgo")
       } catch (e: Exception) {
         Log.e("DailyResetReceiver", "Reset failed", e)
       } finally {

@@ -5,9 +5,11 @@ import android.content.Context
 import android.util.Log
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.database.DailyUsage
+import com.example.timelock.database.getDailyQuotaForDay
 import com.example.timelock.notifications.PillNotificationHelper
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.ceil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -122,14 +124,39 @@ class UsageStatsMonitor(private val context: Context) {
           Log.d(TAG, "Actualizado registro de uso para ${restriction.packageName}")
         }
 
-        checkAndNotifyQuota(
-                restriction.packageName,
-                restriction.appName,
-                usageMinutes,
-                restriction.dailyQuotaMinutes
-        )
+        val quotaMinutes =
+                if (restriction.limitType == "weekly") restriction.weeklyQuotaMinutes
+                else restriction.getDailyQuotaForDay(Calendar.getInstance().get(Calendar.DAY_OF_WEEK))
 
-        if (usageMinutes >= restriction.dailyQuotaMinutes && !dailyUsage.isBlocked) {
+        val usedForLimitMinutes =
+                if (restriction.limitType == "weekly") {
+                  val weekStart = getWeekStartDate(restriction.weeklyResetDay)
+                  val weekUsages =
+                          database.dailyUsageDao()
+                                  .getUsageSince(restriction.packageName, weekStart)
+                  weekUsages.sumOf { it.usedMinutes }
+                } else {
+                  usageMinutes
+                }
+
+        if (quotaMinutes > 0) {
+          checkAndNotifyQuota(
+                  restriction.packageName,
+                  restriction.appName,
+                  if (restriction.limitType == "weekly") usedForLimitMinutes * 60000L
+                  else usageMillis,
+                  quotaMinutes
+          )
+        }
+
+        val exceeded =
+                if (restriction.limitType == "weekly") {
+                  usedForLimitMinutes >= quotaMinutes
+                } else {
+                  usageMillis >= quotaMinutes * 60000L
+                }
+
+        if (quotaMinutes > 0 && exceeded && !dailyUsage.isBlocked) {
           dailyUsage = dailyUsage.copy(isBlocked = true)
           database.dailyUsageDao().update(dailyUsage)
           pillNotification.notifyAppBlocked(
@@ -160,10 +187,12 @@ class UsageStatsMonitor(private val context: Context) {
   private fun checkAndNotifyQuota(
           packageName: String,
           appName: String,
-          usedMinutes: Int,
+          usedMillis: Long,
           quotaMinutes: Int
   ) {
-    val remainingMinutes = quotaMinutes - usedMinutes
+    val quotaMillis = quotaMinutes * 60000L
+    val remainingMillis = quotaMillis - usedMillis
+    val remainingMinutes = ceil(remainingMillis / 60000.0).toInt()
 
     when {
       remainingMinutes == 1 && !notifiedLastMinute.contains(packageName) -> {
@@ -171,21 +200,31 @@ class UsageStatsMonitor(private val context: Context) {
         notifiedLastMinute.add(packageName)
         Log.i(TAG, "Notificado último minuto para $packageName")
       }
-      usedMinutes >= (quotaMinutes * 0.75).toInt() &&
+      usedMillis >= (quotaMillis * 0.75).toLong() &&
               remainingMinutes > 1 &&
               !notified75Percent.contains(packageName) -> {
         pillNotification.notifyQuota75(appName, packageName, remainingMinutes)
         notified75Percent.add(packageName)
         Log.i(TAG, "Notificado 75% para $packageName")
       }
-      usedMinutes >= (quotaMinutes * 0.5).toInt() &&
-              usedMinutes < (quotaMinutes * 0.75).toInt() &&
+      usedMillis >= (quotaMillis * 0.5).toLong() &&
+              usedMillis < (quotaMillis * 0.75).toLong() &&
               !notified50Percent.contains(packageName) -> {
         pillNotification.notifyQuota50(appName, packageName, remainingMinutes)
         notified50Percent.add(packageName)
         Log.i(TAG, "Notificado 50% para $packageName")
       }
     }
+  }
+
+  private fun getWeekStartDate(resetDay: Int): String {
+    val cal = Calendar.getInstance()
+    val current = cal.get(Calendar.DAY_OF_WEEK)
+    var diff = current - resetDay
+    if (diff < 0) diff += 7
+    cal.add(Calendar.DAY_OF_MONTH, -diff)
+    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    return formatter.format(cal.time)
   }
 
   fun resetNotificationFlags() {

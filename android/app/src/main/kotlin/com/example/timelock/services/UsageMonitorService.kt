@@ -15,7 +15,6 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.timelock.database.AppDatabase
-import com.example.timelock.monitoring.NetworkMonitor
 import com.example.timelock.monitoring.ScheduleMonitor
 import com.example.timelock.monitoring.UsageStatsMonitor
 import com.example.timelock.optimization.BatteryModeManager
@@ -33,7 +32,6 @@ import kotlinx.coroutines.withContext
 
 class UsageMonitorService : Service() {
   private lateinit var usageStatsMonitor: UsageStatsMonitor
-  private lateinit var networkMonitor: NetworkMonitor
   private lateinit var scheduleMonitor: ScheduleMonitor
   private lateinit var database: AppDatabase
   private lateinit var batteryModeManager: BatteryModeManager
@@ -60,7 +58,6 @@ class UsageMonitorService : Service() {
     super.onCreate()
     database = AppDatabase.getDatabase(this)
     usageStatsMonitor = UsageStatsMonitor(this)
-    networkMonitor = NetworkMonitor(this, scope)
     scheduleMonitor = ScheduleMonitor(this)
     batteryModeManager = BatteryModeManager(this)
     dataCleanupManager = DataCleanupManager(this)
@@ -73,7 +70,6 @@ class UsageMonitorService : Service() {
     }
 
     scheduleDailyReset()
-    networkMonitor.start()
 
     scope.launch { dataCleanupManager.performCleanupIfNeeded() }
   }
@@ -91,7 +87,6 @@ class UsageMonitorService : Service() {
   override fun onDestroy() {
     super.onDestroy()
     handler.removeCallbacks(updateRunnable)
-    networkMonitor.stop()
     scope.cancel()
   }
 

@@ -251,12 +251,6 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                             label: 'Registros de uso',
                             value: '${_stats!['usageRecordCount']}',
                           ),
-                          const Divider(height: AppSpacing.lg),
-                          _statRow(
-                            icon: Icons.wifi_rounded,
-                            label: 'Historial WiFi',
-                            value: '${_stats!['wifiHistoryCount']}',
-                          ),
                         ],
                       ),
                     ),

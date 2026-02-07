@@ -36,14 +36,6 @@ class NativeService {
     await _channel.invokeMethod('requestOverlayPermission');
   }
 
-  static Future<bool> checkLocationPermission() async {
-    return await _channel.invokeMethod<bool>('checkLocationPermission') ??
-        false;
-  }
-
-  static Future<void> requestLocationPermission() async {
-    await _channel.invokeMethod('requestLocationPermission');
-  }
 
   static Future<List<Map<String, dynamic>>> getInstalledApps() async {
     final raw =
@@ -61,6 +53,10 @@ class NativeService {
     await _channel.invokeMethod('addRestriction', data);
   }
 
+  static Future<void> updateRestriction(Map<String, dynamic> data) async {
+    await _channel.invokeMethod('updateRestriction', data);
+  }
+
   static Future<void> deleteRestriction(String packageName) async {
     await _channel.invokeMethod('deleteRestriction', packageName);
   }
@@ -69,7 +65,27 @@ class NativeService {
     final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
         'getUsageToday', packageName);
     return result?.map((k, v) => MapEntry(k.toString(), v)) ??
-        {'usedMinutes': 0, 'isBlocked': false};
+        {'usedMinutes': 0, 'isBlocked': false, 'usedMillis': 0, 'usedMinutesWeek': 0};
+  }
+
+  static Future<List<Map<String, dynamic>>> getSchedules(
+      String packageName) async {
+    final raw =
+        await _channel.invokeMethod<List<dynamic>>('getSchedules', packageName) ??
+            [];
+    return raw.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  static Future<void> addSchedule(Map<String, dynamic> data) async {
+    await _channel.invokeMethod('addSchedule', data);
+  }
+
+  static Future<void> updateSchedule(Map<String, dynamic> data) async {
+    await _channel.invokeMethod('updateSchedule', data);
+  }
+
+  static Future<void> deleteSchedule(String scheduleId) async {
+    await _channel.invokeMethod('deleteSchedule', scheduleId);
   }
 
   static Future<bool> isAdminEnabled() async {
@@ -88,21 +104,6 @@ class NativeService {
 
   static Future<bool> disableAdmin() async {
     return await _channel.invokeMethod<bool>('disableAdmin') ?? false;
-  }
-
-  static Future<List<String>> getSavedWifiNetworks() async {
-    final result =
-        await _channel.invokeMethod<List<dynamic>>('getSavedWifiNetworks') ??
-            [];
-    return result.map((e) => e.toString()).toList();
-  }
-
-  static Future<String?> getCurrentWifi() async {
-    return await _channel.invokeMethod<String?>('getCurrentWifi');
-  }
-
-  static Future<void> updateRestrictionWifi(Map<String, dynamic> data) async {
-    await _channel.invokeMethod('updateRestrictionWifi', data);
   }
 
   static Future<String?> exportConfig() async {

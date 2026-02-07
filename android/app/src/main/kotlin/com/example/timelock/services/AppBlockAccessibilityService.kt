@@ -104,9 +104,16 @@ class AppBlockAccessibilityService : AccessibilityService() {
     if (currentPackage == packageName) {
       Log.e(TAG, "  ✅ App ACTIVA - bloqueando")
       blockApp(packageName)
-    } else {
-      Log.d(TAG, "  ⏭️ App no activa - ignorando")
+      return
     }
+
+    if (currentPackage == null || isIgnoredPackage(currentPackage)) {
+      Log.w(TAG, "  ⚠️ Ventana actual no confiable/ignorada - forzando bloqueo")
+      blockApp(packageName)
+      return
+    }
+
+    Log.d(TAG, "  ⏭️ App no activa - ignorando")
   }
 
   override fun onAccessibilityEvent(event: AccessibilityEvent) {
@@ -126,10 +133,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
             "🔔 Evento: $packageName | Estado overlay: $overlayState | Bloqueado actual: $currentBlockedPackage"
     )
 
-    val isLauncher =
-            packageName in IGNORED_PACKAGES ||
-                    packageName.contains("launcher", ignoreCase = true) ||
-                    packageName.contains("home", ignoreCase = true)
+    val isLauncher = isIgnoredPackage(packageName)
 
     if (isLauncher) {
       Log.d(TAG, "  ⏭️ Paquete ignorado (sistema/launcher)")
@@ -170,6 +174,12 @@ class AppBlockAccessibilityService : AccessibilityService() {
         }
       }
     }
+  }
+
+  private fun isIgnoredPackage(packageName: String): Boolean {
+    return packageName in IGNORED_PACKAGES ||
+            packageName.contains("launcher", ignoreCase = true) ||
+            packageName.contains("home", ignoreCase = true)
   }
 
   private fun blockApp(packageName: String) {

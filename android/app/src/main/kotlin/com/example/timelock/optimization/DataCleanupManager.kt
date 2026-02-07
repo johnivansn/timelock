@@ -5,7 +5,6 @@ import android.util.Log
 import com.example.timelock.database.AppDatabase
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -18,7 +17,6 @@ class DataCleanupManager(private val context: Context) {
     private const val KEY_LAST_CLEANUP = "last_cleanup"
     private const val CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000L
     private const val USAGE_DATA_RETENTION_DAYS = 30L
-    private const val WIFI_HISTORY_RETENTION_DAYS = 60L
     private const val MAX_DB_SIZE_MB = 10L
   }
 
@@ -37,7 +35,6 @@ class DataCleanupManager(private val context: Context) {
               Log.d("DataCleanupManager", "Starting cleanup. DB size: ${sizeBefore / 1024}KB")
 
               cleanupOldUsageData()
-              cleanupOldWifiHistory()
               cleanupOrphanedData()
 
               val sizeAfter = getDatabaseSize()
@@ -64,18 +61,6 @@ class DataCleanupManager(private val context: Context) {
       Log.d("DataCleanupManager", "Deleted usage data before $cutoffDate")
     } catch (e: Exception) {
       Log.e("DataCleanupManager", "Error cleaning usage data", e)
-    }
-  }
-
-  private suspend fun cleanupOldWifiHistory() {
-    try {
-      val cutoffTimestamp =
-              System.currentTimeMillis() - TimeUnit.DAYS.toMillis(WIFI_HISTORY_RETENTION_DAYS)
-
-      database.wifiHistoryDao().deleteOldEntries(cutoffTimestamp)
-      Log.d("DataCleanupManager", "Deleted WiFi history before $cutoffTimestamp")
-    } catch (e: Exception) {
-      Log.e("DataCleanupManager", "Error cleaning WiFi history", e)
     }
   }
 
@@ -124,7 +109,6 @@ class DataCleanupManager(private val context: Context) {
             "databaseSizeMB" to String.format("%.2f", getDatabaseSizeMB()),
             "lastCleanup" to prefs.getLong(KEY_LAST_CLEANUP, 0L),
             "usageRecordCount" to database.dailyUsageDao().getAllUsage().size,
-            "wifiHistoryCount" to database.wifiHistoryDao().getAll().size,
             "restrictionCount" to database.appRestrictionDao().getAll().size
     )
   }
