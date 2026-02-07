@@ -1,15 +1,16 @@
 # INFORME TÉCNICO DEL PROYECTO — AppTimeControl
 
-## Versión: v1.4-ACTUAL
-**Fecha**: 06 de febrero, 2026
+## Versión: v1.5-ACTUAL
+**Fecha**: 07 de febrero, 2026
 **Estado**: Implementación en progreso
-**Última actualización**: Refactorización integral completada
+**Última actualización**: Cuotas semanales + límites diarios por día
 
 ---
 
 ## GLOSARIO DE TÉRMINOS
 
 - **Cuota diaria**: Tiempo máximo permitido para usar una aplicación en un día (1–480 minutos)
+- **Cuota semanal**: Tiempo máximo permitido para usar una aplicación en una semana (minutos totales)
 - **Bloqueo temporal**: Restricción de acceso a una app por el resto del día tras consumir cuota
 - **Bloqueo por horario**: Restricción de acceso a una app durante rangos horarios configurables
 - **Overlay de bloqueo**: Capa visual no cancelable que impide el uso de la aplicación usando AccessibilityService
@@ -23,7 +24,7 @@
 
 AppTimeControl es una aplicación Android minimalista de control temporal que **realmente funciona** — sin trucos, sin gamificación, sin estadísticas innecesarias. Solo restricción directa y efectiva mediante:
 
-1. **Cuotas diarias por app** (1 minuto a 8 horas)
+1. **Cuotas por app**: diarias (mismo o diferente por día) y semanales
 2. **Bloqueo automático** mediante overlay AccessibilityService no cancelable
 3. **Bloqueos por horario** con rangos configurables y días de la semana
 4. **Protección con PIN** contra modificaciones no autorizadas
@@ -32,7 +33,7 @@ AppTimeControl es una aplicación Android minimalista de control temporal que **
 ### Características eliminadas en refactorización
 
 - ❌ **Bloqueo por WiFi**: Eliminado por complejidad innecesaria y bajo uso esperado
-- ❌ **Device Owner/Admin**: Reemplazado por protección básica de desinstalación
+- ❌ **Device Owner**: Reemplazado por protección básica de desinstalación (Device Admin)
 
 ---
 
@@ -97,8 +98,9 @@ lib/ (Flutter)
 │   └── optimization_screen.dart          # Estadísticas y limpieza
 ├── widgets/
 │   ├── app_picker_dialog.dart            # Selector de apps con iconos
+│   ├── limit_picker_dialog.dart          # Selector de límite (diario/semanal)
 │   ├── time_picker_dialog.dart           # Selector de cuota
-│   └── schedule_editor_dialog.dart       # Editor de horarios
+│   └── schedule_editor_dialog.dart       # Editor de horarios + etiquetas
 ├── services/
 │   └── native_service.dart               # MethodChannel wrapper
 ├── theme/
@@ -111,7 +113,7 @@ lib/ (Flutter)
 
 ## 3. MODELO DE DATOS
 
-### 3.1 Base de Datos Room (v6)
+### 3.1 Base de Datos Room (v7)
 
 #### `app_restrictions`
 
@@ -120,8 +122,13 @@ data class AppRestriction(
     @PrimaryKey val id: String,              // UUID
     val packageName: String,                  // com.instagram.android
     val appName: String,                      // Instagram
-    val dailyQuotaMinutes: Int,              // 1-480
+    val dailyQuotaMinutes: Int,              // 1-480 (si límite diario)
     val isEnabled: Boolean,                   // true/false
+    val limitType: String,                    // "daily" | "weekly"
+    val dailyMode: String,                    // "same" | "per_day"
+    val dailyQuotas: String,                  // "1:30,2:30,3:45" (si per_day)
+    val weeklyQuotaMinutes: Int,              // minutos por semana
+    val weeklyResetDay: Int,                  // 1=Dom ... 7=Sab
     val createdAt: Long                       // timestamp
 )
 ```
@@ -178,6 +185,7 @@ data class AdminSettings(
 - **Migration 3→4**: Añadido `app_schedules` (versión inicial con String)
 - **Migration 4→5**: Conversión `daysOfWeek` String → Int (bitmask)
 - **Migration 5→6**: Eliminación completa de `wifi_history` y limpieza de columnas WiFi
+- **Migration 6→7**: Nuevas columnas para límites diarios/semana
 
 ---
 
@@ -187,18 +195,19 @@ data class AdminSettings(
 
 #### RF1: Gestión de Cuotas por Aplicación ✅
 
-**Descripción**: Usuario define cuota diaria de tiempo para cada app.
+**Descripción**: Usuario define cuota diaria o semanal de tiempo para cada app.
 
 **Implementación**:
-- Rango: 1 minuto (para tests precisos) a 480 minutos (8 horas)
-- Selector visual con presets: 1, 5, 10, 15, 30, 60, 120 minutos
-- Modo personalizado con input numérico
+- Rango: 1 minuto (tests precisos) a 480 minutos
+- Selector de tipo de límite: diario o semanal
+- Límite diario: mismo tiempo o distinto por día
 - Toggle on/off que mantiene configuración
 - **Detalle especial**: Si cuota ≤ 1 minuto, UI muestra segundos en lugar de minutos
 
 **Ubicación código**:
-- `lib/widgets/time_picker_dialog.dart` - Selector de cuota
-- `android/.../MainActivity.kt` - `addRestriction()`
+- `lib/widgets/limit_picker_dialog.dart` - Selector de límite
+- `lib/widgets/time_picker_dialog.dart` - Selector de minutos
+- `android/.../MainActivity.kt` - `addRestriction()` / `updateRestriction()`
 
 ---
 
@@ -214,7 +223,9 @@ Query UsageStats API (desde medianoche)
     ↓
 Calcula tiempo REAL en milisegundos
     ↓
-Si usedMillis >= quotaMinutes * 60000
+Determina cuota activa (diaria o semanal)
+    ↓
+Si excede la cuota activa
     ↓
 Marca isBlocked = true en DailyUsage
     ↓
@@ -341,7 +352,12 @@ sealed class VerifyResult {
       "packageName": "com.instagram.android",
       "appName": "Instagram",
       "dailyQuotaMinutes": 30,
-      "isEnabled": true
+      "isEnabled": true,
+      "limitType": "daily",
+      "dailyMode": "same",
+      "dailyQuotas": "",
+      "weeklyQuotaMinutes": 0,
+      "weeklyResetDay": 2
     }
   ]
 }
@@ -619,7 +635,7 @@ static const info = Color(0xFF3498DB);       // Azul
    ├─ Query UsageStats API desde medianoche
    ├─ Para cada app con restricción:
    │  ├─ Calcula tiempo en milisegundos
-   │  ├─ Convierte a minutos (ceil)
+   │  ├─ Calcula uso real en milisegundos
    │  ├─ Actualiza DailyUsage en Room
    │  └─ Si usedMillis >= quotaMinutes * 60000:
    │     ├─ Marca isBlocked = true
@@ -942,6 +958,7 @@ MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
 - `getInstalledApps()` → `List<Map<String, dynamic>>`
 - `getRestrictions()` → `List<Map<String, dynamic>>`
 - `addRestriction(data)` → `void`
+- `updateRestriction(data)` → `void`
 - `deleteRestriction(packageName)` → `void`
 - `getUsageToday(packageName)` → `Map<String, dynamic>`
 - `getSchedules(packageName)` → `List<Map<String, dynamic>>`
@@ -1021,6 +1038,6 @@ AppTimeControl sigue siendo fiel a su visión original:
 
 ---
 
-**Última actualización**: 06 de febrero, 2026
-**Versión del informe**: v2.0 (post-refactorización)
-**Estado del proyecto**: Implementación v1.4 en progreso
+**Última actualización**: 07 de febrero, 2026
+**Versión del informe**: v2.1 (cuotas semanales)
+**Estado del proyecto**: Implementación v1.5 en progreso

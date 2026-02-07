@@ -10,8 +10,8 @@ import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
 import 'package:timelock/widgets/app_picker_dialog.dart';
+import 'package:timelock/widgets/limit_picker_dialog.dart';
 import 'package:timelock/widgets/schedule_editor_dialog.dart';
-import 'package:timelock/widgets/time_picker_dialog.dart';
 
 class AppListScreen extends StatefulWidget {
   const AppListScreen({super.key, this.initialRestrictions});
@@ -93,10 +93,12 @@ class _AppListScreenState extends State<AppListScreen> {
           r['usedMinutes'] = usage['usedMinutes'] ?? 0;
           r['isBlocked'] = usage['isBlocked'] ?? false;
           r['usedMillis'] = usage['usedMillis'] ?? (r['usedMinutes'] * 60000);
+          r['usedMinutesWeek'] = usage['usedMinutesWeek'] ?? 0;
         } catch (_) {
           r['usedMinutes'] = 0;
           r['isBlocked'] = false;
           r['usedMillis'] = 0;
+          r['usedMinutesWeek'] = 0;
         }
         try {
           final schedules =
@@ -118,13 +120,19 @@ class _AppListScreenState extends State<AppListScreen> {
     }
   }
 
-  Future<void> _addRestriction(String pkg, String name, int minutes) async {
+  Future<void> _addRestriction(String pkg, String name, int minutes,
+      {Map<String, dynamic>? limit}) async {
     try {
       await NativeService.addRestriction({
         'packageName': pkg,
         'appName': name,
         'dailyQuotaMinutes': minutes,
         'isEnabled': true,
+        'limitType': limit?['limitType'] ?? 'daily',
+        'dailyMode': limit?['dailyMode'] ?? 'same',
+        'dailyQuotas': limit?['dailyQuotas'] ?? {},
+        'weeklyQuotaMinutes': limit?['weeklyQuotaMinutes'] ?? 0,
+        'weeklyResetDay': limit?['weeklyResetDay'] ?? 2,
       });
       await _loadRestrictions();
     } catch (e) {
@@ -164,15 +172,66 @@ class _AppListScreenState extends State<AppListScreen> {
       builder: (_) => AppPickerDialog(excludedPackages: existing),
     );
     if (app == null || !mounted) return;
-
-    final minutes = await showDialog<int>(
+    final limit = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
-      builder: (_) => const QuotaTimePicker(),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => LimitPickerDialog(appName: app['appName'] as String),
     );
-    if (minutes == null) return;
+    if (limit == null) return;
 
     await _addRestriction(
-        app['packageName']! as String, app['appName']! as String, minutes);
+      app['packageName']! as String,
+      app['appName']! as String,
+      limit['dailyQuotaMinutes'] as int? ?? 30,
+      limit: limit,
+    );
+
+    if (!mounted) return;
+    final addSchedule = await _confirmAddSchedule();
+    if (addSchedule == 'manual') {
+      await _openScheduleEditor({
+        'appName': app['appName'],
+        'packageName': app['packageName'],
+      });
+    } else if (addSchedule == 'template') {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => ScheduleEditorDialog(
+          appName: app['appName'],
+          packageName: app['packageName'],
+          openTemplatePicker: true,
+        ),
+      );
+      await _loadRestrictions();
+    }
+  }
+
+  Future<String?> _confirmAddSchedule() {
+    return showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Agregar horario'),
+        content:
+            const Text('¿Deseas configurar un horario de bloqueo ahora?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'no'),
+            child: const Text('Ahora no'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, 'manual'),
+            child: const Text('Manual'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, 'template'),
+            child: const Text('Usar etiqueta'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _openScheduleEditor(Map<String, dynamic> r) async {
@@ -192,9 +251,44 @@ class _AppListScreenState extends State<AppListScreen> {
     await _loadRestrictions();
   }
 
+  Future<void> _openLimitEditor(Map<String, dynamic> r) async {
+    final allowed =
+        await _requireAdmin('Ingresa tu PIN para modificar límites');
+    if (!allowed || !mounted) return;
+
+    final limit = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => LimitPickerDialog(
+        appName: r['appName'],
+        initial: r,
+      ),
+    );
+    if (limit == null) return;
+
+    await NativeService.updateRestriction({
+      'packageName': r['packageName'],
+      'dailyQuotaMinutes': limit['dailyQuotaMinutes'] ?? r['dailyQuotaMinutes'],
+      'limitType': limit['limitType'] ?? r['limitType'],
+      'dailyMode': limit['dailyMode'] ?? r['dailyMode'],
+      'dailyQuotas': limit['dailyQuotas'] ?? r['dailyQuotas'],
+      'weeklyQuotaMinutes': limit['weeklyQuotaMinutes'] ?? r['weeklyQuotaMinutes'],
+      'weeklyResetDay': limit['weeklyResetDay'] ?? r['weeklyResetDay'],
+    });
+    await _loadRestrictions();
+  }
+
   double _progressFor(Map<String, dynamic> r) {
+    final quotaMinutes = _quotaMinutesFor(r);
+    if (quotaMinutes <= 0) return 0.0;
+    final limitType = (r['limitType'] ?? 'daily').toString();
+    if (limitType == 'weekly') {
+      final usedWeek = (r['usedMinutesWeek'] as int?) ?? 0;
+      return (usedWeek / quotaMinutes).clamp(0.0, 1.0);
+    }
+
     final usedMillis = (r['usedMillis'] as num?)?.toDouble();
-    final quotaMinutes = (r['dailyQuotaMinutes'] as int).toDouble();
     if (usedMillis != null) {
       final quotaMillis = quotaMinutes * 60000.0;
       return (usedMillis / quotaMillis).clamp(0.0, 1.0);
@@ -430,11 +524,15 @@ class _AppListScreenState extends State<AppListScreen> {
   Widget _restrictionCard(Map<String, dynamic> r) {
     final blocked = r['isBlocked'] as bool;
     final progress = _progressFor(r);
-    final used = r['usedMinutes'] as int;
-    final quota = r['dailyQuotaMinutes'] as int;
-    final usedMillis = (r['usedMillis'] as num?)?.toInt() ?? used * 60000;
+    final limitType = (r['limitType'] ?? 'daily').toString();
+    final quota = _quotaMinutesFor(r);
+    final usedMinutes =
+        limitType == 'weekly' ? (r['usedMinutesWeek'] as int? ?? 0) : (r['usedMinutes'] as int);
+    final usedMillis = limitType == 'weekly'
+        ? usedMinutes * 60000
+        : (r['usedMillis'] as num?)?.toInt() ?? usedMinutes * 60000;
     final remainingMillis = (quota * 60000 - usedMillis).clamp(0, quota * 60000);
-    final remainingMinutes = (quota - used).clamp(0, quota);
+    final remainingMinutes = (quota - usedMinutes).clamp(0, quota);
 
     final progressColor = blocked
         ? AppColors.error
@@ -464,7 +562,7 @@ class _AppListScreenState extends State<AppListScreen> {
       onDismissed: (_) => _deleteRestriction(r),
       child: Card(
         child: InkWell(
-          onTap: () {},
+          onTap: () => _openLimitEditor(r),
           borderRadius: BorderRadius.circular(AppRadius.lg),
           child: Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -536,7 +634,7 @@ class _AppListScreenState extends State<AppListScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      _formatUsageText(used, usedMillis, quota),
+                      _formatUsageText(usedMinutes, usedMillis, quota, limitType),
                       style: const TextStyle(
                         fontSize: 13,
                         color: AppColors.textTertiary,
@@ -544,8 +642,11 @@ class _AppListScreenState extends State<AppListScreen> {
                     ),
                     Text(
                       blocked
-                          ? 'Se abre a medianoche'
-                          : _formatRemainingText(remainingMinutes, remainingMillis, quota),
+                          ? (limitType == 'weekly'
+                              ? 'Se abre en reinicio semanal'
+                              : 'Se abre a medianoche')
+                          : _formatRemainingText(
+                              remainingMinutes, remainingMillis, quota, limitType),
                       style: TextStyle(
                         fontSize: 13,
                         color:
@@ -661,7 +762,59 @@ class _AppListScreenState extends State<AppListScreen> {
     return days.map((d) => labels[d] ?? '?').join(' ');
   }
 
-  String _formatUsageText(int usedMinutes, int usedMillis, int quotaMinutes) {
+  int _quotaMinutesFor(Map<String, dynamic> r) {
+    final limitType = (r['limitType'] ?? 'daily').toString();
+    if (limitType == 'weekly') {
+      return (r['weeklyQuotaMinutes'] as int?) ?? 0;
+    }
+
+    final dailyMode = (r['dailyMode'] ?? 'same').toString();
+    if (dailyMode != 'per_day') {
+      return (r['dailyQuotaMinutes'] as int?) ?? 0;
+    }
+
+    final day = _todayDayOfWeek();
+    final map = _dailyQuotasMap(r['dailyQuotas']);
+    return map[day] ?? 0;
+  }
+
+  int _todayDayOfWeek() {
+    final weekday = DateTime.now().weekday; // 1=Mon..7=Sun
+    return weekday == 7 ? 1 : weekday + 1; // 1=Sun..7=Sat
+  }
+
+  Map<int, int> _dailyQuotasMap(dynamic value) {
+    if (value == null) return {};
+    if (value is String) {
+      final map = <int, int>{};
+      for (final pair in value.split(',')) {
+        final parts = pair.split(':');
+        if (parts.length != 2) continue;
+        final day = int.tryParse(parts[0]);
+        final minutes = int.tryParse(parts[1]);
+        if (day == null || minutes == null) continue;
+        map[day] = minutes;
+      }
+      return map;
+    }
+    if (value is Map) {
+      final map = <int, int>{};
+      value.forEach((k, v) {
+        final day = int.tryParse(k.toString());
+        final minutes = int.tryParse(v.toString());
+        if (day == null || minutes == null) return;
+        map[day] = minutes;
+      });
+      return map;
+    }
+    return {};
+  }
+
+  String _formatUsageText(
+      int usedMinutes, int usedMillis, int quotaMinutes, String limitType) {
+    if (limitType == 'weekly') {
+      return '${AppUtils.formatTime(usedMinutes)} usados semana';
+    }
     if (quotaMinutes <= 1) {
       final seconds = (usedMillis / 1000).floor();
       return '${seconds}s usados';
@@ -670,7 +823,10 @@ class _AppListScreenState extends State<AppListScreen> {
   }
 
   String _formatRemainingText(
-      int remainingMinutes, int remainingMillis, int quotaMinutes) {
+      int remainingMinutes, int remainingMillis, int quotaMinutes, String limitType) {
+    if (limitType == 'weekly') {
+      return '${AppUtils.formatTime(remainingMinutes)} restantes semana';
+    }
     if (quotaMinutes <= 1) {
       final seconds = (remainingMillis / 1000).ceil();
       return '${seconds}s restantes';

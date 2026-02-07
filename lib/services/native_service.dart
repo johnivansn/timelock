@@ -53,6 +53,10 @@ class NativeService {
     await _channel.invokeMethod('addRestriction', data);
   }
 
+  static Future<void> updateRestriction(Map<String, dynamic> data) async {
+    await _channel.invokeMethod('updateRestriction', data);
+  }
+
   static Future<void> deleteRestriction(String packageName) async {
     await _channel.invokeMethod('deleteRestriction', packageName);
   }
@@ -61,7 +65,7 @@ class NativeService {
     final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
         'getUsageToday', packageName);
     return result?.map((k, v) => MapEntry(k.toString(), v)) ??
-        {'usedMinutes': 0, 'isBlocked': false};
+        {'usedMinutes': 0, 'isBlocked': false, 'usedMillis': 0, 'usedMinutesWeek': 0};
   }
 
   static Future<List<Map<String, dynamic>>> getSchedules(

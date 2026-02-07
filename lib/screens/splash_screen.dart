@@ -41,10 +41,12 @@ class _SplashScreenState extends State<SplashScreen> {
           r['usedMinutes'] = usage['usedMinutes'] ?? 0;
           r['isBlocked'] = usage['isBlocked'] ?? false;
           r['usedMillis'] = usage['usedMillis'] ?? (r['usedMinutes'] * 60000);
+          r['usedMinutesWeek'] = usage['usedMinutesWeek'] ?? 0;
         } catch (_) {
           r['usedMinutes'] = 0;
           r['isBlocked'] = false;
           r['usedMillis'] = 0;
+          r['usedMinutesWeek'] = 0;
         }
         try {
           final schedules =

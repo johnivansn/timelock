@@ -19,4 +19,7 @@ interface DailyUsageDao {
   @Query("DELETE FROM daily_usage WHERE date < :date") suspend fun deleteOldUsage(date: String)
 
   @Query("SELECT * FROM daily_usage") suspend fun getAllUsage(): List<DailyUsage>
+
+  @Query("SELECT * FROM daily_usage WHERE packageName = :packageName AND date >= :fromDate")
+  suspend fun getUsageSince(packageName: String, fromDate: String): List<DailyUsage>
 }

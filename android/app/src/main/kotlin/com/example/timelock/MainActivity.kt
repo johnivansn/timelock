@@ -122,6 +122,20 @@ class MainActivity : FlutterActivity() {
             }
           }
         }
+        "updateRestriction" -> {
+          val args = call.arguments as Map<*, *>
+          scope.launch {
+            try {
+              updateRestriction(args)
+              withContext(Dispatchers.Main) { result.success(null) }
+            } catch (e: Exception) {
+              Log.e("MainActivity", "Error updating restriction", e)
+              withContext(Dispatchers.Main) {
+                result.error("UPDATE_RESTRICTION_ERROR", e.message, null)
+              }
+            }
+          }
+        }
         "getRestrictions" -> {
           scope.launch {
             try {
@@ -469,7 +483,12 @@ class MainActivity : FlutterActivity() {
                       "packageName" to r.packageName,
                       "appName" to r.appName,
                       "dailyQuotaMinutes" to r.dailyQuotaMinutes,
-                      "isEnabled" to r.isEnabled
+                      "isEnabled" to r.isEnabled,
+                      "limitType" to r.limitType,
+                      "dailyMode" to r.dailyMode,
+                      "dailyQuotas" to r.dailyQuotas,
+                      "weeklyQuotaMinutes" to r.weeklyQuotaMinutes,
+                      "weeklyResetDay" to r.weeklyResetDay
               )
             }
 
@@ -515,15 +534,21 @@ class MainActivity : FlutterActivity() {
         continue
       }
 
-      val restriction =
-              AppRestriction(
-                      id = java.util.UUID.randomUUID().toString(),
-                      packageName = pkg,
-                      appName = item["appName"] as? String ?: pkg,
-                      dailyQuotaMinutes = (item["dailyQuotaMinutes"] as? Number)?.toInt() ?: 60,
-                      isEnabled = item["isEnabled"] as? Boolean ?: true,
-                      createdAt = System.currentTimeMillis()
-              )
+        val restriction =
+                AppRestriction(
+                        id = java.util.UUID.randomUUID().toString(),
+                        packageName = pkg,
+                        appName = item["appName"] as? String ?: pkg,
+                        dailyQuotaMinutes = (item["dailyQuotaMinutes"] as? Number)?.toInt() ?: 60,
+                        isEnabled = item["isEnabled"] as? Boolean ?: true,
+                        limitType = item["limitType"] as? String ?: "daily",
+                        dailyMode = item["dailyMode"] as? String ?: "same",
+                        dailyQuotas = item["dailyQuotas"] as? String ?: "",
+                        weeklyQuotaMinutes =
+                                (item["weeklyQuotaMinutes"] as? Number)?.toInt() ?: 0,
+                        weeklyResetDay = (item["weeklyResetDay"] as? Number)?.toInt() ?: 2,
+                        createdAt = System.currentTimeMillis()
+                )
       database.appRestrictionDao().insert(restriction)
       imported++
     }
@@ -713,6 +738,11 @@ class MainActivity : FlutterActivity() {
   }
 
   private suspend fun addRestriction(args: Map<*, *>) {
+    val limitType = (args["limitType"] as? String) ?: "daily"
+    val dailyMode = (args["dailyMode"] as? String) ?: "same"
+    val dailyQuotas = parseDailyQuotas(args["dailyQuotas"])
+    val weeklyQuotaMinutes = (args["weeklyQuotaMinutes"] as? Number)?.toInt() ?: 0
+    val weeklyResetDay = (args["weeklyResetDay"] as? Number)?.toInt() ?: 2
     val restriction =
             AppRestriction(
                     id = UUID.randomUUID().toString(),
@@ -720,9 +750,37 @@ class MainActivity : FlutterActivity() {
                     appName = args["appName"] as String,
                     dailyQuotaMinutes = args["dailyQuotaMinutes"] as Int,
                     isEnabled = args["isEnabled"] as Boolean,
+                    limitType = limitType,
+                    dailyMode = dailyMode,
+                    dailyQuotas = dailyQuotas,
+                    weeklyQuotaMinutes = weeklyQuotaMinutes,
+                    weeklyResetDay = weeklyResetDay,
                     createdAt = System.currentTimeMillis()
             )
     database.appRestrictionDao().insert(restriction)
+  }
+
+  private suspend fun updateRestriction(args: Map<*, *>) {
+    val packageName = args["packageName"] as String
+    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return
+
+    val updated =
+            restriction.copy(
+                    dailyQuotaMinutes =
+                            (args["dailyQuotaMinutes"] as? Number)?.toInt()
+                                    ?: restriction.dailyQuotaMinutes,
+                    isEnabled = (args["isEnabled"] as? Boolean) ?: restriction.isEnabled,
+                    limitType = (args["limitType"] as? String) ?: restriction.limitType,
+                    dailyMode = (args["dailyMode"] as? String) ?: restriction.dailyMode,
+                    dailyQuotas = parseDailyQuotas(args["dailyQuotas"], restriction.dailyQuotas),
+                    weeklyQuotaMinutes =
+                            (args["weeklyQuotaMinutes"] as? Number)?.toInt()
+                                    ?: restriction.weeklyQuotaMinutes,
+                    weeklyResetDay =
+                            (args["weeklyResetDay"] as? Number)?.toInt()
+                                    ?: restriction.weeklyResetDay
+            )
+    database.appRestrictionDao().update(updated)
   }
 
   private suspend fun deleteRestriction(packageName: String) {
@@ -739,7 +797,12 @@ class MainActivity : FlutterActivity() {
               "packageName" to restriction.packageName,
               "appName" to restriction.appName,
               "dailyQuotaMinutes" to restriction.dailyQuotaMinutes,
-              "isEnabled" to restriction.isEnabled
+              "isEnabled" to restriction.isEnabled,
+              "limitType" to restriction.limitType,
+              "dailyMode" to restriction.dailyMode,
+              "dailyQuotas" to restriction.dailyQuotas,
+              "weeklyQuotaMinutes" to restriction.weeklyQuotaMinutes,
+              "weeklyResetDay" to restriction.weeklyResetDay
       )
     }
   }
@@ -749,11 +812,46 @@ class MainActivity : FlutterActivity() {
     val today = dateFormat.format(Date())
     val usage = database.dailyUsageDao().getUsage(packageName, today)
     val liveMillis = UsageStatsMonitor(this).getUsageToday(packageName)
+    val restriction = database.appRestrictionDao().getByPackage(packageName)
+    val weekStart =
+            if (restriction != null) getWeekStartDate(restriction.weeklyResetDay, dateFormat)
+            else today
+    val weekUsages = database.dailyUsageDao().getUsageSince(packageName, weekStart)
+    val weekMinutes = weekUsages.sumOf { it.usedMinutes }
     return mapOf(
             "usedMinutes" to (usage?.usedMinutes ?: 0),
             "isBlocked" to (usage?.isBlocked ?: false),
-            "usedMillis" to liveMillis
+            "usedMillis" to liveMillis,
+            "usedMinutesWeek" to weekMinutes,
+            "weekStart" to weekStart
     )
+  }
+
+  private fun getWeekStartDate(resetDay: Int, dateFormat: SimpleDateFormat): String {
+    val cal = Calendar.getInstance()
+    val current = cal.get(Calendar.DAY_OF_WEEK)
+    var diff = current - resetDay
+    if (diff < 0) diff += 7
+    cal.add(Calendar.DAY_OF_MONTH, -diff)
+    return dateFormat.format(cal.time)
+  }
+
+  private fun parseDailyQuotas(value: Any?, fallback: String = ""): String {
+    if (value == null) return fallback
+    if (value is String) return value
+    if (value is Map<*, *>) {
+      return value.entries
+              .mapNotNull { (k, v) ->
+                val day = k?.toString()?.toIntOrNull() ?: return@mapNotNull null
+                val minutes = when (v) {
+                  is Number -> v.toInt()
+                  else -> v?.toString()?.toIntOrNull()
+                } ?: return@mapNotNull null
+                "$day:$minutes"
+              }
+              .joinToString(",")
+    }
+    return fallback
   }
 
   private fun enableDeviceAdmin() {
