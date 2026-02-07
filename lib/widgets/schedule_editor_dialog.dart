@@ -1,8 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/schedule_utils.dart';
+import 'package:timelock/widgets/schedule_edit_dialog.dart';
 import 'package:timelock/widgets/bottom_sheet_handle.dart';
 
 class ScheduleEditorDialog extends StatefulWidget {
@@ -10,12 +10,10 @@ class ScheduleEditorDialog extends StatefulWidget {
     super.key,
     required this.appName,
     required this.packageName,
-    this.openTemplatePicker = false,
   });
 
   final String appName;
   final String packageName;
-  final bool openTemplatePicker;
 
   @override
   State<ScheduleEditorDialog> createState() => _ScheduleEditorDialogState();
@@ -24,13 +22,11 @@ class ScheduleEditorDialog extends StatefulWidget {
 class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
   bool _loading = true;
   List<Map<String, dynamic>> _schedules = [];
-  List<Map<String, dynamic>> _templates = [];
 
   @override
   void initState() {
     super.initState();
     _load();
-    _loadTemplates();
   }
 
   Future<void> _load() async {
@@ -47,33 +43,6 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
     }
   }
 
-  Future<void> _loadTemplates() async {
-    try {
-      final prefs = await NativeService.getSharedPreferences('schedule_templates');
-      final raw = prefs?['templates']?.toString();
-      if (raw != null && raw.isNotEmpty) {
-        final decoded = jsonDecode(raw);
-        if (decoded is List) {
-          _templates = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
-        }
-      }
-    } catch (_) {}
-
-    if (mounted && widget.openTemplatePicker) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _openTemplatePicker());
-    }
-  }
-
-  Future<void> _saveTemplates() async {
-    try {
-      final json = jsonEncode(_templates);
-      await NativeService.saveSharedPreference({
-        'prefsName': 'schedule_templates',
-        'key': 'templates',
-        'value': json,
-      });
-    } catch (_) {}
-  }
 
   Future<void> _addSchedule() async {
     final draft = await _openEditor();
@@ -127,100 +96,13 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
     } catch (_) {}
   }
 
-  Future<_ScheduleDraft?> _openEditor({Map<String, dynamic>? existing}) {
-    return showDialog<_ScheduleDraft>(
+  Future<ScheduleDraft?> _openEditor({Map<String, dynamic>? existing}) {
+    return showDialog<ScheduleDraft>(
       context: context,
-      builder: (_) => _ScheduleEditDialog(
-        existing: existing,
-        onSaveTemplate: _saveTemplateFromDraft,
-      ),
+      builder: (_) => ScheduleEditDialog(existing: existing),
     );
   }
 
-  Future<void> _saveTemplateFromDraft(_ScheduleDraft draft) async {
-    final name = await _promptTemplateName();
-    if (name == null || name.trim().isEmpty) return;
-
-    final item = {
-      'name': name.trim(),
-      'startHour': draft.start.hour,
-      'startMinute': draft.start.minute,
-      'endHour': draft.end.hour,
-      'endMinute': draft.end.minute,
-      'daysOfWeek': draft.days,
-    };
-    setState(() {
-      _templates.add(item);
-    });
-    await _saveTemplates();
-  }
-
-  Future<String?> _promptTemplateName() {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('Guardar etiqueta'),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(hintText: 'Nombre de la etiqueta'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text),
-            child: Text('Guardar'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _openTemplatePicker() async {
-    if (_templates.isEmpty) return;
-    final selected = await showModalBottomSheet<Map<String, dynamic>>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _TemplatePickerSheet(templates: _templates),
-    );
-    if (selected == null) return;
-    final draft = _ScheduleDraft(
-      TimeOfDay(
-        hour: selected['startHour'] as int? ?? 8,
-        minute: selected['startMinute'] as int? ?? 0,
-      ),
-      TimeOfDay(
-        hour: selected['endHour'] as int? ?? 18,
-        minute: selected['endMinute'] as int? ?? 0,
-      ),
-      (selected['daysOfWeek'] as List<dynamic>? ?? [])
-          .map((d) => int.tryParse(d.toString()) ?? 0)
-          .where((d) => d >= 1 && d <= 7)
-          .toList(),
-    );
-    final created = await _openEditor(existing: {
-      'startHour': draft.start.hour,
-      'startMinute': draft.start.minute,
-      'endHour': draft.end.hour,
-      'endMinute': draft.end.minute,
-      'daysOfWeek': draft.days,
-    });
-    if (created != null) {
-      await NativeService.addSchedule({
-        'packageName': widget.packageName,
-        'startHour': created.start.hour,
-        'startMinute': created.start.minute,
-        'endHour': created.end.hour,
-        'endMinute': created.end.minute,
-        'daysOfWeek': created.days,
-        'isEnabled': true,
-      });
-      await _load();
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -285,20 +167,6 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
                 ),
               ),
             ),
-            if (_templates.isNotEmpty)
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                    AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 36,
-                  child: OutlinedButton.icon(
-                    onPressed: _openTemplatePicker,
-                    icon: Icon(Icons.bookmark_outline_rounded, size: 16),
-                    label: Text('Usar etiqueta guardada'),
-                  ),
-                ),
-              ),
             SizedBox(height: AppSpacing.sm),
             ConstrainedBox(
               constraints: BoxConstraints(
@@ -402,266 +270,5 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
 
 }
 
-class _ScheduleEditDialog extends StatefulWidget {
-  const _ScheduleEditDialog({this.existing, this.onSaveTemplate});
 
-  final Map<String, dynamic>? existing;
-  final Future<void> Function(_ScheduleDraft draft)? onSaveTemplate;
-
-  @override
-  State<_ScheduleEditDialog> createState() => _ScheduleEditDialogState();
-}
-
-class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
-  late TimeOfDay _start;
-  late TimeOfDay _end;
-  late Set<int> _days;
-
-  @override
-  void initState() {
-    super.initState();
-    final e = widget.existing;
-    _start = TimeOfDay(
-      hour: e?['startHour'] as int? ?? 8,
-      minute: e?['startMinute'] as int? ?? 0,
-    );
-    _end = TimeOfDay(
-      hour: e?['endHour'] as int? ?? 18,
-      minute: e?['endMinute'] as int? ?? 0,
-    );
-    final days = (e?['daysOfWeek'] as List<dynamic>? ?? [2, 3, 4, 5, 6])
-        .map((d) => int.tryParse(d.toString()) ?? 0)
-        .where((d) => d >= 1 && d <= 7)
-        .toSet();
-    _days = days.isEmpty ? {2, 3, 4, 5, 6} : days;
-  }
-
-  bool get _valid => _days.isNotEmpty;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.existing == null ? 'Nuevo horario' : 'Editar horario'),
-      content: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.6,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _timeRow(
-                label: 'Inicio',
-                value: _start,
-                onTap: () => _pickTime(true),
-              ),
-              SizedBox(height: AppSpacing.sm),
-              _timeRow(
-                label: 'Fin',
-                value: _end,
-                onTap: () => _pickTime(false),
-              ),
-              SizedBox(height: AppSpacing.sm),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Días',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              SizedBox(height: AppSpacing.xs),
-              Wrap(
-                spacing: AppSpacing.xs,
-                children: [
-                  _dayChip('L', 2),
-                  _dayChip('M', 3),
-                  _dayChip('X', 4),
-                  _dayChip('J', 5),
-                  _dayChip('V', 6),
-                  _dayChip('S', 7),
-                  _dayChip('D', 1),
-                ],
-              ),
-              SizedBox(height: AppSpacing.sm),
-              Text(
-                'Si la hora final es menor, el bloqueo cruza medianoche.',
-                style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _valid
-              ? () async {
-                  if (widget.onSaveTemplate != null) {
-                    await widget.onSaveTemplate!(
-                      _ScheduleDraft(_start, _end, _days.toList()),
-                    );
-                  }
-                }
-              : null,
-          child: Text('Guardar etiqueta'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: _valid
-              ? () => Navigator.pop(
-                    context,
-                    _ScheduleDraft(_start, _end, _days.toList()),
-                  )
-              : null,
-          child: Text('Guardar'),
-        ),
-      ],
-    );
-  }
-
-  Widget _timeRow(
-      {required String label,
-      required TimeOfDay value,
-      required VoidCallback onTap}) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
-          ),
-        ),
-        SizedBox(
-          height: 40,
-          child: TextButton(
-            onPressed: onTap,
-            child: Text(formatTimeOfDay(value)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _dayChip(String label, int value) {
-    final selected = _days.contains(value);
-    return FilterChip(
-      label: Text(
-        label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-      ),
-      selected: selected,
-      onSelected: (_) {
-        setState(() {
-          if (selected) {
-            _days.remove(value);
-          } else {
-            _days.add(value);
-          }
-        });
-      },
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      visualDensity: VisualDensity.compact,
-    );
-  }
-
-  Future<void> _pickTime(bool isStart) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: isStart ? _start : _end,
-    );
-    if (picked != null) {
-      setState(() {
-        if (isStart) {
-          _start = picked;
-        } else {
-          _end = picked;
-        }
-      });
-    }
-  }
-}
-
-class _ScheduleDraft {
-  _ScheduleDraft(this.start, this.end, this.days);
-
-  final TimeOfDay start;
-  final TimeOfDay end;
-  final List<int> days;
-}
-
-class _TemplatePickerSheet extends StatelessWidget {
-  const _TemplatePickerSheet({required this.templates});
-
-  final List<Map<String, dynamic>> templates;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(height: AppSpacing.sm),
-            BottomSheetHandle(),
-          SizedBox(height: AppSpacing.md),
-          Text(
-            'Etiquetas guardadas',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          SizedBox(height: AppSpacing.sm),
-          Flexible(
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: templates.length,
-              itemBuilder: (_, i) {
-                final t = templates[i];
-                final name = (t['name'] ?? 'Etiqueta').toString();
-                return ListTile(
-                  leading: Icon(Icons.bookmark_rounded, size: 18),
-                  title: Text(
-                    name,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  subtitle: Text(
-                    _templateSummary(t),
-                    style: TextStyle(fontSize: 11),
-                  ),
-                  onTap: () => Navigator.pop(context, t),
-                );
-              },
-            ),
-          ),
-          SizedBox(height: AppSpacing.md),
-        ],
-      ),
-    );
-  }
-
-  String _templateSummary(Map<String, dynamic> t) {
-    final sh = t['startHour'] as int? ?? 0;
-    final sm = t['startMinute'] as int? ?? 0;
-    final eh = t['endHour'] as int? ?? 0;
-    final em = t['endMinute'] as int? ?? 0;
-    final days = (t['daysOfWeek'] as List<dynamic>? ?? [])
-        .map((e) => int.tryParse(e.toString()) ?? 0)
-        .where((d) => d >= 1 && d <= 7)
-        .toList();
-    return '${formatTime(sh, sm)} – ${formatTime(eh, em)} · ${formatDays(days, separator: ' ')}';
-  }
-}
 

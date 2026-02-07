@@ -7,6 +7,7 @@ import 'package:timelock/utils/app_utils.dart';
 import 'package:timelock/utils/app_motion.dart';
 import 'package:timelock/utils/schedule_utils.dart';
 import 'package:timelock/widgets/bottom_sheet_handle.dart';
+import 'package:timelock/widgets/schedule_edit_dialog.dart';
 
 class LimitPickerDialog extends StatefulWidget {
   LimitPickerDialog({
@@ -384,11 +385,11 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     });
   }
 
-  Future<_ScheduleDraft?> _openScheduleEditor(
+  Future<ScheduleDraft?> _openScheduleEditor(
       {Map<String, dynamic>? existing}) {
-    return showDialog<_ScheduleDraft>(
+    return showDialog<ScheduleDraft>(
       context: context,
-      builder: (_) => _ScheduleEditDialog(existing: existing),
+      builder: (_) => ScheduleEditDialog(existing: existing),
     );
   }
 
@@ -1960,182 +1961,4 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   }
 }
 
-class _ScheduleEditDialog extends StatefulWidget {
-  const _ScheduleEditDialog({this.existing});
-
-  final Map<String, dynamic>? existing;
-
-  @override
-  State<_ScheduleEditDialog> createState() => _ScheduleEditDialogState();
-}
-
-class _ScheduleEditDialogState extends State<_ScheduleEditDialog> {
-  late TimeOfDay _start;
-  late TimeOfDay _end;
-  late Set<int> _days;
-
-  @override
-  void initState() {
-    super.initState();
-    final e = widget.existing;
-    _start = TimeOfDay(
-      hour: e?['startHour'] as int? ?? 8,
-      minute: e?['startMinute'] as int? ?? 0,
-    );
-    _end = TimeOfDay(
-      hour: e?['endHour'] as int? ?? 18,
-      minute: e?['endMinute'] as int? ?? 0,
-    );
-    final days = (e?['daysOfWeek'] as List<dynamic>? ?? [2, 3, 4, 5, 6])
-        .map((d) => int.tryParse(d.toString()) ?? 0)
-        .where((d) => d >= 1 && d <= 7)
-        .toSet();
-    _days = days.isEmpty ? {2, 3, 4, 5, 6} : days;
-  }
-
-  bool get _valid => _days.isNotEmpty;
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.existing == null ? 'Nuevo horario' : 'Editar horario'),
-      content: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.6,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _timeRow(
-                label: 'Inicio',
-                value: _start,
-                onTap: () => _pickTime(true),
-              ),
-              SizedBox(height: AppSpacing.sm),
-              _timeRow(
-                label: 'Fin',
-                value: _end,
-                onTap: () => _pickTime(false),
-              ),
-              SizedBox(height: AppSpacing.sm),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Días',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-              SizedBox(height: AppSpacing.xs),
-              Wrap(
-                spacing: AppSpacing.xs,
-                children: [
-                  _dayChip('L', 2),
-                  _dayChip('M', 3),
-                  _dayChip('X', 4),
-                  _dayChip('J', 5),
-                  _dayChip('V', 6),
-                  _dayChip('S', 7),
-                  _dayChip('D', 1),
-                ],
-              ),
-              SizedBox(height: AppSpacing.sm),
-              Text(
-                'Si la hora final es menor, el bloqueo cruza medianoche.',
-                style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Cancelar'),
-        ),
-        FilledButton(
-          onPressed: _valid
-              ? () => Navigator.pop(
-                    context,
-                    _ScheduleDraft(_start, _end, _days.toList()),
-                  )
-              : null,
-          child: Text('Guardar'),
-        ),
-      ],
-    );
-  }
-
-  Widget _timeRow(
-      {required String label,
-      required TimeOfDay value,
-      required VoidCallback onTap}) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
-          ),
-        ),
-        SizedBox(
-          height: 40,
-          child: TextButton(
-            onPressed: onTap,
-            child: Text(formatTimeOfDay(value)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _dayChip(String label, int value) {
-    final selected = _days.contains(value);
-    return FilterChip(
-      label: Text(
-        label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-      ),
-      selected: selected,
-      onSelected: (_) {
-        setState(() {
-          if (selected) {
-            _days.remove(value);
-          } else {
-            _days.add(value);
-          }
-        });
-      },
-      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      visualDensity: VisualDensity.compact,
-    );
-  }
-
-  Future<void> _pickTime(bool isStart) async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: isStart ? _start : _end,
-    );
-    if (picked != null) {
-      setState(() {
-        if (isStart) {
-          _start = picked;
-        } else {
-          _end = picked;
-        }
-      });
-    }
-  }
-}
-
-class _ScheduleDraft {
-  _ScheduleDraft(this.start, this.end, this.days);
-
-  final TimeOfDay start;
-  final TimeOfDay end;
-  final List<int> days;
-}
 
