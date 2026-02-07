@@ -41,6 +41,85 @@ object AppUtils {
     }
   }
 
+  fun formatRemainingLabel(minutes: Int): String {
+    return "${formatTime(minutes)} restantes"
+  }
+
+  fun formatDurationMillis(millis: Long): String {
+    val totalSeconds = (millis / 1000).coerceAtLeast(0)
+    var remaining = totalSeconds
+    val days = remaining / 86400
+    remaining %= 86400
+    val hours = remaining / 3600
+    remaining %= 3600
+    val minutes = remaining / 60
+    val seconds = remaining % 60
+
+    val parts = mutableListOf<String>()
+    if (days > 0) parts.add("${days}d")
+    if (hours > 0) parts.add("${hours}h")
+    if (minutes > 0) parts.add("${minutes}m")
+    if (seconds > 0 || parts.isEmpty()) parts.add("${seconds}s")
+    return parts.joinToString(" ")
+  }
+
+  fun formatWeeklyResetLabel(
+    resetDay: Int,
+    resetHour: Int,
+    resetMinute: Int
+  ): String {
+    val cal = Calendar.getInstance()
+    val current = cal.get(Calendar.DAY_OF_WEEK)
+    var diff = current - resetDay
+    if (diff < 0) diff += 7
+    cal.add(Calendar.DAY_OF_MONTH, -diff)
+    cal.set(Calendar.HOUR_OF_DAY, resetHour)
+    cal.set(Calendar.MINUTE, resetMinute)
+    cal.set(Calendar.SECOND, 0)
+    cal.set(Calendar.MILLISECOND, 0)
+    if (Calendar.getInstance().before(cal)) {
+      cal.add(Calendar.DAY_OF_MONTH, -7)
+    }
+    val labels = mapOf(
+      Calendar.MONDAY to "Lun",
+      Calendar.TUESDAY to "Mar",
+      Calendar.WEDNESDAY to "Mié",
+      Calendar.THURSDAY to "Jue",
+      Calendar.FRIDAY to "Vie",
+      Calendar.SATURDAY to "Sáb",
+      Calendar.SUNDAY to "Dom"
+    )
+    val dayLabel = labels[cal.get(Calendar.DAY_OF_WEEK)] ?: "Día"
+    val h = cal.get(Calendar.HOUR_OF_DAY).toString().padLeft(2, '0')
+    val m = cal.get(Calendar.MINUTE).toString().padLeft(2, '0')
+    return "desde $dayLabel $h:$m"
+  }
+
+  fun formatWeeklyNextResetLabel(
+    resetDay: Int,
+    resetHour: Int,
+    resetMinute: Int
+  ): String {
+    val formatter = newDateFormat()
+    val last = getWeekStartDate(resetDay, resetHour, resetMinute, formatter)
+    val cal = Calendar.getInstance()
+    cal.time = formatter.parse(last) ?: Date()
+    cal.add(Calendar.DAY_OF_MONTH, 7)
+    val labels = mapOf(
+      Calendar.MONDAY to "Lun",
+      Calendar.TUESDAY to "Mar",
+      Calendar.WEDNESDAY to "Mié",
+      Calendar.THURSDAY to "Jue",
+      Calendar.FRIDAY to "Vie",
+      Calendar.SATURDAY to "Sáb",
+      Calendar.SUNDAY to "Dom"
+    )
+    val dayLabel = labels[cal.get(Calendar.DAY_OF_WEEK)] ?: "Día"
+    val h = cal.get(Calendar.HOUR_OF_DAY).toString().padLeft(2, '0')
+    val m = cal.get(Calendar.MINUTE).toString().padLeft(2, '0')
+    return "hasta $dayLabel $h:$m"
+  }
+
   fun newDateFormat(): SimpleDateFormat {
     return SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
   }

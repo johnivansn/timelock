@@ -59,7 +59,7 @@ class AppTimeWidget : AppWidgetProvider() {
         views.setTextViewText(R.id.widget_title, "${restrictions.size} apps monitoreadas")
         views.setTextViewText(
                 R.id.widget_content,
-                "${AppUtils.formatTime(remainingMinutes)} restantes" +
+                AppUtils.formatRemainingLabel(remainingMinutes) +
                         if (blockedCount > 0)
                                 " • $blockedCount bloqueada${if (blockedCount > 1) "s" else ""}"
                         else ""

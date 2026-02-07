@@ -62,7 +62,7 @@ class AppTimeWidgetMedium : AppWidgetProvider() {
             val progress = ((used.toFloat() / quota.toFloat()) * 100).toInt().coerceIn(0, 100)
 
             views.setTextViewText(appNameId, restriction.appName)
-            views.setTextViewText(appTimeId, "${AppUtils.formatTime(remaining)} restantes")
+            views.setTextViewText(appTimeId, AppUtils.formatRemainingLabel(remaining))
             views.setProgressBar(appProgressId, 100, progress, false)
             views.setViewVisibility(appContainerId, android.view.View.VISIBLE)
           } else {
