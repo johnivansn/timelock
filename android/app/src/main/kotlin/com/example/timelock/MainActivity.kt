@@ -404,7 +404,7 @@ class MainActivity : FlutterActivity() {
               "startMinute" to schedule.startMinute,
               "endHour" to schedule.endHour,
               "endMinute" to schedule.endMinute,
-              "daysOfWeek" to schedule.getDaysOfWeekList(),
+              "daysOfWeek" to schedule.getDaysOfWeekList().map { it + 1 },
               "isEnabled" to schedule.isEnabled
       )
     }
@@ -727,6 +727,7 @@ class MainActivity : FlutterActivity() {
   private suspend fun deleteRestriction(packageName: String) {
     val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return
     database.appRestrictionDao().delete(restriction)
+    database.appScheduleDao().deleteByPackage(packageName)
     Log.i("MainActivity", "Deleted restriction for $packageName")
   }
 

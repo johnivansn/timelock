@@ -64,6 +64,26 @@ class NativeService {
         {'usedMinutes': 0, 'isBlocked': false};
   }
 
+  static Future<List<Map<String, dynamic>>> getSchedules(
+      String packageName) async {
+    final raw =
+        await _channel.invokeMethod<List<dynamic>>('getSchedules', packageName) ??
+            [];
+    return raw.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  static Future<void> addSchedule(Map<String, dynamic> data) async {
+    await _channel.invokeMethod('addSchedule', data);
+  }
+
+  static Future<void> updateSchedule(Map<String, dynamic> data) async {
+    await _channel.invokeMethod('updateSchedule', data);
+  }
+
+  static Future<void> deleteSchedule(String scheduleId) async {
+    await _channel.invokeMethod('deleteSchedule', scheduleId);
+  }
+
   static Future<bool> isAdminEnabled() async {
     return await _channel.invokeMethod<bool>('isAdminEnabled') ?? false;
   }

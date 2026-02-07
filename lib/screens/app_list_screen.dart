@@ -9,6 +9,7 @@ import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
 import 'package:timelock/widgets/app_picker_dialog.dart';
+import 'package:timelock/widgets/schedule_editor_dialog.dart';
 import 'package:timelock/widgets/time_picker_dialog.dart';
 
 class AppListScreen extends StatefulWidget {
@@ -69,6 +70,13 @@ class _AppListScreenState extends State<AppListScreen> {
         } catch (_) {
           r['usedMinutes'] = 0;
           r['isBlocked'] = false;
+        }
+        try {
+          final schedules =
+              await NativeService.getSchedules(r['packageName'] as String);
+          r['schedules'] = schedules.map(_normalizeScheduleDays).toList();
+        } catch (_) {
+          r['schedules'] = [];
         }
       }
 
@@ -138,6 +146,23 @@ class _AppListScreenState extends State<AppListScreen> {
 
     await _addRestriction(
         app['packageName']! as String, app['appName']! as String, minutes);
+  }
+
+  Future<void> _openScheduleEditor(Map<String, dynamic> r) async {
+    final allowed =
+        await _requireAdmin('Ingresa tu PIN para modificar horarios');
+    if (!allowed || !mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ScheduleEditorDialog(
+        appName: r['appName'],
+        packageName: r['packageName'],
+      ),
+    );
+    await _loadRestrictions();
   }
 
   double _progressFor(Map<String, dynamic> r) {
@@ -497,11 +522,108 @@ class _AppListScreenState extends State<AppListScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: AppSpacing.md),
+                const Divider(height: 1),
+                const SizedBox(height: AppSpacing.md),
+                _scheduleRow(r),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _scheduleRow(Map<String, dynamic> r) {
+    final schedules = (r['schedules'] as List<dynamic>? ?? [])
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final summary = _scheduleSummary(schedules);
+
+    return SizedBox(
+      width: double.infinity,
+      child: Row(
+        children: [
+          const Icon(Icons.schedule_rounded,
+              color: AppColors.textTertiary, size: 20),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              summary,
+              style:
+                  const TextStyle(fontSize: 13, color: AppColors.textTertiary),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          IconButton(
+            onPressed: () => _openScheduleEditor(r),
+            icon: const Icon(Icons.edit_calendar_rounded, size: 20),
+            style: IconButton.styleFrom(
+              backgroundColor: AppColors.surfaceVariant,
+              padding: const EdgeInsets.all(AppSpacing.sm),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Map<String, dynamic> _normalizeScheduleDays(Map<String, dynamic> s) {
+    final days = (s['daysOfWeek'] as List<dynamic>? ?? [])
+        .map((e) => int.tryParse(e.toString()) ?? 0)
+        .toList();
+    final converted =
+        days.contains(0) ? days.map((d) => d + 1).toList() : days;
+    return {
+      ...s,
+      'daysOfWeek': converted.where((d) => d >= 1 && d <= 7).toList(),
+    };
+  }
+
+  String _scheduleSummary(List<Map<String, dynamic>> schedules) {
+    if (schedules.isEmpty) return 'Sin horarios';
+    final first = schedules.first;
+    final days = (first['daysOfWeek'] as List<dynamic>? ?? [])
+        .map((e) => int.tryParse(e.toString()) ?? 0)
+        .where((d) => d >= 1 && d <= 7)
+        .toList();
+    final dayText = _formatDays(days);
+    final timeText = _formatTimeRange(
+      first['startHour'] as int? ?? 0,
+      first['startMinute'] as int? ?? 0,
+      first['endHour'] as int? ?? 0,
+      first['endMinute'] as int? ?? 0,
+    );
+    if (schedules.length == 1) return '$dayText · $timeText';
+    return '$dayText · $timeText  +${schedules.length - 1} más';
+  }
+
+  String _formatTimeRange(int sh, int sm, int eh, int em) {
+    final start = _fmt(sh, sm);
+    final end = _fmt(eh, em);
+    if (eh * 60 + em <= sh * 60 + sm) {
+      return '$start – $end (día sig.)';
+    }
+    return '$start – $end';
+  }
+
+  String _fmt(int h, int m) {
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+  }
+
+  String _formatDays(List<int> days) {
+    if (days.isEmpty) return 'Sin días';
+    const labels = {
+      1: 'D',
+      2: 'L',
+      3: 'M',
+      4: 'X',
+      5: 'J',
+      6: 'V',
+      7: 'S',
+    };
+    return days.map((d) => labels[d] ?? '?').join(' ');
   }
 }
