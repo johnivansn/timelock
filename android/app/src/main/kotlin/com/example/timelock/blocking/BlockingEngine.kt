@@ -6,12 +6,13 @@ import android.util.Log
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.monitoring.ScheduleMonitor
 import com.example.timelock.notifications.PillNotificationHelper
+import com.example.timelock.utils.AppUtils
 import java.text.SimpleDateFormat
 import java.util.*
 
 class BlockingEngine(private val context: Context) {
   private val database = AppDatabase.getDatabase(context)
-  private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+  private val dateFormat = AppUtils.newDateFormat()
   private val pillNotification = PillNotificationHelper(context)
   private val scheduleMonitor = ScheduleMonitor()
 

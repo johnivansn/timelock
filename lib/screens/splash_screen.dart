@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:timelock/screens/app_list_screen.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
+import 'package:timelock/utils/schedule_utils.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -51,7 +52,7 @@ class _SplashScreenState extends State<SplashScreen> {
         try {
           final schedules =
               await NativeService.getSchedules(r['packageName'] as String);
-          r['schedules'] = schedules.map(_normalizeScheduleDays).toList();
+          r['schedules'] = schedules.map(normalizeScheduleDays).toList();
         } catch (_) {
           r['schedules'] = [];
         }
@@ -63,70 +64,61 @@ class _SplashScreenState extends State<SplashScreen> {
     }
   }
 
-  Map<String, dynamic> _normalizeScheduleDays(Map<String, dynamic> s) {
-    final days = (s['daysOfWeek'] as List<dynamic>? ?? [])
-        .map((e) => int.tryParse(e.toString()) ?? 0)
-        .toList();
-    final converted =
-        days.contains(0) ? days.map((d) => d + 1).toList() : days;
-    return {
-      ...s,
-      'daysOfWeek': converted.where((d) => d >= 1 && d <= 7).toList(),
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [AppColors.surface, AppColors.surfaceVariant],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      body: SafeArea(
+        child: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.surface, AppColors.surfaceVariant],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 88,
-              height: 88,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.shield_rounded,
+                    size: 36, color: AppColors.primary),
               ),
-              child: const Icon(Icons.shield_rounded,
-                  size: 44, color: AppColors.primary),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            const Text(
-              'AppTimeControl',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+              SizedBox(height: AppSpacing.md),
+              Text(
+                'AppTimeControl',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            const Text(
-              'Preparando la app...',
-              style: TextStyle(
-                fontSize: 13,
-                color: AppColors.textTertiary,
+              SizedBox(height: AppSpacing.xs),
+              Text(
+                'Preparando la app...',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textTertiary,
+                ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2.4),
-            ),
-          ],
+              SizedBox(height: AppSpacing.lg),
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+

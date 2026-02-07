@@ -14,6 +14,7 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.widget.ImageView
 import android.widget.TextView
+import com.example.timelock.utils.AppUtils
 import com.example.timelock.R
 import com.example.timelock.blocking.BlockingEngine
 import kotlinx.coroutines.CoroutineScope
@@ -368,7 +369,8 @@ class AppBlockAccessibilityService : AccessibilityService() {
   }
 
   private fun updateCountdownText() {
-    overlayView?.findViewById<TextView>(R.id.countdown_text)?.text = countdownSeconds.toString()
+    overlayView?.findViewById<TextView>(R.id.countdown_text)?.text =
+      AppUtils.formatDurationMillis(countdownSeconds * 1000L)
   }
 
   private fun cleanupOverlay() {

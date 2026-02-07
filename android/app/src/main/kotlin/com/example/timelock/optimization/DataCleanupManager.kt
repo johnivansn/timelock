@@ -2,6 +2,7 @@ package com.example.timelock.optimization
 
 import android.content.Context
 import android.util.Log
+import com.example.timelock.utils.AppUtils
 import com.example.timelock.database.AppDatabase
 import java.text.SimpleDateFormat
 import java.util.*
@@ -10,7 +11,7 @@ import kotlinx.coroutines.withContext
 
 class DataCleanupManager(private val context: Context) {
   private val database = AppDatabase.getDatabase(context)
-  private val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+  private val dateFormat = AppUtils.newDateFormat()
   private val prefs = context.getSharedPreferences("cleanup_prefs", Context.MODE_PRIVATE)
 
   companion object {

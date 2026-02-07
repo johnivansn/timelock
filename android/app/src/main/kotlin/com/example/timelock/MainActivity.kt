@@ -1,6 +1,7 @@
 package com.example.timelock
 
 import android.app.AppOpsManager
+import android.app.ActivityManager
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
@@ -269,12 +270,16 @@ class MainActivity : FlutterActivity() {
           }
         }
       }
-      "checkOverlayPermission" -> {
-        result.success(android.provider.Settings.canDrawOverlays(this))
-      }
-      "requestOverlayPermission" -> {
-        val intent =
-                Intent(
+        "checkOverlayPermission" -> {
+          result.success(android.provider.Settings.canDrawOverlays(this))
+        }
+        "getMemoryClass" -> {
+          val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+          result.success(am.memoryClass)
+        }
+        "requestOverlayPermission" -> {
+          val intent =
+                  Intent(
                         android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                         android.net.Uri.parse("package:$packageName")
                 )
@@ -446,8 +451,7 @@ class MainActivity : FlutterActivity() {
 
   private suspend fun updateSchedule(args: Map<*, *>) {
     val id = args["id"] as String
-    val schedules = database.appScheduleDao().getAllEnabled()
-    val existing = schedules.find { it.id == id } ?: return
+    val existing = database.appScheduleDao().getById(id) ?: return
 
     val daysList =
             (args["daysOfWeek"] as? List<*>)?.map { it.toString().toInt() }
@@ -467,8 +471,7 @@ class MainActivity : FlutterActivity() {
   }
 
   private suspend fun deleteSchedule(scheduleId: String) {
-    val schedules = database.appScheduleDao().getAllEnabled()
-    val schedule = schedules.find { it.id == scheduleId } ?: return
+    val schedule = database.appScheduleDao().getById(scheduleId) ?: return
     database.appScheduleDao().delete(schedule)
     Log.i("MainActivity", "Schedule deleted: $scheduleId")
   }
@@ -488,9 +491,11 @@ class MainActivity : FlutterActivity() {
                       "dailyMode" to r.dailyMode,
                       "dailyQuotas" to r.dailyQuotas,
                       "weeklyQuotaMinutes" to r.weeklyQuotaMinutes,
-                      "weeklyResetDay" to r.weeklyResetDay
-              )
-            }
+                      "weeklyResetDay" to r.weeklyResetDay,
+                      "weeklyResetHour" to r.weeklyResetHour,
+                      "weeklyResetMinute" to r.weeklyResetMinute
+                )
+              }
 
     val exportMap =
             mutableMapOf<String, Any>(
@@ -547,6 +552,8 @@ class MainActivity : FlutterActivity() {
                         weeklyQuotaMinutes =
                                 (item["weeklyQuotaMinutes"] as? Number)?.toInt() ?: 0,
                         weeklyResetDay = (item["weeklyResetDay"] as? Number)?.toInt() ?: 2,
+                        weeklyResetHour = (item["weeklyResetHour"] as? Number)?.toInt() ?: 0,
+                        weeklyResetMinute = (item["weeklyResetMinute"] as? Number)?.toInt() ?: 0,
                         createdAt = System.currentTimeMillis()
                 )
       database.appRestrictionDao().insert(restriction)
@@ -582,20 +589,21 @@ class MainActivity : FlutterActivity() {
                 val pm = packageManager
                 val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
 
-                val appList =
-                        apps.mapNotNull { app ->
-                          try {
-                            mapOf(
-                                    "appName" to pm.getApplicationLabel(app).toString(),
-                                    "packageName" to app.packageName,
-                                    "isSystem" to
-                                            ((app.flags and ApplicationInfo.FLAG_SYSTEM) != 0),
-                                    "icon" to null // Sin ícono por ahora
-                            )
-                          } catch (e: Exception) {
-                            null
+                  val appList =
+                          apps.mapNotNull { app ->
+                            try {
+                              val cachedIcon = appCacheManager.getCachedIconBytes(app.packageName)
+                              mapOf(
+                                      "appName" to pm.getApplicationLabel(app).toString(),
+                                      "packageName" to app.packageName,
+                                      "isSystem" to
+                                              ((app.flags and ApplicationInfo.FLAG_SYSTEM) != 0),
+                                      "icon" to cachedIcon
+                              )
+                            } catch (e: Exception) {
+                              null
+                            }
                           }
-                        }
 
                 Handler(Looper.getMainLooper()).post { result.success(appList) }
               } catch (e: Exception) {
@@ -608,24 +616,30 @@ class MainActivity : FlutterActivity() {
   }
 
   private fun getAppIcon(packageName: String, result: MethodChannel.Result) {
-    Thread {
-              try {
-                val pm = packageManager
-                val app = pm.getApplicationInfo(packageName, 0)
-                val drawable = pm.getApplicationIcon(app)
-
-                val bitmap = drawableToBitmap(drawable)
-                val stream = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.PNG, 50, stream)
-                val iconBytes = stream.toByteArray()
-
-                Handler(Looper.getMainLooper()).post { result.success(iconBytes) }
-              } catch (e: Exception) {
-                Handler(Looper.getMainLooper()).post { result.success(null) }
+      Thread {
+                try {
+                  val cached = appCacheManager.getCachedIconBytes(packageName)
+                  if (cached != null && cached.isNotEmpty()) {
+                    Handler(Looper.getMainLooper()).post { result.success(cached) }
+                    return@Thread
+                  }
+                  val pm = packageManager
+                  val app = pm.getApplicationInfo(packageName, 0)
+                  val drawable = pm.getApplicationIcon(app)
+  
+                    val bitmap = AppUtils.drawableToBitmap(drawable, maxSize = 96)
+                  val stream = ByteArrayOutputStream()
+                  bitmap.compress(Bitmap.CompressFormat.PNG, 50, stream)
+                  val iconBytes = stream.toByteArray()
+  
+                  appCacheManager.cacheIconBytes(packageName, iconBytes)
+                  Handler(Looper.getMainLooper()).post { result.success(iconBytes) }
+                } catch (e: Exception) {
+                  Handler(Looper.getMainLooper()).post { result.success(null) }
+                }
               }
-            }
-            .start()
-  }
+              .start()
+    }
 
   private fun requestUsageStatsPermission() {
     startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
@@ -700,7 +714,7 @@ class MainActivity : FlutterActivity() {
               val iconBytes =
                       try {
                         val drawable = appInfo.loadIcon(pm)
-                        val bitmap = AppUtils.drawableToBitmap(drawable)
+                          val bitmap = AppUtils.drawableToBitmap(drawable)
                         val stream = java.io.ByteArrayOutputStream()
                         bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, stream)
                         stream.toByteArray()
@@ -743,6 +757,8 @@ class MainActivity : FlutterActivity() {
     val dailyQuotas = parseDailyQuotas(args["dailyQuotas"])
     val weeklyQuotaMinutes = (args["weeklyQuotaMinutes"] as? Number)?.toInt() ?: 0
     val weeklyResetDay = (args["weeklyResetDay"] as? Number)?.toInt() ?: 2
+    val weeklyResetHour = (args["weeklyResetHour"] as? Number)?.toInt() ?: 0
+    val weeklyResetMinute = (args["weeklyResetMinute"] as? Number)?.toInt() ?: 0
     val restriction =
             AppRestriction(
                     id = UUID.randomUUID().toString(),
@@ -753,10 +769,12 @@ class MainActivity : FlutterActivity() {
                     limitType = limitType,
                     dailyMode = dailyMode,
                     dailyQuotas = dailyQuotas,
-                    weeklyQuotaMinutes = weeklyQuotaMinutes,
-                    weeklyResetDay = weeklyResetDay,
-                    createdAt = System.currentTimeMillis()
-            )
+            weeklyQuotaMinutes = weeklyQuotaMinutes,
+            weeklyResetDay = weeklyResetDay,
+            weeklyResetHour = weeklyResetHour,
+            weeklyResetMinute = weeklyResetMinute,
+            createdAt = System.currentTimeMillis()
+    )
     database.appRestrictionDao().insert(restriction)
   }
 
@@ -778,7 +796,13 @@ class MainActivity : FlutterActivity() {
                                     ?: restriction.weeklyQuotaMinutes,
                     weeklyResetDay =
                             (args["weeklyResetDay"] as? Number)?.toInt()
-                                    ?: restriction.weeklyResetDay
+                                    ?: restriction.weeklyResetDay,
+                    weeklyResetHour =
+                            (args["weeklyResetHour"] as? Number)?.toInt()
+                                    ?: restriction.weeklyResetHour,
+                    weeklyResetMinute =
+                            (args["weeklyResetMinute"] as? Number)?.toInt()
+                                    ?: restriction.weeklyResetMinute
             )
     database.appRestrictionDao().update(updated)
   }
@@ -802,20 +826,27 @@ class MainActivity : FlutterActivity() {
               "dailyMode" to restriction.dailyMode,
               "dailyQuotas" to restriction.dailyQuotas,
               "weeklyQuotaMinutes" to restriction.weeklyQuotaMinutes,
-              "weeklyResetDay" to restriction.weeklyResetDay
+              "weeklyResetDay" to restriction.weeklyResetDay,
+              "weeklyResetHour" to restriction.weeklyResetHour,
+              "weeklyResetMinute" to restriction.weeklyResetMinute
       )
     }
   }
 
   private suspend fun getUsageToday(packageName: String): Map<String, Any> {
-    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val dateFormat = AppUtils.newDateFormat()
     val today = dateFormat.format(Date())
     val usage = database.dailyUsageDao().getUsage(packageName, today)
     val liveMillis = UsageStatsMonitor(this).getUsageToday(packageName)
     val restriction = database.appRestrictionDao().getByPackage(packageName)
-    val weekStart =
-            if (restriction != null) getWeekStartDate(restriction.weeklyResetDay, dateFormat)
-            else today
+              val weekStart =
+                      if (restriction != null) AppUtils.getWeekStartDate(
+                      restriction.weeklyResetDay,
+                      restriction.weeklyResetHour,
+                      restriction.weeklyResetMinute,
+                      dateFormat
+              )
+              else today
     val weekUsages = database.dailyUsageDao().getUsageSince(packageName, weekStart)
     val weekMinutes = weekUsages.sumOf { it.usedMinutes }
     return mapOf(
@@ -825,15 +856,6 @@ class MainActivity : FlutterActivity() {
             "usedMinutesWeek" to weekMinutes,
             "weekStart" to weekStart
     )
-  }
-
-  private fun getWeekStartDate(resetDay: Int, dateFormat: SimpleDateFormat): String {
-    val cal = Calendar.getInstance()
-    val current = cal.get(Calendar.DAY_OF_WEEK)
-    var diff = current - resetDay
-    if (diff < 0) diff += 7
-    cal.add(Calendar.DAY_OF_MONTH, -diff)
-    return dateFormat.format(cal.time)
   }
 
   private fun parseDailyQuotas(value: Any?, fallback: String = ""): String {
@@ -868,22 +890,6 @@ class MainActivity : FlutterActivity() {
       )
       startActivityForResult(intent, REQUEST_ENABLE_ADMIN)
     }
-  }
-
-  private fun drawableToBitmap(drawable: Drawable): Bitmap {
-    if (drawable is BitmapDrawable) {
-      return drawable.bitmap
-    }
-
-    val width = if (drawable.intrinsicWidth > 0) minOf(drawable.intrinsicWidth, 96) else 96
-    val height = if (drawable.intrinsicHeight > 0) minOf(drawable.intrinsicHeight, 96) else 96
-
-    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-    drawable.setBounds(0, 0, canvas.width, canvas.height)
-    drawable.draw(canvas)
-
-    return bitmap
   }
 
   private fun isDeviceAdminEnabled(): Boolean {

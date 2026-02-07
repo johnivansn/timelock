@@ -4,11 +4,14 @@ import androidx.room.*
 
 @Dao
 interface AppScheduleDao {
-  @Query("SELECT * FROM app_schedules WHERE packageName = :packageName AND isEnabled = 1")
+  @Query("SELECT * FROM app_schedules WHERE packageName = :packageName")
   suspend fun getByPackage(packageName: String): List<AppSchedule>
 
   @Query("SELECT * FROM app_schedules WHERE isEnabled = 1")
   suspend fun getAllEnabled(): List<AppSchedule>
+
+  @Query("SELECT * FROM app_schedules WHERE id = :id")
+  suspend fun getById(id: String): AppSchedule?
 
   @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insert(schedule: AppSchedule)
 

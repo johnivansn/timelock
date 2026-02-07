@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
+import 'package:timelock/utils/app_motion.dart';
+import 'package:timelock/utils/app_utils.dart';
 
 class PinVerifyScreen extends StatefulWidget {
-  const PinVerifyScreen({super.key, this.reason});
+  PinVerifyScreen({super.key, this.reason});
 
   final String? reason;
 
@@ -27,7 +29,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
     super.initState();
     _shakeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 400),
+      duration: AppMotion.duration(Duration(milliseconds: 400)),
     );
     _shakeAnimation = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: -12.0), weight: 25),
@@ -53,7 +55,8 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
       if (status == 'locked') {
         setState(() {
           _lockedSeconds = res['remainingSeconds'] as int;
-          _error = 'Bloqueado por ${_formatTime(_lockedSeconds)}';
+          _error =
+              'Bloqueado por ${AppUtils.formatDurationMillis(_lockedSeconds * 1000)}';
         });
         _startCountdown();
       }
@@ -92,7 +95,8 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
             setState(() {
               _verifying = false;
               _lockedSeconds = secs;
-              _error = 'Bloqueado por ${_formatTime(secs)}';
+              _error =
+                  'Bloqueado por ${AppUtils.formatDurationMillis(secs * 1000)}';
               _clearPin();
             });
             _shakeController.forward(from: 0);
@@ -112,24 +116,19 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
   }
 
   void _startCountdown() {
-    Future.delayed(const Duration(seconds: 1), () {
+    Future.delayed(Duration(seconds: 1), () {
       if (!mounted || _lockedSeconds <= 0) return;
       setState(() {
         _lockedSeconds--;
         if (_lockedSeconds <= 0) {
           _error = null;
         } else {
-          _error = 'Bloqueado por ${_formatTime(_lockedSeconds)}';
+          _error =
+              'Bloqueado por ${AppUtils.formatDurationMillis(_lockedSeconds * 1000)}';
         }
       });
       if (_lockedSeconds > 0) _startCountdown();
     });
-  }
-
-  String _formatTime(int secs) {
-    final m = secs ~/ 60;
-    final s = secs % 60;
-    return '${m}m ${s.toString().padLeft(2, '0')}s';
   }
 
   void _onDigit(int d) {
@@ -170,41 +169,41 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: EdgeInsets.all(AppSpacing.lg),
           child: Column(
             children: [
               Align(
                 alignment: Alignment.centerLeft,
                 child: IconButton(
                   onPressed: () => Navigator.pop(context, false),
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                  icon: Icon(Icons.arrow_back_ios_new_rounded),
                 ),
               ),
-              const Spacer(),
+              Spacer(),
               Icon(
                 isLocked ? Icons.lock_clock_rounded : Icons.shield_rounded,
                 color: isLocked ? AppColors.error : AppColors.primary,
-                size: 56,
+                size: 48,
               ),
-              const SizedBox(height: AppSpacing.lg),
-              const Text(
+              SizedBox(height: AppSpacing.md),
+              Text(
                 'Modo Administrador',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: AppSpacing.sm),
               Text(
                 widget.reason ?? 'Ingresa tu PIN para continuar',
-                style: const TextStyle(
-                  fontSize: 15,
+                style: TextStyle(
+                  fontSize: 13,
                   color: AppColors.textSecondary,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: AppSpacing.xxl),
+              SizedBox(height: AppSpacing.xl),
               AnimatedBuilder(
                 animation: _shakeAnimation,
                 builder: (_, child) => Transform.translate(
@@ -213,21 +212,21 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
                 ),
                 child: _dotIndicator(),
               ),
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(height: AppSpacing.md),
               if (_error != null)
                 Text(
                   _error!,
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: TextStyle(
+                    fontSize: 12,
                     color: AppColors.error,
                     fontWeight: FontWeight.w500,
                   ),
                 )
               else
-                const SizedBox(height: 20),
-              const Spacer(),
+                SizedBox(height: 16),
+              Spacer(),
               _numpad(isLocked),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: AppSpacing.md),
             ],
           ),
         ),
@@ -244,11 +243,11 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
         final isFilled = i < filled;
         final isFocus = i == filled;
         return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 18,
-            height: 18,
+            duration: AppMotion.duration(Duration(milliseconds: 200)),
+            width: 14,
+            height: 14,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: isFilled ? AppColors.primary : AppColors.surface,
@@ -256,7 +255,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
                 color: isFocus && !isFilled
                     ? AppColors.primary
                     : AppColors.surfaceVariant,
-                width: 2,
+                width: 1,
               ),
             ),
           ),
@@ -269,15 +268,15 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
     return Column(
       children: [
         _numRow([1, 2, 3], isLocked),
-        const SizedBox(height: AppSpacing.md),
+        SizedBox(height: AppSpacing.md),
         _numRow([4, 5, 6], isLocked),
-        const SizedBox(height: AppSpacing.md),
+        SizedBox(height: AppSpacing.md),
         _numRow([7, 8, 9], isLocked),
-        const SizedBox(height: AppSpacing.md),
+        SizedBox(height: AppSpacing.md),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            const SizedBox(width: 72, height: 72),
+            SizedBox(width: 64, height: 64),
             _numButton(0, isLocked),
             _backspaceButton(isLocked),
           ],
@@ -296,10 +295,10 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
   Widget _numButton(int digit, bool isLocked) {
     return InkWell(
       onTap: isLocked ? null : () => _onDigit(digit),
-      customBorder: const CircleBorder(),
+      customBorder: CircleBorder(),
       child: Container(
-        width: 72,
-        height: 72,
+        width: 64,
+        height: 64,
         decoration: BoxDecoration(
           color: AppColors.surface,
           shape: BoxShape.circle,
@@ -309,7 +308,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
           child: Text(
             digit.toString(),
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.w600,
               color: isLocked ? AppColors.textTertiary : AppColors.textPrimary,
             ),
@@ -322,10 +321,10 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
   Widget _backspaceButton(bool isLocked) {
     return InkWell(
       onTap: isLocked ? null : _onBackspace,
-      customBorder: const CircleBorder(),
+      customBorder: CircleBorder(),
       child: Container(
-        width: 72,
-        height: 72,
+        width: 64,
+        height: 64,
         decoration: BoxDecoration(
           color: AppColors.surface,
           shape: BoxShape.circle,
@@ -335,10 +334,11 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
           child: Icon(
             Icons.backspace_outlined,
             color: isLocked ? AppColors.textTertiary : AppColors.textSecondary,
-            size: 24,
+            size: 20,
           ),
         ),
       ),
     );
   }
 }
+

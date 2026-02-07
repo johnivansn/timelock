@@ -1,13 +1,9 @@
 package com.example.timelock.widget
 
-import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.widget.RemoteViews
-import com.example.timelock.MainActivity
 import com.example.timelock.R
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.utils.AppUtils
@@ -39,7 +35,7 @@ class AppTimeWidget : AppWidgetProvider() {
     scope.launch {
       val database = AppDatabase.getDatabase(context)
       val restrictions = database.appRestrictionDao().getEnabled()
-      val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+      val dateFormat = AppUtils.newDateFormat()
       val today = dateFormat.format(Date())
 
       val views = RemoteViews(context.packageName, R.layout.widget_small)
@@ -63,22 +59,17 @@ class AppTimeWidget : AppWidgetProvider() {
         views.setTextViewText(R.id.widget_title, "${restrictions.size} apps monitoreadas")
         views.setTextViewText(
                 R.id.widget_content,
-                "${AppUtils.formatTime(remainingMinutes)} restantes" +
+                AppUtils.formatRemainingLabel(remainingMinutes) +
                         if (blockedCount > 0)
                                 " • $blockedCount bloqueada${if (blockedCount > 1) "s" else ""}"
                         else ""
         )
       }
 
-      val intent = Intent(context, MainActivity::class.java)
-      val pendingIntent =
-              PendingIntent.getActivity(
-                      context,
-                      0,
-                      intent,
-                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-              )
-      views.setOnClickPendingIntent(R.id.widget_container, pendingIntent)
+      views.setOnClickPendingIntent(
+              R.id.widget_container,
+              WidgetUtils.buildLaunchPendingIntent(context)
+      )
 
       appWidgetManager.updateAppWidget(appWidgetId, views)
     }
@@ -86,13 +77,7 @@ class AppTimeWidget : AppWidgetProvider() {
 
   companion object {
     fun updateWidget(context: Context) {
-      val intent = Intent(context, AppTimeWidget::class.java)
-      intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-      val ids =
-              AppWidgetManager.getInstance(context)
-                      .getAppWidgetIds(ComponentName(context, AppTimeWidget::class.java))
-      intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-      context.sendBroadcast(intent)
+      WidgetUtils.updateWidget(context, AppTimeWidget::class.java)
     }
   }
 }

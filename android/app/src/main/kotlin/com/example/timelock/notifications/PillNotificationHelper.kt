@@ -37,14 +37,12 @@ class PillNotificationHelper(private val context: Context) {
 
   fun notifyQuota50(appName: String, packageName: String, remainingMinutes: Int) {
     if (!prefs.quota50Enabled) return
-    val timeText = AppUtils.formatTime(remainingMinutes)
-    show(appName, packageName, "$timeText restantes")
+    show(appName, packageName, AppUtils.formatRemainingLabel(remainingMinutes))
   }
 
   fun notifyQuota75(appName: String, packageName: String, remainingMinutes: Int) {
     if (!prefs.quota75Enabled) return
-    val timeText = AppUtils.formatTime(remainingMinutes)
-    show(appName, packageName, "$timeText restantes")
+    show(appName, packageName, AppUtils.formatRemainingLabel(remainingMinutes))
   }
 
   fun notifyLastMinute(appName: String, packageName: String) {
@@ -67,7 +65,7 @@ class PillNotificationHelper(private val context: Context) {
 
   fun notifyScheduleUpcoming(appName: String, packageName: String, minutes: Int) {
     if (!prefs.scheduleEnabled) return
-    val timeText = if (minutes == 1) "1 min" else "$minutes min"
+    val timeText = AppUtils.formatTime(minutes)
     show(appName, packageName, "Se pausará en $timeText")
   }
 

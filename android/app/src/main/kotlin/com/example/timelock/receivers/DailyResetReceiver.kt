@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.example.timelock.utils.AppUtils
 import com.example.timelock.database.AppDatabase
 import com.example.timelock.monitoring.ScheduleMonitor
 import com.example.timelock.monitoring.UsageStatsMonitor
@@ -22,7 +23,7 @@ class DailyResetReceiver : BroadcastReceiver() {
     val scope = CoroutineScope(Dispatchers.IO + Job())
     val usageStatsMonitor = UsageStatsMonitor(context)
     val scheduleMonitor = ScheduleMonitor(context)
-    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    val dateFormat = AppUtils.newDateFormat()
     val today = dateFormat.format(Date())
     val sevenDaysAgo =
             Calendar.getInstance().apply { add(Calendar.DAY_OF_MONTH, -7) }.let {

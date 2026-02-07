@@ -1,7 +1,9 @@
 package com.example.timelock.optimization
 
+import android.app.ActivityManager
 import android.content.Context
 import android.graphics.drawable.Drawable
+import android.os.PowerManager
 import android.util.Log
 import com.example.timelock.utils.AppUtils
 import java.io.File
@@ -79,11 +81,66 @@ class AppCacheManager(private val context: Context) {
               FileOutputStream(iconFile).use { out ->
                 bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 85, out)
               }
+              trimIconCache()
               Log.d("AppCacheManager", "Cached icon for $packageName")
             } catch (e: Exception) {
               Log.e("AppCacheManager", "Error caching icon", e)
             }
           }
+
+  fun getCachedIconBytes(packageName: String): ByteArray? {
+    return try {
+      val iconFile = File(cacheDir, "$packageName.png")
+      if (iconFile.exists()) iconFile.readBytes() else null
+    } catch (_: Exception) {
+      null
+    }
+  }
+
+  fun cacheIconBytes(packageName: String, bytes: ByteArray) {
+    try {
+      val iconFile = File(cacheDir, "$packageName.png")
+      FileOutputStream(iconFile).use { it.write(bytes) }
+      trimIconCache()
+    } catch (_: Exception) {
+      // Ignore cache write failures.
+    }
+  }
+
+  private fun trimIconCache() {
+    try {
+      val files =
+              cacheDir.listFiles { _, name -> name.endsWith(".png") }?.toMutableList()
+                      ?: return
+      var total = files.sumOf { it.length() }
+      val maxBytes = maxCacheBytes()
+      if (total <= maxBytes) return
+
+      files.sortBy { it.lastModified() }
+      for (file in files) {
+        if (total <= maxBytes) break
+        val size = file.length()
+        if (file.delete()) {
+          total -= size
+        }
+      }
+    } catch (_: Exception) {
+      // Best-effort cache trimming.
+    }
+  }
+
+  private fun maxCacheBytes(): Long {
+    val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+    val memoryClass = am.memoryClass
+    val base =
+            when {
+              memoryClass <= 256 -> 5L * 1024 * 1024
+              memoryClass <= 384 -> 10L * 1024 * 1024
+              else -> 20L * 1024 * 1024
+            }
+    val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    return if (pm.isPowerSaveMode) (base * 0.6).toLong() else base
+  }
 
   fun getCachedIconPath(packageName: String): String? {
     val iconFile = File(cacheDir, "$packageName.png")

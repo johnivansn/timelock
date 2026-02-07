@@ -3,7 +3,7 @@
 ## Versión: v1.5-ACTUAL
 **Fecha**: 07 de febrero, 2026
 **Estado**: Implementación en progreso
-**Última actualización**: Cuotas semanales + límites diarios por día
+**Última actualización**: Cache adaptativo de íconos + prefetch + formato de duración d/h/m/s + métricas RAM en Optimización
 
 ---
 
@@ -98,6 +98,7 @@ lib/ (Flutter)
 │   └── optimization_screen.dart          # Estadísticas y limpieza
 ├── widgets/
 │   ├── app_picker_dialog.dart            # Selector de apps con iconos
+│   ├── bottom_sheet_handle.dart          # Handle reutilizable para bottom sheets
 │   ├── limit_picker_dialog.dart          # Selector de límite (diario/semanal)
 │   ├── time_picker_dialog.dart           # Selector de cuota
 │   └── schedule_editor_dialog.dart       # Editor de horarios + etiquetas
@@ -106,7 +107,8 @@ lib/ (Flutter)
 ├── theme/
 │   └── app_theme.dart                    # Material Design 3 dark theme
 └── utils/
-    └── app_utils.dart                    # Utilidades (formateo, etc.)
+    ├── app_utils.dart                    # Utilidades (formateo, heurísticas cache)
+    └── schedule_utils.dart               # Utilidades de horarios (normalización/formato)
 ```
 
 ---
@@ -129,6 +131,8 @@ data class AppRestriction(
     val dailyQuotas: String,                  // "1:30,2:30,3:45" (si per_day)
     val weeklyQuotaMinutes: Int,              // minutos por semana
     val weeklyResetDay: Int,                  // 1=Dom ... 7=Sab
+    val weeklyResetHour: Int,                 // 0-23
+    val weeklyResetMinute: Int,               // 0-59
     val createdAt: Long                       // timestamp
 )
 ```
@@ -202,7 +206,7 @@ data class AdminSettings(
 - Selector de tipo de límite: diario o semanal
 - Límite diario: mismo tiempo o distinto por día
 - Toggle on/off que mantiene configuración
-- **Detalle especial**: Si cuota ≤ 1 minuto, UI muestra segundos en lugar de minutos
+- **Detalle especial**: UI muestra duración en formato d/h/m/s según corresponda
 
 **Ubicación código**:
 - `lib/widgets/limit_picker_dialog.dart` - Selector de límite
@@ -570,6 +574,11 @@ static const info = Color(0xFF3498DB);       // Azul
 - `android/.../optimization/BatteryModeManager.kt`
 - `lib/screens/optimization_screen.dart`
 
+**Métricas visibles en Optimización**:
+- RAM clase del dispositivo
+- Límite adaptativo de cache de íconos
+- Cantidad de íconos en prefetch
+
 ---
 
 #### RF13: Limpieza Automática de Datos ✅
@@ -593,9 +602,10 @@ static const info = Color(0xFF3498DB);       // Azul
 
 **Implementación**:
 - Cache de apps instaladas: 24h validez
-- Cache de iconos: Permanente hasta invalidación manual
+- Cache de iconos: Adaptativo según RAM (5/10/20 MB) y ahorro de batería (-40%)
 - Formato iconos: PNG 85% calidad, max 96x96px
 - Ubicación: `/cache/app_cache/`
+- Prefetch de íconos en Flutter (lista principal y selector) según RAM, pantalla y modo ahorro
 
 **Ubicación código**:
 - `android/.../optimization/AppCacheManager.kt`
@@ -820,6 +830,98 @@ static const info = Color(0xFF3498DB);       // Azul
 - 🔮 **Logs exportables**: Para debugging avanzado
 - 🔮 **Anti-bypass avanzado**: Detección de side-loading, modo seguro, etc.
 - 🔮 **Widget interactivo**: Ajustar cuota directamente desde widget
+- 🔮 **Bloqueo por fechas**: Rango fecha-inicio/fecha-fin (1 día, N días o semanas)
+- 🔮 **Etiquetas de horarios/fechas**: Plantillas reutilizables para evitar reingreso repetido
+
+---
+
+## 8.1 PROPUESTA — Bloqueo por Fechas + Etiquetas
+
+### Objetivo
+Permitir bloqueos por rangos de fechas (1 día, N días o semanas) y reutilizar configuraciones frecuentes con “etiquetas” para no reingresar datos.
+
+### UX Propuesta
+1. **En Editor de horarios**: botón “Usar etiqueta” + “Guardar como etiqueta”.
+2. **En Editor de fechas**: rango inicio/fin (calendario) + “Repetición opcional” (semanal/mensual).
+3. **Etiquetas**: lista guardada con nombre, resumen y un tap para aplicar.
+
+### Modelo de Datos (nativo)
+Agregar tabla `date_blocks`:
+
+```kotlin
+data class DateBlock(
+    @PrimaryKey val id: String,
+    val packageName: String,
+    val startDate: String,   // "yyyy-MM-dd"
+    val endDate: String,     // "yyyy-MM-dd"
+    val isEnabled: Boolean,
+    val label: String?       // opcional (si proviene de etiqueta)
+)
+```
+
+Tabla `block_templates` (etiquetas):
+
+```kotlin
+data class BlockTemplate(
+    @PrimaryKey val id: String,
+    val name: String,
+    val type: String,        // "schedule" | "date"
+    val payloadJson: String  // JSON con horas/días o fechas
+)
+```
+
+### Lógica de Evaluación
+En `BlockingEngine.shouldBlock`:
+1. Evaluar cuota (diaria/semanal).
+2. Evaluar horarios (ScheduleMonitor).
+3. Evaluar bloqueos por fecha:
+   - `today in [startDate, endDate]` → bloqueado.
+
+### MethodChannel (propuesta)
+- `getDateBlocks(packageName)` → `List<Map>`
+- `addDateBlock(data)` → `void`
+- `updateDateBlock(data)` → `void`
+- `deleteDateBlock(id)` → `void`
+- `getBlockTemplates()` → `List<Map>`
+- `saveBlockTemplate(data)` → `void`
+- `deleteBlockTemplate(id)` → `void`
+
+### Notas de implementación
+- Guardar fechas como `yyyy-MM-dd` para consistencia con `DailyUsage`.
+- Reutilizar UI de etiquetas ya existente en `ScheduleEditorDialog`.
+- En Flutter, mostrar resumen: `“Bloqueado del 12 Mar al 18 Mar”`.
+
+---
+
+## 8.2 PROPUESTA — Temas y Colores Opcionales (Contextuales)
+
+### Objetivo
+Agregar temas opcionales según contexto (hora del día, modo ahorro, estado de bloqueo) sin romper la identidad visual minimalista.
+
+### UX Propuesta
+1. **Selector de tema** en Ajustes: `Automático`, `Clásico Oscuro`, `Alto Contraste`, `Calmo`.
+2. **Automático**:
+   - Si `Battery Saver` activo → paleta más neutra y bajo contraste para reducir “ruido”.
+   - Si app bloqueada → acento más visible (warning/error).
+3. **Manual**: fuerza un tema fijo.
+
+### Implementación (Flutter)
+- Definir variantes en `lib/theme/app_theme.dart`:
+  - `AppTheme.darkTheme` (actual)
+  - `AppTheme.darkHighContrast`
+  - `AppTheme.darkCalm`
+- Persistir selección en preferencias nativas (MethodChannel) o local (SharedPreferences).
+- En `main.dart` leer preferencia y usar `ThemeMode`/`ThemeData` correspondiente.
+- Opción adicional: **reducir/quitar animaciones** desde Ajustes (flag global).
+
+### Consideraciones
+- Mantener accesibilidad (contraste AA).
+- Evitar animaciones o cambios abruptos de paleta.
+- Respetar “reducir animaciones” en:
+  - Transiciones de pantalla.
+  - Shake/overlay/notificaciones.
+  - Animaciones de listas.
+- No tocar lógica de negocio; solo UI.
 
 ---
 
@@ -973,6 +1075,7 @@ MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
 - `isBatterySaverEnabled()` → `bool`
 - `setBatterySaverMode(enabled)` → `void`
 - `getOptimizationStats()` → `Map<String, dynamic>`
+- `getMemoryClass()` → `int`
 
 ---
 

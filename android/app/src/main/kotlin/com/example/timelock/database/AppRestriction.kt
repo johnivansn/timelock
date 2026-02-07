@@ -15,6 +15,8 @@ data class AppRestriction(
         val dailyQuotas: String = "",
         val weeklyQuotaMinutes: Int = 0,
         val weeklyResetDay: Int = 2,
+        val weeklyResetHour: Int = 0,
+        val weeklyResetMinute: Int = 0,
         val createdAt: Long
 )
 

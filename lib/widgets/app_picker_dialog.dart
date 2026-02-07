@@ -2,11 +2,18 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
+import 'package:timelock/utils/app_utils.dart';
+import 'package:timelock/widgets/bottom_sheet_handle.dart';
 
 class AppPickerDialog extends StatefulWidget {
-  const AppPickerDialog({super.key, required this.excludedPackages});
+  AppPickerDialog({
+    super.key,
+    required this.excludedPackages,
+    this.fullScreen = false,
+  });
 
   final Set<String> excludedPackages;
+  final bool fullScreen;
 
   @override
   State<AppPickerDialog> createState() => _AppPickerDialogState();
@@ -22,6 +29,7 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
   bool _showSystem = false;
   final Map<String, Uint8List?> _iconCache = {};
   final Set<String> _iconLoading = {};
+  int _prefetchCount = 0;
 
   @override
   void initState() {
@@ -72,9 +80,51 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
           _loading = false;
         });
       }
+      await _prefetchIcons();
     } catch (e) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _prefetchIcons() async {
+    if (!mounted) return;
+    if (_prefetchCount == 0) {
+      final memoryClass = await NativeService.getMemoryClass();
+      final powerSave = await NativeService.isBatterySaverEnabled();
+      final width = MediaQuery.of(context).size.width;
+      _prefetchCount = AppUtils.computeIconPrefetchCount(
+        screenWidth: width,
+        memoryClassMb: memoryClass,
+        powerSave: powerSave,
+      );
+    }
+
+    final items = <Map<String, dynamic>>[
+      ..._installedApps,
+      ..._systemApps,
+    ];
+    final limit = _prefetchCount.clamp(0, items.length);
+    if (limit == 0) return;
+
+    final Map<String, Uint8List?> fetched = {};
+    final List<Future<void>> tasks = [];
+    for (final app in items.take(limit)) {
+      final pkg = app['packageName'] as String?;
+      if (pkg == null || _iconCache.containsKey(pkg)) continue;
+      if (_iconLoading.contains(pkg)) continue;
+      _iconLoading.add(pkg);
+      tasks.add(NativeService.getAppIcon(pkg).then((bytes) {
+        fetched[pkg] = bytes;
+      }).whenComplete(() {
+        _iconLoading.remove(pkg);
+      }));
+    }
+
+    await Future.wait(tasks);
+    if (!mounted || fetched.isEmpty) return;
+    setState(() {
+      _iconCache.addAll(fetched);
+    });
   }
 
   void _filter(String q) {
@@ -113,69 +163,120 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.fullScreen) {
+      return SafeArea(
+        child: Container(
+          color: AppColors.surface,
+          child: Column(
+            children: [
+              SizedBox(height: AppSpacing.sm),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: TextField(
+                  onChanged: _filter,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar apps...',
+                    prefixIcon: Icon(Icons.search_rounded, size: 18),
+                    contentPadding:
+                        EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  ),
+                ),
+              ),
+              SizedBox(height: AppSpacing.sm),
+              if (!_loading && _systemApps.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  child: CheckboxListTile(
+                    value: _showSystem,
+                    onChanged: (v) {
+                      setState(() => _showSystem = v ?? false);
+                      _filter(_query);
+                    },
+                    title: Text(
+                      'Mostrar apps del sistema',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              Expanded(child: _buildList()),
+              if (!_loading)
+                Padding(
+                  padding: EdgeInsets.all(AppSpacing.md),
+                  child: Text(
+                    'Total: ${_installedApps.length} instaladas + ${_systemApps.length} sistema',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius:
               BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
         ),
         child: Column(
           children: [
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: AppSpacing.sm),
+            BottomSheetHandle(),
+            SizedBox(height: AppSpacing.md),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
                       'Selecciona una app',
                       style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.textPrimary,
                       ),
                     ),
                   ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close_rounded),
+                    icon: Icon(Icons.close_rounded),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.sm),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
               child: TextField(
                 onChanged: _filter,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Buscar apps...',
-                  prefixIcon: Icon(Icons.search_rounded, size: 22),
-                  contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  prefixIcon: Icon(Icons.search_rounded, size: 18),
+                  contentPadding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: AppSpacing.sm),
             if (!_loading && _systemApps.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: CheckboxListTile(
                   value: _showSystem,
                   onChanged: (v) {
                     setState(() => _showSystem = v ?? false);
                     _filter(_query);
                   },
-                  title: const Text('Mostrar apps del sistema'),
+                  title: Text(
+                    'Mostrar apps del sistema',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   contentPadding: EdgeInsets.zero,
                   visualDensity: VisualDensity.compact,
                 ),
@@ -184,88 +285,15 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(context).size.height * 0.5,
               ),
-              child: _loading
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(AppSpacing.xxl),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(strokeWidth: 3),
-                            SizedBox(height: AppSpacing.lg),
-                            Text(
-                              'Cargando apps...',
-                              style: TextStyle(
-                                fontSize: 15,
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : _filteredInstalled.isEmpty && _filteredSystem.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(AppSpacing.xxl),
-                            child: Text(
-                              _query.isEmpty
-                                  ? 'No hay apps disponibles'
-                                  : 'Sin resultados',
-                              style: const TextStyle(
-                                color: AppColors.textTertiary,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ),
-                        )
-                      : ListView(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.lg),
-                          children: [
-                            if (_filteredInstalled.isNotEmpty) ...[
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                    top: AppSpacing.md, bottom: AppSpacing.sm),
-                                child: Text(
-                                  'APPS INSTALADAS (${_filteredInstalled.length})',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textTertiary,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                              ..._filteredInstalled.map((app) => _appTile(app)),
-                            ],
-                            if (_filteredSystem.isNotEmpty) ...[
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                    top: AppSpacing.lg, bottom: AppSpacing.sm),
-                                child: Text(
-                                  'APPS DEL SISTEMA (${_filteredSystem.length})',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textTertiary,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                              ..._filteredSystem.map((app) => _appTile(app)),
-                            ],
-                          ],
-                        ),
+              child: _buildList(),
             ),
             if (!_loading)
               Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: EdgeInsets.all(AppSpacing.md),
                 child: Text(
                   'Total: ${_installedApps.length} instaladas + ${_systemApps.length} sistema',
-                  style: const TextStyle(
-                    fontSize: 12,
+                  style: TextStyle(
+                    fontSize: 11,
                     color: AppColors.textTertiary,
                   ),
                 ),
@@ -276,54 +304,133 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
     );
   }
 
+  Widget _buildList() {
+    if (_loading) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.xxl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(strokeWidth: 3),
+              SizedBox(height: AppSpacing.sm),
+              Text(
+                'Cargando apps...',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (_filteredInstalled.isEmpty && _filteredSystem.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: EdgeInsets.all(AppSpacing.xxl),
+          child: Text(
+            _query.isEmpty ? 'No hay apps disponibles' : 'Sin resultados',
+            style: TextStyle(
+              color: AppColors.textTertiary,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+    }
+    return ListView(
+      padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      children: [
+        if (_filteredInstalled.isNotEmpty) ...[
+          Padding(
+            padding:
+                EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.sm),
+            child: Text(
+              'APPS INSTALADAS (${_filteredInstalled.length})',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textTertiary,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ),
+          ..._filteredInstalled.map((app) => _appTile(app)),
+        ],
+        if (_filteredSystem.isNotEmpty) ...[
+          Padding(
+            padding:
+                EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.sm),
+            child: Text(
+              'APPS DEL SISTEMA (${_filteredSystem.length})',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textTertiary,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ),
+          ..._filteredSystem.map((app) => _appTile(app)),
+        ],
+      ],
+    );
+  }
+
   Widget _appTile(Map<String, dynamic> app) {
     final appName = (app['appName'] ?? app['packageName'] ?? '?').toString();
     final packageName = app['packageName'] as String?;
     final firstChar = appName.isNotEmpty ? appName[0].toUpperCase() : '?';
     final iconBytes = app['icon'] as Uint8List?;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: InkWell(
-        onTap: () => Navigator.pop(context, app),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: Row(
-            children: [
-              _buildAppIcon(iconBytes, firstChar, packageName),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      appName,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textPrimary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      (app['packageName'] ?? '?').toString(),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textTertiary,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right_rounded,
-                  color: AppColors.textTertiary, size: 24),
-            ],
+    return InkWell(
+      onTap: () => Navigator.pop(context, app),
+      child: Container(
+        height: 56,
+        padding: EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppColors.surfaceVariant, width: 1),
           ),
+        ),
+        child: Row(
+          children: [
+            _buildAppIcon(iconBytes, firstChar, packageName),
+            SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    appName,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    (app['packageName'] ?? '?').toString(),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.textTertiary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                color: AppColors.textTertiary, size: 18),
+          ],
         ),
       ),
     );
@@ -336,8 +443,8 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: Image.memory(
           iconBytes,
-          width: 48,
-          height: 48,
+          width: 40,
+          height: 40,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _buildFallbackIcon(fallbackChar),
         ),
@@ -351,8 +458,8 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Image.memory(
             cachedIcon,
-            width: 48,
-            height: 48,
+            width: 40,
+            height: 40,
             fit: BoxFit.cover,
             errorBuilder: (_, __, ___) => _buildFallbackIcon(fallbackChar),
           ),
@@ -376,8 +483,8 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
 
   Widget _buildFallbackIcon(String char) {
     return Container(
-      width: 48,
-      height: 48,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -385,8 +492,8 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
       child: Center(
         child: Text(
           char,
-          style: const TextStyle(
-            fontSize: 20,
+          style: TextStyle(
+            fontSize: 16,
             fontWeight: FontWeight.w600,
             color: AppColors.primary,
           ),
@@ -395,3 +502,4 @@ class _AppPickerDialogState extends State<AppPickerDialog> {
     );
   }
 }
+
