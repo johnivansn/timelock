@@ -3,7 +3,7 @@
 ## Versión: v1.5-ACTUAL
 **Fecha**: 07 de febrero, 2026
 **Estado**: Implementación en progreso
-**Última actualización**: Cuotas semanales + límites diarios por día
+**Última actualización**: Cache adaptativo de íconos + prefetch + formato de duración d/h/m/s + métricas RAM en Optimización
 
 ---
 
@@ -98,6 +98,7 @@ lib/ (Flutter)
 │   └── optimization_screen.dart          # Estadísticas y limpieza
 ├── widgets/
 │   ├── app_picker_dialog.dart            # Selector de apps con iconos
+│   ├── bottom_sheet_handle.dart          # Handle reutilizable para bottom sheets
 │   ├── limit_picker_dialog.dart          # Selector de límite (diario/semanal)
 │   ├── time_picker_dialog.dart           # Selector de cuota
 │   └── schedule_editor_dialog.dart       # Editor de horarios + etiquetas
@@ -106,7 +107,8 @@ lib/ (Flutter)
 ├── theme/
 │   └── app_theme.dart                    # Material Design 3 dark theme
 └── utils/
-    └── app_utils.dart                    # Utilidades (formateo, etc.)
+    ├── app_utils.dart                    # Utilidades (formateo, heurísticas cache)
+    └── schedule_utils.dart               # Utilidades de horarios (normalización/formato)
 ```
 
 ---
@@ -129,6 +131,8 @@ data class AppRestriction(
     val dailyQuotas: String,                  // "1:30,2:30,3:45" (si per_day)
     val weeklyQuotaMinutes: Int,              // minutos por semana
     val weeklyResetDay: Int,                  // 1=Dom ... 7=Sab
+    val weeklyResetHour: Int,                 // 0-23
+    val weeklyResetMinute: Int,               // 0-59
     val createdAt: Long                       // timestamp
 )
 ```
@@ -202,7 +206,7 @@ data class AdminSettings(
 - Selector de tipo de límite: diario o semanal
 - Límite diario: mismo tiempo o distinto por día
 - Toggle on/off que mantiene configuración
-- **Detalle especial**: Si cuota ≤ 1 minuto, UI muestra segundos en lugar de minutos
+- **Detalle especial**: UI muestra duración en formato d/h/m/s según corresponda
 
 **Ubicación código**:
 - `lib/widgets/limit_picker_dialog.dart` - Selector de límite
@@ -570,6 +574,11 @@ static const info = Color(0xFF3498DB);       // Azul
 - `android/.../optimization/BatteryModeManager.kt`
 - `lib/screens/optimization_screen.dart`
 
+**Métricas visibles en Optimización**:
+- RAM clase del dispositivo
+- Límite adaptativo de cache de íconos
+- Cantidad de íconos en prefetch
+
 ---
 
 #### RF13: Limpieza Automática de Datos ✅
@@ -593,9 +602,10 @@ static const info = Color(0xFF3498DB);       // Azul
 
 **Implementación**:
 - Cache de apps instaladas: 24h validez
-- Cache de iconos: Permanente hasta invalidación manual
+- Cache de iconos: Adaptativo según RAM (5/10/20 MB) y ahorro de batería (-40%)
 - Formato iconos: PNG 85% calidad, max 96x96px
 - Ubicación: `/cache/app_cache/`
+- Prefetch de íconos en Flutter (lista principal y selector) según RAM, pantalla y modo ahorro
 
 **Ubicación código**:
 - `android/.../optimization/AppCacheManager.kt`
@@ -973,6 +983,7 @@ MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
 - `isBatterySaverEnabled()` → `bool`
 - `setBatterySaverMode(enabled)` → `void`
 - `getOptimizationStats()` → `Map<String, dynamic>`
+- `getMemoryClass()` → `int`
 
 ---
 
