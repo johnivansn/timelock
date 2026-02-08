@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:timelock/screens/splash_screen.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_settings.dart';
@@ -25,6 +26,16 @@ class AppTimeControlApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: theme,
           themeMode: ThemeMode.dark,
+          locale: Locale('es', 'ES'),
+          supportedLocales: const [
+            Locale('es', 'ES'),
+            Locale('en', 'US'),
+          ],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
           builder: (context, child) {
             final data = MediaQuery.of(context);
             return MediaQuery(

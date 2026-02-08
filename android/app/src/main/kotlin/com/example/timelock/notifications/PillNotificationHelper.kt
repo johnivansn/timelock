@@ -32,6 +32,7 @@ class PillNotificationHelper(private val context: Context) {
   enum class BlockReason {
     QUOTA_EXCEEDED,
     SCHEDULE_BLOCKED,
+    DATE_BLOCKED,
     MANUAL
   }
 
@@ -57,6 +58,7 @@ class PillNotificationHelper(private val context: Context) {
             when (reason) {
               BlockReason.QUOTA_EXCEEDED -> "Límite alcanzado"
               BlockReason.SCHEDULE_BLOCKED -> "Fuera de horario"
+              BlockReason.DATE_BLOCKED -> "Bloqueo por fechas"
               BlockReason.MANUAL -> "Bloqueada"
             }
 
@@ -67,6 +69,17 @@ class PillNotificationHelper(private val context: Context) {
     if (!prefs.scheduleEnabled) return
     val timeText = AppUtils.formatTime(minutes)
     show(appName, packageName, "Se pausará en $timeText")
+  }
+
+  fun notifyDateBlockRemaining(appName: String, packageName: String, daysRemaining: Int) {
+    if (!prefs.dateBlockEnabled) return
+    val text =
+            when (daysRemaining) {
+              0 -> "Bloqueo termina hoy"
+              1 -> "Bloqueo termina en 1 día"
+              else -> "Bloqueo termina en $daysRemaining días"
+            }
+    show(appName, packageName, text)
   }
 
   private fun show(appName: String, packageName: String, message: String) {

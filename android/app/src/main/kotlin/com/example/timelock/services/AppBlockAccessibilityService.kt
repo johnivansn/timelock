@@ -48,6 +48,11 @@ class AppBlockAccessibilityService : AccessibilityService() {
     HIDING
   }
 
+  private data class DateBlockInfo(
+          val remainingDays: Int?,
+          val rangeSummary: String?
+  )
+
   companion object {
     private const val TAG = "AccessibilityService"
     private const val BLOCK_COOLDOWN_MS = 2000L
@@ -164,9 +169,20 @@ class AppBlockAccessibilityService : AccessibilityService() {
       Log.d(TAG, "  🔍 shouldBlock($packageName) = ${reason != null} ($reason)")
 
       if (reason != null) {
+        val dateInfo =
+                if (reason == BlockingEngine.BlockReason.DateBlocked ||
+                        (reason == BlockingEngine.BlockReason.Combined &&
+                                blockingEngine.isDateBlocked(packageName))) {
+                  val remaining = blockingEngine.getDateBlockRemainingDays(packageName)
+                  val range = blockingEngine.getDateBlockRangeSummary(packageName)
+                  DateBlockInfo(remaining, range)
+                } else {
+                  null
+                }
+
         handler.post {
           Log.w(TAG, "  🚫 Iniciando bloqueo de $packageName")
-          blockApp(packageName, reason)
+          blockApp(packageName, reason, dateInfo)
         }
       } else if (currentBlockedPackage != null && currentBlockedPackage != packageName) {
         handler.post {
@@ -183,7 +199,11 @@ class AppBlockAccessibilityService : AccessibilityService() {
             packageName.contains("home", ignoreCase = true)
   }
 
-  private fun blockApp(packageName: String, reason: BlockingEngine.BlockReason) {
+  private fun blockApp(
+          packageName: String,
+          reason: BlockingEngine.BlockReason,
+          dateInfo: DateBlockInfo? = null
+  ) {
     val now = System.currentTimeMillis()
 
     if (overlayState == OverlayState.VISIBLE || overlayState == OverlayState.SHOWING) {
@@ -202,11 +222,15 @@ class AppBlockAccessibilityService : AccessibilityService() {
     lastBlockedPackage = packageName
     lastBlockTime = now
 
-    showOverlay(packageName, reason)
+    showOverlay(packageName, reason, dateInfo)
     forceHomeScreen()
   }
 
-  private fun showOverlay(packageName: String, reason: BlockingEngine.BlockReason) {
+  private fun showOverlay(
+          packageName: String,
+          reason: BlockingEngine.BlockReason,
+          dateInfo: DateBlockInfo? = null
+  ) {
     if (overlayState == OverlayState.VISIBLE || overlayState == OverlayState.SHOWING) {
       Log.w(TAG, "⚠️ Overlay ya visible/mostrándose - SALTANDO")
       return
@@ -230,6 +254,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
       val reasonText = overlayView?.findViewById<TextView>(R.id.block_reason)
       val messageText = overlayView?.findViewById<TextView>(R.id.block_message)
       val footerText = overlayView?.findViewById<TextView>(R.id.block_footer_text)
+      val dateRangeText = overlayView?.findViewById<TextView>(R.id.block_date_range)
 
       try {
         val pm = packageManager
@@ -258,12 +283,37 @@ class AppBlockAccessibilityService : AccessibilityService() {
           messageText?.text = "Este uso no está permitido en este momento"
           footerText?.text = "Intenta de nuevo dentro de tu horario permitido"
         }
+        BlockingEngine.BlockReason.DateBlocked -> {
+          titleText?.text = "📅 Bloqueada"
+          reasonText?.text = "Bloqueo por fechas activo"
+          messageText?.text = "Este uso no está permitido en este rango"
+          footerText?.text =
+                  when (dateInfo?.remainingDays) {
+                    null -> "Intenta de nuevo cuando termine el bloqueo"
+                    0 -> "Termina hoy"
+                    1 -> "Termina en 1 día"
+                    else -> "Termina en ${dateInfo.remainingDays} días"
+                  }
+        }
         BlockingEngine.BlockReason.Combined -> {
           titleText?.text = "⛔ Bloqueada"
-          reasonText?.text = "Límite y horario activos"
+          reasonText?.text = "Restricciones múltiples activas"
           messageText?.text = "La aplicación se cerrará automáticamente"
-          footerText?.text = "Intenta mañana o ajusta tus restricciones"
+          footerText?.text =
+                  when (dateInfo?.remainingDays) {
+                    null -> "Intenta más tarde o ajusta tus restricciones"
+                    0 -> "Restricción por fecha termina hoy"
+                    1 -> "Restricción por fecha termina en 1 día"
+                    else -> "Restricción por fecha termina en ${dateInfo.remainingDays} días"
+                  }
         }
+      }
+
+      if (dateInfo?.rangeSummary != null) {
+        dateRangeText?.text = dateInfo.rangeSummary
+        dateRangeText?.visibility = View.VISIBLE
+      } else {
+        dateRangeText?.visibility = View.GONE
       }
 
       val params =

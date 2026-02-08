@@ -13,9 +13,11 @@ import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
 import 'package:timelock/utils/app_motion.dart';
+import 'package:timelock/utils/date_utils.dart';
 import 'package:timelock/utils/schedule_utils.dart';
 import 'package:timelock/screens/app_picker_screen.dart';
 import 'package:timelock/widgets/schedule_editor_dialog.dart';
+import 'package:timelock/widgets/date_block_editor_dialog.dart';
 
 class AppListScreen extends StatefulWidget {
   AppListScreen({super.key, this.initialRestrictions});
@@ -34,6 +36,8 @@ class _AppListScreenState extends State<AppListScreen> {
   Timer? _refreshTimer;
   final Set<String> _expandedSchedules = {};
   final Set<String> _scheduleDirty = {};
+  final Set<String> _expandedDateBlocks = {};
+  final Set<String> _dateBlockDirty = {};
   final Set<String> _iconLoading = {};
   int _iconPrefetchCount = 0;
 
@@ -130,6 +134,7 @@ class _AppListScreenState extends State<AppListScreen> {
         if (existing != null) {
           r['iconBytes'] = existing['iconBytes'];
           r['schedules'] = existing['schedules'];
+          r['dateBlocks'] = existing['dateBlocks'];
           r['usedMinutes'] = existing['usedMinutes'];
           r['isBlocked'] = existing['isBlocked'];
           r['usedMillis'] = existing['usedMillis'];
@@ -166,6 +171,17 @@ class _AppListScreenState extends State<AppListScreen> {
             _scheduleDirty.remove(pkg);
           } catch (_) {
             r['schedules'] = [];
+          }
+        }
+
+        if (r['dateBlocks'] == null || _dateBlockDirty.contains(pkg)) {
+          try {
+            final blocks = await NativeService.getDateBlocks(pkg);
+            r['dateBlocks'] = blocks;
+            changed = true;
+            _dateBlockDirty.remove(pkg);
+          } catch (_) {
+            r['dateBlocks'] = [];
           }
         }
 
@@ -286,6 +302,23 @@ class _AppListScreenState extends State<AppListScreen> {
     await _loadRestrictions();
   }
 
+  Future<void> _openDateBlockEditor(Map<String, dynamic> r) async {
+    final allowed =
+        await _requireAdmin('Ingresa tu PIN para modificar fechas');
+    if (!allowed || !mounted) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => DateBlockEditorDialog(
+        appName: r['appName'],
+        packageName: r['packageName'],
+      ),
+    );
+    await _loadRestrictions();
+  }
+
   Future<void> _openLimitEditor(Map<String, dynamic> r) async {
     final allowed =
         await _requireAdmin('Ingresa tu PIN para modificar límites');
@@ -307,6 +340,9 @@ class _AppListScreenState extends State<AppListScreen> {
     }
     if (limit['schedulesChanged'] == true) {
       _scheduleDirty.add(r['packageName'].toString());
+    }
+    if (limit['dateBlocksChanged'] == true) {
+      _dateBlockDirty.add(r['packageName'].toString());
     }
 
     await NativeService.updateRestriction({
@@ -1030,7 +1066,7 @@ class _AppListScreenState extends State<AppListScreen> {
                   SizedBox(height: AppSpacing.xs),
                   Divider(height: 1),
                   SizedBox(height: AppSpacing.xs),
-                  _scheduleRow(r),
+                  _directBlocksRow(r),
                 ],
               ),
             ),
@@ -1052,6 +1088,8 @@ class _AppListScreenState extends State<AppListScreen> {
     if (activeSchedules.isEmpty) {
       return SizedBox.shrink();
     }
+    final totalCount = schedules.length;
+    final activeCount = activeSchedules.length;
     final pkg = r['packageName']?.toString() ?? '';
     final isExpanded = _expandedSchedules.contains(pkg);
     final summary = _scheduleSummary(activeSchedules);
@@ -1091,11 +1129,24 @@ class _AppListScreenState extends State<AppListScreen> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-            if (activeSchedules.length > 1)
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
+          if (totalCount > 0)
+            _countBadge(totalCount, activeCount),
+          IconButton(
+            onPressed: () => _openScheduleEditor(r),
+            icon: Icon(Icons.edit_outlined, size: 16),
+            style: IconButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              backgroundColor: AppColors.surface,
+              minimumSize: Size(28, 28),
+              fixedSize: Size(28, 28),
+              padding: EdgeInsets.all(4),
+            ),
+          ),
+          if (activeSchedules.length > 1)
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -1121,20 +1172,20 @@ class _AppListScreenState extends State<AppListScreen> {
                 onTap: () {
                   setState(() {
                     if (isExpanded) {
-                    _expandedSchedules.remove(pkg);
-                  } else {
-                    _expandedSchedules.add(pkg);
-                  }
-                });
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 2),
-                child: titleRow,
-              ),
-            )
-          else
-            titleRow,
+                      _expandedSchedules.remove(pkg);
+                    } else {
+                      _expandedSchedules.add(pkg);
+                    }
+                  });
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 2),
+                  child: titleRow,
+                ),
+              )
+            else
+              titleRow,
             if (activeSchedules.length > 1)
               AnimatedSize(
                 duration: AppMotion.duration(Duration(milliseconds: 200)),
@@ -1151,6 +1202,267 @@ class _AppListScreenState extends State<AppListScreen> {
                     : SizedBox.shrink(),
               ),
         ],
+      ),
+    );
+  }
+
+  Widget _dateBlockRow(Map<String, dynamic> r) {
+    final blocks = (r['dateBlocks'] as List<dynamic>? ?? [])
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    if (blocks.isEmpty) {
+      return SizedBox.shrink();
+    }
+    final activeBlocks =
+        blocks.where((b) => (b['isEnabled'] as bool? ?? true)).toList();
+    if (activeBlocks.isEmpty) {
+      return SizedBox.shrink();
+    }
+    final totalCount = blocks.length;
+    final activeCount = activeBlocks.length;
+    final pkg = r['packageName']?.toString() ?? '';
+    final isExpanded = _expandedDateBlocks.contains(pkg);
+    final summary = _dateBlockSummary(activeBlocks);
+
+    final titleRow = Container(
+      margin: EdgeInsets.only(top: AppSpacing.xs),
+      padding:
+          EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: AppColors.info.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.event_busy_rounded,
+                color: AppColors.info, size: 16),
+          ),
+          SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              summary,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (totalCount > 0)
+            _countBadge(totalCount, activeCount),
+          IconButton(
+            onPressed: () => _openDateBlockEditor(r),
+            icon: Icon(Icons.edit_outlined, size: 16),
+            style: IconButton.styleFrom(
+              foregroundColor: AppColors.textSecondary,
+              backgroundColor: AppColors.surface,
+              minimumSize: Size(28, 28),
+              fixedSize: Size(28, 28),
+              padding: EdgeInsets.all(4),
+            ),
+          ),
+          if (activeBlocks.length > 1)
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                isExpanded
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
+                color: AppColors.textSecondary,
+                size: 18,
+              ),
+            ),
+        ],
+      ),
+    );
+
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (activeBlocks.length > 1)
+            InkWell(
+              onTap: () {
+                setState(() {
+                  if (isExpanded) {
+                    _expandedDateBlocks.remove(pkg);
+                  } else {
+                    _expandedDateBlocks.add(pkg);
+                  }
+                });
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 2),
+                child: titleRow,
+              ),
+            )
+          else
+            titleRow,
+          if (activeBlocks.length > 1)
+            AnimatedSize(
+              duration: AppMotion.duration(Duration(milliseconds: 200)),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topLeft,
+              child: isExpanded
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(height: AppSpacing.xs),
+                        ..._dateBlockDetails(activeBlocks),
+                      ],
+                    )
+                  : SizedBox.shrink(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _directBlocksRow(Map<String, dynamic> r) {
+    final schedules = (r['schedules'] as List<dynamic>? ?? [])
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final blocks = (r['dateBlocks'] as List<dynamic>? ?? [])
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    final scheduleActive = schedules
+        .where((s) => (s['isEnabled'] as bool? ?? true))
+        .length;
+    final dateActive =
+        blocks.where((b) => (b['isEnabled'] as bool? ?? true)).length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _countColumn(
+            title: 'Horarios',
+            total: schedules.length,
+            active: scheduleActive,
+            onTap: () => _openScheduleEditor(r),
+          ),
+        ),
+        SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _countColumn(
+            title: 'Fechas',
+            total: blocks.length,
+            active: dateActive,
+            onTap: () => _openDateBlockEditor(r),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _countColumn({
+    required String title,
+    required int total,
+    required int active,
+    required VoidCallback onTap,
+  }) {
+    final hasActive = active > 0;
+    final inactive = (total - active).clamp(0, total);
+    final label = total <= 1 ? '$total' : '2+';
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: hasActive
+                        ? AppColors.success.withValues(alpha: 0.18)
+                        : AppColors.surfaceVariant.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: hasActive
+                          ? AppColors.success.withValues(alpha: 0.45)
+                          : AppColors.surfaceVariant.withValues(alpha: 0.9),
+                    ),
+                  ),
+                  child: Text(
+                    'A:$active',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: hasActive
+                          ? AppColors.success
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 6),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: inactive > 0
+                        ? AppColors.warning.withValues(alpha: 0.18)
+                        : AppColors.surfaceVariant.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: inactive > 0
+                          ? AppColors.warning.withValues(alpha: 0.45)
+                          : AppColors.surfaceVariant.withValues(alpha: 0.9),
+                    ),
+                  ),
+                  child: Text(
+                    'I:$inactive',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: inactive > 0
+                          ? AppColors.warning
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1248,6 +1560,137 @@ class _AppListScreenState extends State<AppListScreen> {
     }).toList();
   }
 
+  List<Widget> _dateBlockDetails(List<Map<String, dynamic>> blocks) {
+    final active = blocks
+        .where((b) => (b['isEnabled'] as bool? ?? true) == true)
+        .toList();
+    return active.map((b) {
+      final start = b['startDate']?.toString() ?? '';
+      final end = b['endDate']?.toString() ?? '';
+      final label = b['label']?.toString();
+      final rangeText = formatDateRangeLabel(start, end);
+      final bgColor = AppColors.info.withValues(alpha: 0.12);
+      final borderColor = AppColors.info.withValues(alpha: 0.35);
+
+      return Padding(
+        padding: EdgeInsets.only(left: 20, bottom: 6),
+        child: Container(
+          padding:
+              EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: borderColor,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.background.withValues(alpha: 0.2),
+                blurRadius: 6,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: AppColors.info.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Icon(
+                  Icons.event_busy_rounded,
+                  size: 12,
+                  color: AppColors.info,
+                ),
+              ),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Row(
+                  children: [
+                    Text(
+                      rangeText,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: label?.isNotEmpty == true
+                          ? Align(
+                              alignment: Alignment.centerLeft,
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.info.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color:
+                                        AppColors.info.withValues(alpha: 0.35),
+                                  ),
+                                ),
+                                child: Text(
+                                  label!,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.info,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Text(
+                              'Bloqueo por fecha',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.textTertiary,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _countBadge(int totalCount, int activeCount) {
+    final hasActive = activeCount > 0;
+    final label = totalCount <= 1 ? '$totalCount' : '2+';
+    return Container(
+      margin: EdgeInsets.only(right: 6),
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: hasActive
+            ? AppColors.success.withValues(alpha: 0.18)
+            : AppColors.surfaceVariant.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: hasActive
+              ? AppColors.success.withValues(alpha: 0.45)
+              : AppColors.surfaceVariant.withValues(alpha: 0.9),
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: hasActive ? AppColors.success : AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+
     Widget _buildAppIcon(Map<String, dynamic> r) {
       final bytes = r['iconBytes'];
     if (bytes is Uint8List && bytes.isNotEmpty) {
@@ -1342,6 +1785,16 @@ class _AppListScreenState extends State<AppListScreen> {
     );
     if (schedules.length == 1) return '$dayText $timeText';
     return '$dayText $timeText  +${schedules.length - 1} más';
+  }
+
+  String _dateBlockSummary(List<Map<String, dynamic>> blocks) {
+    if (blocks.isEmpty) return 'Sin fechas';
+    final first = blocks.first;
+    final start = first['startDate']?.toString() ?? '';
+    final end = first['endDate']?.toString() ?? '';
+    final range = formatDateRangeLabel(start, end);
+    if (blocks.length == 1) return range;
+    return '$range  +${blocks.length - 1} más';
   }
 
   int _quotaMinutesFor(Map<String, dynamic> r) {

@@ -26,6 +26,7 @@ class UsageStatsMonitor(private val context: Context) {
   private val notified50Percent = mutableSetOf<String>()
   private val notified75Percent = mutableSetOf<String>()
   private val notifiedLastMinute = mutableSetOf<String>()
+  private val notifiedDateBlocks = mutableSetOf<String>()
 
   fun getUsageToday(packageName: String): Long {
     val calendar = Calendar.getInstance()
@@ -150,6 +151,8 @@ class UsageStatsMonitor(private val context: Context) {
           )
         }
 
+        checkAndNotifyDateBlock(restriction.packageName, restriction.appName, today)
+
         val exceeded =
                 if (restriction.limitType == "weekly") {
                   usedForLimitMinutes >= quotaMinutes
@@ -222,7 +225,37 @@ class UsageStatsMonitor(private val context: Context) {
     notified50Percent.clear()
     notified75Percent.clear()
     notifiedLastMinute.clear()
+    notifiedDateBlocks.clear()
     Log.i(TAG, "Flags de notificación reseteadas")
+  }
+
+  private suspend fun checkAndNotifyDateBlock(
+          packageName: String,
+          appName: String,
+          today: String
+  ) {
+    val keyPrefix = "$packageName|$today|"
+    val activeBlocks = database.dateBlockDao().getActiveForDate(packageName, today)
+    if (activeBlocks.isEmpty()) return
+
+    val minDaysRemaining =
+            activeBlocks
+                    .mapNotNull { block ->
+                      val end = dateFormat.parse(block.endDate) ?: return@mapNotNull null
+                      val startOfToday = dateFormat.parse(today) ?: return@mapNotNull null
+                      val diffMillis = end.time - startOfToday.time
+                      val days = (diffMillis / 86400000L).toInt().coerceAtLeast(0)
+                      block.endDate to days
+                    }
+                    .minByOrNull { it.second }
+                    ?: return
+
+    val key = keyPrefix + minDaysRemaining.first
+    if (notifiedDateBlocks.contains(key)) return
+
+    pillNotification.notifyDateBlockRemaining(appName, packageName, minDaysRemaining.second)
+    notifiedDateBlocks.add(key)
+    Log.i(TAG, "Notificado bloqueo por fechas para $packageName (${minDaysRemaining.second} días)")
   }
 
   companion object {

@@ -153,14 +153,45 @@ class Migration7To8 : Migration(7, 8) {
   }
 }
 
+class Migration8To9 : Migration(8, 9) {
+  override fun migrate(database: SupportSQLiteDatabase) {
+    try {
+      database.execSQL(
+              "CREATE TABLE IF NOT EXISTS date_blocks (" +
+                      "id TEXT PRIMARY KEY NOT NULL, " +
+                      "packageName TEXT NOT NULL, " +
+                      "startDate TEXT NOT NULL, " +
+                      "endDate TEXT NOT NULL, " +
+                      "isEnabled INTEGER NOT NULL DEFAULT 1, " +
+                      "label TEXT, " +
+                      "createdAt INTEGER NOT NULL)"
+      )
+
+      database.execSQL(
+              "CREATE TABLE IF NOT EXISTS block_templates (" +
+                      "id TEXT PRIMARY KEY NOT NULL, " +
+                      "name TEXT NOT NULL, " +
+                      "type TEXT NOT NULL, " +
+                      "payloadJson TEXT NOT NULL, " +
+                      "createdAt INTEGER NOT NULL)"
+      )
+    } catch (e: Exception) {
+      android.util.Log.e("Migration8To9", "Error migrating", e)
+      throw e
+    }
+  }
+}
+
 @Database(
         entities =
                 [
                         AppRestriction::class,
                         DailyUsage::class,
                         AdminSettings::class,
-                        AppSchedule::class],
-        version = 8,
+                        AppSchedule::class,
+                        DateBlock::class,
+                        BlockTemplate::class],
+        version = 9,
         exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -168,6 +199,8 @@ abstract class AppDatabase : RoomDatabase() {
   abstract fun dailyUsageDao(): DailyUsageDao
   abstract fun adminSettingsDao(): AdminSettingsDao
   abstract fun appScheduleDao(): AppScheduleDao
+  abstract fun dateBlockDao(): DateBlockDao
+  abstract fun blockTemplateDao(): BlockTemplateDao
 
   companion object {
     @Volatile private var INSTANCE: AppDatabase? = null
@@ -188,7 +221,8 @@ abstract class AppDatabase : RoomDatabase() {
                                 Migration4To5(),
                                 Migration5To6(),
                                 Migration6To7(),
-                                Migration7To8()
+                                Migration7To8(),
+                                Migration8To9()
                         )
                         .build()
                 INSTANCE = instance

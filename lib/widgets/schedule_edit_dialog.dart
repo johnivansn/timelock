@@ -1,11 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/schedule_utils.dart';
 
 class ScheduleEditDialog extends StatefulWidget {
-  const ScheduleEditDialog({super.key, this.existing});
+  const ScheduleEditDialog({super.key, this.existing, this.existingSchedules});
 
   final Map<String, dynamic>? existing;
+  final List<Map<String, dynamic>>? existingSchedules;
 
   @override
   State<ScheduleEditDialog> createState() => _ScheduleEditDialogState();
@@ -16,6 +20,9 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
   late TimeOfDay _end;
   late Set<int> _days;
   String? _preset;
+  bool _loadingTemplates = false;
+  List<Map<String, dynamic>> _templates = [];
+  String? _selectedTemplateId;
 
   @override
   void initState() {
@@ -34,6 +41,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
         .where((d) => d >= 1 && d <= 7)
         .toSet();
     _days = days.isEmpty ? {2, 3, 4, 5, 6} : days;
+    _loadTemplates();
   }
 
   bool get _valid => _days.isNotEmpty;
@@ -54,6 +62,341 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
     setState(() {
       _days = value;
     });
+  }
+
+  Future<void> _loadTemplates() async {
+    setState(() => _loadingTemplates = true);
+    try {
+      final raw = await NativeService.getBlockTemplates();
+      final templates =
+          raw.where((t) => (t['type'] ?? '').toString() == 'schedule').toList();
+      if (!mounted) return;
+      setState(() {
+        _templates = templates;
+        _loadingTemplates = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingTemplates = false);
+    }
+  }
+
+  Future<void> _applyTemplate(String id) async {
+    final template = _templates.firstWhere(
+      (t) => t['id'] == id,
+      orElse: () => {},
+    );
+    if (template.isEmpty) return;
+    final payload = template['payloadJson']?.toString();
+    if (payload == null || payload.isEmpty) return;
+    try {
+      final map = jsonDecode(payload) as Map<String, dynamic>;
+      final startHour = (map['startHour'] as num?)?.toInt();
+      final startMinute = (map['startMinute'] as num?)?.toInt();
+      final endHour = (map['endHour'] as num?)?.toInt();
+      final endMinute = (map['endMinute'] as num?)?.toInt();
+      final days = (map['daysOfWeek'] as List<dynamic>? ?? [])
+          .map((e) => int.tryParse(e.toString()) ?? 0)
+          .where((d) => d >= 1 && d <= 7)
+          .toSet();
+      if (startHour == null ||
+          startMinute == null ||
+          endHour == null ||
+          endMinute == null) {
+        return;
+      }
+      setState(() {
+        _start = TimeOfDay(hour: startHour, minute: startMinute);
+        _end = TimeOfDay(hour: endHour, minute: endMinute);
+        if (days.isNotEmpty) _days = days;
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _saveTemplate() async {
+    final name = await _askTemplateName();
+    if (name == null || name.trim().isEmpty) return;
+    final payload = jsonEncode({
+      'startHour': _start.hour,
+      'startMinute': _start.minute,
+      'endHour': _end.hour,
+      'endMinute': _end.minute,
+      'daysOfWeek': _days.toList(),
+    });
+    try {
+      await NativeService.saveBlockTemplate({
+        'name': name.trim(),
+        'type': 'schedule',
+        'payloadJson': payload,
+      });
+      await _loadTemplates();
+    } catch (_) {}
+  }
+
+  Future<String?> _askTemplateName() async {
+    final controller = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Guardar etiqueta'),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: 'Nombre de la etiqueta',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _manageTemplates() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) {
+        return SafeArea(
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: AppSpacing.sm),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                SizedBox(height: AppSpacing.md),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Etiquetas de horarios',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: AppSpacing.sm),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      0,
+                      AppSpacing.lg,
+                      AppSpacing.lg,
+                    ),
+                    itemCount: _templates.length,
+                    itemBuilder: (_, i) {
+                      final t = _templates[i];
+                      return _templateTile(t);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _templateTile(Map<String, dynamic> t) {
+    final name = t['name']?.toString() ?? 'Etiqueta';
+    final count = _templateUsageCount(t);
+    return Card(
+      margin: EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Padding(
+        padding: EdgeInsets.all(AppSpacing.sm),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.bookmark_rounded,
+                  size: 16, color: AppColors.primary),
+            ),
+            SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                name,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            if (count > 0)
+              Container(
+                margin: EdgeInsets.only(right: 4),
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            IconButton(
+              onPressed: () => _renameTemplate(t),
+              icon: Icon(Icons.edit_outlined, size: 18),
+              color: AppColors.textSecondary,
+            ),
+            IconButton(
+              onPressed: () => _confirmDeleteTemplate(t),
+              icon: Icon(Icons.delete_outline_rounded, size: 18),
+              color: AppColors.error,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _renameTemplate(Map<String, dynamic> t) async {
+    final current = t['name']?.toString() ?? '';
+    final controller = TextEditingController(text: current);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Renombrar etiqueta'),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: 'Nombre de la etiqueta',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.trim().isEmpty) return;
+    try {
+      await NativeService.saveBlockTemplate({
+        'id': t['id'],
+        'name': name.trim(),
+        'type': t['type'],
+        'payloadJson': t['payloadJson'],
+      });
+      await _loadTemplates();
+    } catch (_) {}
+  }
+
+  Future<void> _deleteTemplate(Map<String, dynamic> t) async {
+    final id = t['id']?.toString();
+    if (id == null || id.isEmpty) return;
+    try {
+      await NativeService.deleteBlockTemplate(id);
+      await _loadTemplates();
+    } catch (_) {}
+  }
+
+  Future<void> _confirmDeleteTemplate(Map<String, dynamic> t) async {
+    final name = t['name']?.toString() ?? 'Etiqueta';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Eliminar etiqueta'),
+        content: Text('¿Eliminar "$name"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await _deleteTemplate(t);
+  }
+
+  int _templateUsageCount(Map<String, dynamic> t) {
+    final schedules = widget.existingSchedules;
+    if (schedules == null || schedules.isEmpty) return 0;
+    final payload = t['payloadJson']?.toString();
+    if (payload == null || payload.isEmpty) return 0;
+    try {
+      final map = jsonDecode(payload) as Map<String, dynamic>;
+      final startHour = (map['startHour'] as num?)?.toInt();
+      final startMinute = (map['startMinute'] as num?)?.toInt();
+      final endHour = (map['endHour'] as num?)?.toInt();
+      final endMinute = (map['endMinute'] as num?)?.toInt();
+      final days = (map['daysOfWeek'] as List<dynamic>? ?? [])
+          .map((e) => int.tryParse(e.toString()) ?? 0)
+          .where((d) => d >= 1 && d <= 7)
+          .toList();
+      if (startHour == null ||
+          startMinute == null ||
+          endHour == null ||
+          endMinute == null) {
+        return 0;
+      }
+      return schedules.where((s) {
+        final sDays = (s['daysOfWeek'] as List<dynamic>? ?? [])
+            .map((e) => int.tryParse(e.toString()) ?? 0)
+            .where((d) => d >= 1 && d <= 7)
+            .toList();
+        return s['startHour'] == startHour &&
+            s['startMinute'] == startMinute &&
+            s['endHour'] == endHour &&
+            s['endMinute'] == endMinute &&
+            _listEqualsInt(sDays, days);
+      }).length;
+    } catch (_) {
+      return 0;
+    }
   }
 
   @override
@@ -177,10 +520,83 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                         }
                       },
                     ),
+                    SizedBox(height: AppSpacing.sm),
+                    _inlineLabel('Etiquetas'),
+                    SizedBox(height: AppSpacing.xs),
+                    if (_loadingTemplates)
+                      LinearProgressIndicator(minHeight: 2)
+                    else if (_templates.isNotEmpty)
+                      DropdownButtonFormField<String>(
+                        value: _selectedTemplateId,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          filled: true,
+                          fillColor:
+                              AppColors.surfaceVariant.withValues(alpha: 0.4),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xs,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            borderSide: BorderSide(
+                              color: AppColors.surfaceVariant,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.md),
+                            borderSide: BorderSide(
+                              color: AppColors.surfaceVariant,
+                            ),
+                          ),
+                        ),
+                        hint: Text('Usar etiqueta'),
+                        items: _templates
+                            .map(
+                              (t) => DropdownMenuItem<String>(
+                                value: t['id']?.toString(),
+                                child: Text(t['name']?.toString() ?? 'Etiqueta'),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() => _selectedTemplateId = value);
+                          _applyTemplate(value);
+                        },
+                      ),
                   ],
                 ),
               ),
               SizedBox(height: AppSpacing.sm),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _saveTemplate,
+                  icon: Icon(Icons.bookmark_add_outlined, size: 16),
+                  label: Text('Guardar como etiqueta'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    textStyle:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed:
+                      _templates.isEmpty ? null : () => _manageTemplates(),
+                  icon: Icon(Icons.bookmarks_outlined, size: 16),
+                  label: Text('Gestionar etiquetas'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.textSecondary,
+                    textStyle:
+                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              SizedBox(height: AppSpacing.xs),
               Text(
                 'Si la hora final es menor, el bloqueo cruza medianoche.',
                 style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
@@ -380,6 +796,14 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
         ),
       ),
     );
+  }
+
+  bool _listEqualsInt(List<int> a, List<int> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
 

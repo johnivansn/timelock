@@ -17,6 +17,7 @@ class _NotificationSettingsScreenState
   bool _lastMinuteEnabled = true;
   bool _blockedEnabled = true;
   bool _scheduleEnabled = true;
+  bool _dateBlockEnabled = true;
   bool _serviceNotificationEnabled = true;
   bool _loading = true;
 
@@ -37,6 +38,7 @@ class _NotificationSettingsScreenState
           _lastMinuteEnabled = prefs['notify_last_minute'] as bool? ?? true;
           _blockedEnabled = prefs['notify_blocked'] as bool? ?? true;
           _scheduleEnabled = prefs['notify_schedule'] as bool? ?? true;
+          _dateBlockEnabled = prefs['notify_date_block'] as bool? ?? true;
           _serviceNotificationEnabled =
               prefs['notify_service_status'] as bool? ?? true;
           _loading = false;
@@ -215,6 +217,18 @@ class _NotificationSettingsScreenState
                     onChanged: (val) {
                       setState(() => _scheduleEnabled = val);
                       _saveSetting('notify_schedule', val);
+                    },
+                  ),
+                    SizedBox(height: AppSpacing.sm),
+                    _notificationToggle(
+                      icon: Icons.event_busy_rounded,
+                      title: 'Bloqueos por fechas',
+                      description:
+                          'Avisos con días restantes para terminar el bloqueo',
+                      value: _dateBlockEnabled,
+                    onChanged: (val) {
+                      setState(() => _dateBlockEnabled = val);
+                      _saveSetting('notify_date_block', val);
                     },
                   ),
                 ]),

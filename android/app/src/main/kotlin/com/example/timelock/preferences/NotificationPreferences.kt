@@ -13,6 +13,7 @@ class NotificationPreferences(context: Context) {
     private const val KEY_LAST_MINUTE = "notify_last_minute"
     private const val KEY_BLOCKED = "notify_blocked"
     private const val KEY_SCHEDULE = "notify_schedule"
+    private const val KEY_DATE_BLOCK = "notify_date_block"
     private const val KEY_SERVICE_NOTIFICATION = "notify_service_status"
   }
 
@@ -36,6 +37,10 @@ class NotificationPreferences(context: Context) {
     get() = prefs.getBoolean(KEY_SCHEDULE, true)
     set(value) = prefs.edit().putBoolean(KEY_SCHEDULE, value).apply()
 
+  var dateBlockEnabled: Boolean
+    get() = prefs.getBoolean(KEY_DATE_BLOCK, true)
+    set(value) = prefs.edit().putBoolean(KEY_DATE_BLOCK, value).apply()
+
   var serviceNotificationEnabled: Boolean
     get() = prefs.getBoolean(KEY_SERVICE_NOTIFICATION, true)
     set(value) = prefs.edit().putBoolean(KEY_SERVICE_NOTIFICATION, value).apply()
@@ -47,6 +52,7 @@ class NotificationPreferences(context: Context) {
             "lastMinute" to lastMinuteEnabled,
             "blocked" to blockedEnabled,
             "schedule" to scheduleEnabled,
+            "dateBlock" to dateBlockEnabled,
             "serviceNotification" to serviceNotificationEnabled
     )
   }
@@ -58,6 +64,7 @@ class NotificationPreferences(context: Context) {
       settings["lastMinute"]?.let { putBoolean(KEY_LAST_MINUTE, it) }
       settings["blocked"]?.let { putBoolean(KEY_BLOCKED, it) }
       settings["schedule"]?.let { putBoolean(KEY_SCHEDULE, it) }
+      settings["dateBlock"]?.let { putBoolean(KEY_DATE_BLOCK, it) }
       settings["serviceNotification"]?.let { putBoolean(KEY_SERVICE_NOTIFICATION, it) }
       apply()
     }

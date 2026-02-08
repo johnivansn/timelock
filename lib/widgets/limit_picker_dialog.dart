@@ -5,9 +5,13 @@ import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
 import 'package:timelock/utils/app_motion.dart';
+import 'package:timelock/utils/date_utils.dart';
 import 'package:timelock/utils/schedule_utils.dart';
 import 'package:timelock/widgets/bottom_sheet_handle.dart';
+import 'package:timelock/widgets/date_block_edit_dialog.dart';
+import 'package:timelock/widgets/date_block_editor_dialog.dart';
 import 'package:timelock/widgets/schedule_edit_dialog.dart';
+import 'package:timelock/widgets/schedule_editor_dialog.dart';
 
 class LimitPickerDialog extends StatefulWidget {
   LimitPickerDialog({
@@ -55,12 +59,19 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   bool _loadingSchedules = false;
   List<Map<String, dynamic>> _schedules = [];
   bool _schedulesChanged = false;
+  bool _loadingDateBlocks = false;
+  List<Map<String, dynamic>> _dateBlocks = [];
+  bool _dateBlocksChanged = false;
   bool _dirty = false;
   static const double _stickyBarHeight = 68;
   final Set<String> _deletedScheduleIds = {};
   final Set<String> _updatedScheduleIds = {};
   int _localScheduleCounter = 0;
+  final Set<String> _deletedDateBlockIds = {};
+  final Set<String> _updatedDateBlockIds = {};
+  int _localDateBlockCounter = 0;
   bool _inactiveFirst = false;
+  bool _inactiveDateFirst = false;
   final Map<int, TextEditingController> _dayControllers = {};
   final Map<int, TextEditingController> _dayHourControllers = {};
   final Map<int, TextEditingController> _dayMinuteControllers = {};
@@ -78,6 +89,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   late int _initialWeeklyResetHour;
   late int _initialWeeklyResetMinute;
   final Map<String, Map<String, dynamic>> _originalSchedulesById = {};
+  final Map<String, Map<String, dynamic>> _originalDateBlocksById = {};
 
   @override
   void initState() {
@@ -141,6 +153,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     _initialDailyQuotas = Map<int, int>.from(_dailyQuotas);
     if (_packageName != null) {
       _loadSchedules();
+      _loadDateBlocks();
       if (widget.initial == null) {
         _loadUsage();
         _loadAppIcon();
@@ -284,6 +297,35 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     }
   }
 
+  Future<void> _loadDateBlocks() async {
+    final pkg = _packageName;
+    if (pkg == null) return;
+    setState(() => _loadingDateBlocks = true);
+    try {
+      final raw = await NativeService.getDateBlocks(pkg);
+      if (!mounted) return;
+      setState(() {
+        _dateBlocks = raw;
+        _loadingDateBlocks = false;
+        _dateBlocksChanged = false;
+        _deletedDateBlockIds.clear();
+        _updatedDateBlockIds.clear();
+        _sortDateBlocks();
+        _originalDateBlocksById
+          ..clear()
+          ..addEntries(
+            raw
+                .where((b) => b['id'] != null)
+                .map((b) => MapEntry(b['id'] as String,
+                    Map<String, dynamic>.from(b))),
+          );
+        _recomputeDirty();
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingDateBlocks = false);
+    }
+  }
+
   Future<void> _loadUsage() async {
     final pkg = _packageName;
     if (pkg == null) return;
@@ -385,11 +427,92 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     });
   }
 
+  Future<void> _addDateBlock() async {
+    final draft = await _openDateBlockEditor();
+    if (draft == null) return;
+    setState(() {
+      _dateBlocks.add({
+        'id': null,
+        'localId': 'local-date-${_localDateBlockCounter++}',
+        'startDate': draft.startDate,
+        'endDate': draft.endDate,
+        'label': draft.label.isNotEmpty ? draft.label : null,
+        'isEnabled': true,
+      });
+      _dateBlocksChanged = _isDateBlocksDirty();
+      _dirty = _isLimitDirty();
+    });
+  }
+
+  Future<void> _editDateBlock(Map<String, dynamic> block) async {
+    final draft = await _openDateBlockEditor(existing: block);
+    if (draft == null) return;
+    setState(() {
+      block['startDate'] = draft.startDate;
+      block['endDate'] = draft.endDate;
+      block['label'] = draft.label.isNotEmpty ? draft.label : null;
+      final id = block['id'];
+      if (id is String && id.isNotEmpty) {
+        if (_dateBlockEquals(_originalDateBlocksById[id], block)) {
+          _updatedDateBlockIds.remove(id);
+        } else {
+          _updatedDateBlockIds.add(id);
+        }
+      }
+      _dateBlocksChanged = _isDateBlocksDirty();
+      _dirty = _isLimitDirty();
+    });
+  }
+
+  Future<void> _toggleDateBlockEnabled(Map<String, dynamic> block) async {
+    final enabled = !(block['isEnabled'] as bool? ?? true);
+    setState(() {
+      block['isEnabled'] = enabled;
+      final id = block['id'];
+      if (id is String && id.isNotEmpty) {
+        if (_dateBlockEquals(_originalDateBlocksById[id], block)) {
+          _updatedDateBlockIds.remove(id);
+        } else {
+          _updatedDateBlockIds.add(id);
+        }
+      }
+      _dateBlocksChanged = _isDateBlocksDirty();
+      _dirty = _isLimitDirty();
+    });
+  }
+
+  Future<void> _deleteDateBlock(Map<String, dynamic> block) async {
+    setState(() {
+      final id = block['id'];
+      if (id is String && id.isNotEmpty) {
+        _deletedDateBlockIds.add(id);
+        _updatedDateBlockIds.remove(id);
+      }
+      _dateBlocks.remove(block);
+      _dateBlocksChanged = _isDateBlocksDirty();
+      _dirty = _isLimitDirty();
+    });
+  }
+
   Future<ScheduleDraft?> _openScheduleEditor(
       {Map<String, dynamic>? existing}) {
     return showDialog<ScheduleDraft>(
       context: context,
-      builder: (_) => ScheduleEditDialog(existing: existing),
+      builder: (_) => ScheduleEditDialog(
+        existing: existing,
+        existingSchedules: _schedules,
+      ),
+    );
+  }
+
+  Future<DateBlockDraft?> _openDateBlockEditor(
+      {Map<String, dynamic>? existing}) {
+    return showDialog<DateBlockDraft>(
+      context: context,
+      builder: (_) => DateBlockEditDialog(
+        existing: existing,
+        existingBlocks: _dateBlocks,
+      ),
     );
   }
 
@@ -433,7 +556,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   }
 
   Widget _buildEditLayout({required bool isCreate}) {
-    final showSave = isCreate || _isLimitDirty() || _isScheduleDirty();
+    final showSave =
+        isCreate || _isLimitDirty() || _isScheduleDirty() || _isDateBlocksDirty();
     final canSave = _isLimitValid();
     final borderRadius = widget.fullScreen
         ? BorderRadius.circular(0)
@@ -508,7 +632,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                   SizedBox(height: AppSpacing.lg),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                    child: _scheduleSection(),
+                    child: _blockingTypeSection(),
                   ),
                 ],
                 SizedBox(height: AppSpacing.xl),
@@ -1478,12 +1602,198 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     );
   }
 
+  Widget _blockingTypeSection() {
+    final scheduleActive =
+        _schedules.where((s) => (s['isEnabled'] as bool? ?? true)).length;
+    final dateActive =
+        _dateBlocks.where((b) => (b['isEnabled'] as bool? ?? true)).length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.18),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.lock_clock_rounded,
+                      size: 16, color: AppColors.primary),
+                  SizedBox(width: AppSpacing.sm),
+                  Text(
+                    'Bloqueos directos',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 6),
+              Text(
+                'Gestiona horarios y fechas de bloqueo',
+                style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+              ),
+              SizedBox(height: AppSpacing.sm),
+              _pillRow(
+                leftLabel: 'Horarios',
+                rightLabel: 'Fechas',
+                leftSelected: scheduleActive > 0,
+                rightSelected: dateActive > 0,
+                onLeft: () {
+                  if (_packageName == null) return;
+                  showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => ScheduleEditorDialog(
+                      appName: widget.appName,
+                      packageName: _packageName!,
+                    ),
+                  ).then((_) => _loadSchedules());
+                },
+                onRight: () {
+                  if (_packageName == null) return;
+                  showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => DateBlockEditorDialog(
+                      appName: widget.appName,
+                      packageName: _packageName!,
+                    ),
+                  ).then((_) => _loadDateBlocks());
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+
+  Widget _dateBlockSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: _sectionLabel('Fechas (opcional)')),
+            TextButton.icon(
+              onPressed: _addDateBlock,
+              icon: Icon(Icons.add_rounded, size: 16),
+              label: Text('Agregar'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                textStyle:
+                    TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ),
+            SizedBox(width: AppSpacing.xs),
+            Tooltip(
+              message:
+                  _inactiveDateFirst ? 'Inactivos primero' : 'Activos primero',
+              child: IconButton(
+                onPressed: () => setState(() {
+                  _inactiveDateFirst = !_inactiveDateFirst;
+                  _sortDateBlocks();
+                }),
+                icon: Icon(
+                  _inactiveDateFirst
+                      ? Icons.swap_vert_circle_rounded
+                      : Icons.swap_vert_rounded,
+                ),
+                color: AppColors.textSecondary,
+                iconSize: 20,
+                style: IconButton.styleFrom(
+                  backgroundColor:
+                      AppColors.surfaceVariant.withValues(alpha: 0.4),
+                  foregroundColor:
+                      AppColors.onColor(AppColors.surfaceVariant),
+                  padding: EdgeInsets.all(6),
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: AppSpacing.sm),
+        if (_loadingDateBlocks)
+          Center(child: CircularProgressIndicator(strokeWidth: 3))
+        else if (_dateBlocks.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(
+                color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+              ),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.event_busy_rounded,
+                    size: 28, color: AppColors.textTertiary),
+                SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Sin fechas configuradas',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Bloquea la app por rangos de fechas',
+                  style:
+                      TextStyle(fontSize: 11, color: AppColors.textTertiary),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+        else
+          Column(
+            children: _dateBlocks.map(_dateBlockTile).toList(),
+          ),
+      ],
+    );
+  }
+
   void _sortSchedules() {
     _schedules.sort((a, b) {
       final aEnabled = (a['isEnabled'] as bool? ?? true);
       final bEnabled = (b['isEnabled'] as bool? ?? true);
       if (aEnabled == bEnabled) return 0;
       if (_inactiveFirst) {
+        return aEnabled ? 1 : -1;
+      }
+      return aEnabled ? -1 : 1;
+    });
+  }
+
+  void _sortDateBlocks() {
+    _dateBlocks.sort((a, b) {
+      final aEnabled = (a['isEnabled'] as bool? ?? true);
+      final bEnabled = (b['isEnabled'] as bool? ?? true);
+      if (aEnabled == bEnabled) {
+        final aEnd = a['endDate']?.toString() ?? '';
+        final bEnd = b['endDate']?.toString() ?? '';
+        return aEnd.compareTo(bEnd);
+      }
+      if (_inactiveDateFirst) {
         return aEnabled ? 1 : -1;
       }
       return aEnabled ? -1 : 1;
@@ -1577,6 +1887,109 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     );
   }
 
+  Widget _dateBlockTile(Map<String, dynamic> b) {
+    final enabled = b['isEnabled'] as bool? ?? true;
+    final start = b['startDate']?.toString() ?? '';
+    final end = b['endDate']?.toString() ?? '';
+    final label = b['label']?.toString();
+    final rangeText = formatDateRangeLabel(start, end);
+
+    final cardColor = enabled
+        ? AppColors.info.withValues(alpha: 0.12)
+        : AppColors.surfaceVariant.withValues(alpha: 0.45);
+    final borderColor = enabled
+        ? AppColors.info.withValues(alpha: 0.35)
+        : AppColors.surfaceVariant.withValues(alpha: 0.7);
+    final textColor = enabled ? AppColors.textPrimary : AppColors.textTertiary;
+    final subTextColor =
+        enabled ? AppColors.textTertiary : AppColors.textTertiary.withValues(alpha: 0.7);
+    final iconColor = enabled ? AppColors.info : AppColors.textTertiary;
+
+    return Card(
+      margin: EdgeInsets.only(bottom: AppSpacing.sm),
+      color: cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        side: BorderSide(color: borderColor),
+      ),
+      child: InkWell(
+        onTap: () => _editDateBlock(b),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Icon(Icons.event_busy_rounded, size: 16, color: iconColor),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      rangeText,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: textColor,
+                      ),
+                    ),
+                  SizedBox(height: 2),
+                    if (label?.isNotEmpty == true)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.info.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: AppColors.info.withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Text(
+                            label!,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.info,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Text(
+                        'Bloqueo por fecha',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: subTextColor,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: enabled,
+                onChanged: (_) => _toggleDateBlockEnabled(b),
+              ),
+              IconButton(
+                onPressed: () => _deleteDateBlock(b),
+                icon: Icon(Icons.delete_outline_rounded, size: 16),
+                style: IconButton.styleFrom(
+                  foregroundColor: AppColors.error,
+                  backgroundColor: AppColors.surfaceVariant,
+                  minimumSize: Size(28, 28),
+                  fixedSize: Size(28, 28),
+                  padding: EdgeInsets.all(4),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   String _usageSummary() {
     final init = _usageData ?? widget.initial ?? {};
     final limitType = _limitType;
@@ -1628,6 +2041,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   void _recomputeDirty() {
     _dirty = _isLimitDirty();
     _schedulesChanged = _isScheduleDirty();
+    _dateBlocksChanged = _isDateBlocksDirty();
   }
 
   bool _isLimitDirty() {
@@ -1872,6 +2286,16 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     return false;
   }
 
+  bool _isDateBlocksDirty() {
+    if (_deletedDateBlockIds.isNotEmpty) return true;
+    if (_updatedDateBlockIds.isNotEmpty) return true;
+    for (final b in _dateBlocks) {
+      final id = b['id'];
+      if (id == null || id.toString().isEmpty) return true;
+    }
+    return false;
+  }
+
   bool _mapEquals(Map<int, int> a, Map<int, int> b) {
     if (a.length != b.length) return false;
     for (final entry in a.entries) {
@@ -1889,6 +2313,15 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         original['endMinute'] == current['endMinute'] &&
         _listEqualsInt(original['daysOfWeek'], current['daysOfWeek']) &&
         (original['isEnabled'] ?? true) == (current['isEnabled'] ?? true);
+  }
+
+  bool _dateBlockEquals(
+      Map<String, dynamic>? original, Map<String, dynamic> current) {
+    if (original == null) return false;
+    return original['startDate'] == current['startDate'] &&
+        original['endDate'] == current['endDate'] &&
+        (original['isEnabled'] ?? true) == (current['isEnabled'] ?? true) &&
+        (original['label'] ?? '') == (current['label'] ?? '');
   }
 
   bool _listEqualsInt(dynamic a, dynamic b) {
@@ -1947,6 +2380,35 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       } catch (_) {}
     }
 
+    final dateBlocksDirty = _isDateBlocksDirty();
+    if (dateBlocksDirty && _packageName != null) {
+      try {
+        for (final id in _deletedDateBlockIds) {
+          await NativeService.deleteDateBlock(id);
+        }
+        for (final b in _dateBlocks) {
+          final id = b['id'];
+          if (id == null || id.toString().isEmpty) {
+            await NativeService.addDateBlock({
+              'packageName': _packageName,
+              'startDate': b['startDate'],
+              'endDate': b['endDate'],
+              'label': b['label'],
+              'isEnabled': b['isEnabled'] ?? true,
+            });
+          } else if (_updatedDateBlockIds.contains(id)) {
+            await NativeService.updateDateBlock({
+              'id': id,
+              'startDate': b['startDate'],
+              'endDate': b['endDate'],
+              'label': b['label'],
+              'isEnabled': b['isEnabled'] ?? true,
+            });
+          }
+        }
+      } catch (_) {}
+    }
+
     final isDaily = _limitType == 'daily';
     final result = <String, dynamic>{
       'limitType': _limitType,
@@ -1958,6 +2420,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       'weeklyResetHour': _weeklyResetHour,
       'weeklyResetMinute': _weeklyResetMinute,
       'schedulesChanged': scheduleDirty,
+      'dateBlocksChanged': dateBlocksDirty,
     };
     if (mounted) Navigator.pop(context, result);
   }

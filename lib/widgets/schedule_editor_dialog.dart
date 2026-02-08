@@ -99,7 +99,10 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
   Future<ScheduleDraft?> _openEditor({Map<String, dynamic>? existing}) {
     return showDialog<ScheduleDraft>(
       context: context,
-      builder: (_) => ScheduleEditDialog(existing: existing),
+      builder: (_) => ScheduleEditDialog(
+        existing: existing,
+        existingSchedules: _schedules,
+      ),
     );
   }
 

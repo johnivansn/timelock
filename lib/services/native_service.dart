@@ -92,6 +92,40 @@ class NativeService {
     await _channel.invokeMethod('deleteSchedule', scheduleId);
   }
 
+  static Future<List<Map<String, dynamic>>> getDateBlocks(
+      String packageName) async {
+    final raw =
+        await _channel.invokeMethod<List<dynamic>>('getDateBlocks', packageName) ??
+            [];
+    return raw.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  static Future<void> addDateBlock(Map<String, dynamic> data) async {
+    await _channel.invokeMethod('addDateBlock', data);
+  }
+
+  static Future<void> updateDateBlock(Map<String, dynamic> data) async {
+    await _channel.invokeMethod('updateDateBlock', data);
+  }
+
+  static Future<void> deleteDateBlock(String blockId) async {
+    await _channel.invokeMethod('deleteDateBlock', blockId);
+  }
+
+  static Future<List<Map<String, dynamic>>> getBlockTemplates() async {
+    final raw =
+        await _channel.invokeMethod<List<dynamic>>('getBlockTemplates') ?? [];
+    return raw.map((e) => Map<String, dynamic>.from(e)).toList();
+  }
+
+  static Future<void> saveBlockTemplate(Map<String, dynamic> data) async {
+    await _channel.invokeMethod('saveBlockTemplate', data);
+  }
+
+  static Future<void> deleteBlockTemplate(String templateId) async {
+    await _channel.invokeMethod('deleteBlockTemplate', templateId);
+  }
+
   static Future<bool> isAdminEnabled() async {
     return await _channel.invokeMethod<bool>('isAdminEnabled') ?? false;
   }

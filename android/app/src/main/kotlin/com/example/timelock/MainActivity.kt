@@ -20,7 +20,9 @@ import android.provider.Settings
 import android.util.Log
 import com.example.timelock.admin.AdminManager
 import com.example.timelock.database.AppDatabase
+import com.example.timelock.database.BlockTemplate
 import com.example.timelock.database.AppRestriction
+import com.example.timelock.database.DateBlock
 import com.example.timelock.optimization.AppCacheManager
 import com.example.timelock.optimization.BatteryModeManager
 import com.example.timelock.optimization.DataCleanupManager
@@ -311,15 +313,112 @@ class MainActivity : FlutterActivity() {
           }
         }
       }
-      "deleteSchedule" -> {
-        val scheduleId = call.arguments as String
-        scope.launch {
-          try {
-            deleteSchedule(scheduleId)
+        "deleteSchedule" -> {
+          val scheduleId = call.arguments as String
+          scope.launch {
+            try {
+              deleteSchedule(scheduleId)
             withContext(Dispatchers.Main) { result.success(null) }
           } catch (e: Exception) {
             Log.e("MainActivity", "Error deleting schedule", e)
             withContext(Dispatchers.Main) { result.error("DELETE_SCHEDULE_ERROR", e.message, null) }
+            }
+          }
+        }
+      "getDateBlocks" -> {
+        val packageName = call.arguments as String
+        scope.launch {
+          try {
+            val blocks = getDateBlocks(packageName)
+            withContext(Dispatchers.Main) { result.success(blocks) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error getting date blocks", e)
+            withContext(Dispatchers.Main) {
+              result.error("GET_DATE_BLOCKS_ERROR", e.message, null)
+            }
+          }
+        }
+      }
+      "addDateBlock" -> {
+        val args = call.arguments as Map<*, *>
+        scope.launch {
+          try {
+            addDateBlock(args)
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error adding date block", e)
+            withContext(Dispatchers.Main) {
+              result.error("ADD_DATE_BLOCK_ERROR", e.message, null)
+            }
+          }
+        }
+      }
+      "updateDateBlock" -> {
+        val args = call.arguments as Map<*, *>
+        scope.launch {
+          try {
+            updateDateBlock(args)
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error updating date block", e)
+            withContext(Dispatchers.Main) {
+              result.error("UPDATE_DATE_BLOCK_ERROR", e.message, null)
+            }
+          }
+        }
+      }
+      "deleteDateBlock" -> {
+        val blockId = call.arguments as String
+        scope.launch {
+          try {
+            deleteDateBlock(blockId)
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error deleting date block", e)
+            withContext(Dispatchers.Main) {
+              result.error("DELETE_DATE_BLOCK_ERROR", e.message, null)
+            }
+          }
+        }
+      }
+      "getBlockTemplates" -> {
+        scope.launch {
+          try {
+            val templates = getBlockTemplates()
+            withContext(Dispatchers.Main) { result.success(templates) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error getting templates", e)
+            withContext(Dispatchers.Main) {
+              result.error("GET_BLOCK_TEMPLATES_ERROR", e.message, null)
+            }
+          }
+        }
+      }
+      "saveBlockTemplate" -> {
+        val args = call.arguments as Map<*, *>
+        scope.launch {
+          try {
+            saveBlockTemplate(args)
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error saving template", e)
+            withContext(Dispatchers.Main) {
+              result.error("SAVE_BLOCK_TEMPLATE_ERROR", e.message, null)
+            }
+          }
+        }
+      }
+      "deleteBlockTemplate" -> {
+        val templateId = call.arguments as String
+        scope.launch {
+          try {
+            deleteBlockTemplate(templateId)
+            withContext(Dispatchers.Main) { result.success(null) }
+          } catch (e: Exception) {
+            Log.e("MainActivity", "Error deleting template", e)
+            withContext(Dispatchers.Main) {
+              result.error("DELETE_BLOCK_TEMPLATE_ERROR", e.message, null)
+            }
           }
         }
       }
@@ -476,9 +575,107 @@ class MainActivity : FlutterActivity() {
     Log.i("MainActivity", "Schedule deleted: $scheduleId")
   }
 
+  private suspend fun getDateBlocks(packageName: String): List<Map<String, Any?>> {
+    return database.dateBlockDao().getByPackage(packageName).map { block ->
+      mapOf(
+              "id" to block.id,
+              "packageName" to block.packageName,
+              "startDate" to block.startDate,
+              "endDate" to block.endDate,
+              "isEnabled" to block.isEnabled,
+              "label" to block.label
+      )
+    }
+  }
+
+  private suspend fun addDateBlock(args: Map<*, *>) {
+    val block =
+            DateBlock(
+                    id = UUID.randomUUID().toString(),
+                    packageName = args["packageName"] as String,
+                    startDate = args["startDate"] as String,
+                    endDate = args["endDate"] as String,
+                    isEnabled = args["isEnabled"] as? Boolean ?: true,
+                    label = args["label"] as? String,
+                    createdAt = System.currentTimeMillis()
+            )
+    database.dateBlockDao().insert(block)
+    Log.i("MainActivity", "Date block added for ${block.packageName}")
+  }
+
+  private suspend fun updateDateBlock(args: Map<*, *>) {
+    val id = args["id"] as String
+    val existing = database.dateBlockDao().getById(id) ?: return
+
+    val label =
+            if (args.containsKey("label")) {
+              args["label"] as? String
+            } else {
+              existing.label
+            }
+
+    val updated =
+            existing.copy(
+                    startDate = (args["startDate"] as? String) ?: existing.startDate,
+                    endDate = (args["endDate"] as? String) ?: existing.endDate,
+                    isEnabled = (args["isEnabled"] as? Boolean) ?: existing.isEnabled,
+                    label = label
+            )
+    database.dateBlockDao().update(updated)
+    Log.i("MainActivity", "Date block updated: $id")
+  }
+
+  private suspend fun deleteDateBlock(blockId: String) {
+    val block = database.dateBlockDao().getById(blockId) ?: return
+    database.dateBlockDao().delete(block)
+    Log.i("MainActivity", "Date block deleted: $blockId")
+  }
+
+  private suspend fun getBlockTemplates(): List<Map<String, Any?>> {
+    return database.blockTemplateDao().getAll().map { template ->
+      mapOf(
+              "id" to template.id,
+              "name" to template.name,
+              "type" to template.type,
+              "payloadJson" to template.payloadJson,
+              "createdAt" to template.createdAt
+      )
+    }
+  }
+
+  private suspend fun saveBlockTemplate(args: Map<*, *>) {
+    val id = args["id"] as? String ?: UUID.randomUUID().toString()
+    val existing = database.blockTemplateDao().getById(id)
+
+    val name = (args["name"] as? String) ?: existing?.name ?: ""
+    val type = (args["type"] as? String) ?: existing?.type ?: ""
+    val payloadJson = (args["payloadJson"] as? String) ?: existing?.payloadJson ?: ""
+    if (name.isBlank() || type.isBlank() || payloadJson.isBlank()) {
+      throw IllegalArgumentException("name, type y payloadJson son obligatorios")
+    }
+
+    val template =
+            BlockTemplate(
+                    id = id,
+                    name = name,
+                    type = type,
+                    payloadJson = payloadJson,
+                    createdAt = existing?.createdAt ?: System.currentTimeMillis()
+            )
+    database.blockTemplateDao().insert(template)
+    Log.i("MainActivity", "Block template saved: $id")
+  }
+
+  private suspend fun deleteBlockTemplate(templateId: String) {
+    database.blockTemplateDao().deleteById(templateId)
+    Log.i("MainActivity", "Block template deleted: $templateId")
+  }
+
   private suspend fun exportConfig(): String {
     val restrictions = database.appRestrictionDao().getAll()
     val adminSettings = database.adminSettingsDao().get()
+    val dateBlocks = database.dateBlockDao().getAll()
+    val blockTemplates = database.blockTemplateDao().getAll()
 
     val restrictionsData =
             restrictions.map { r ->
@@ -497,11 +694,36 @@ class MainActivity : FlutterActivity() {
                 )
               }
 
+    val dateBlocksData =
+            dateBlocks.map { b ->
+              mapOf(
+                      "id" to b.id,
+                      "packageName" to b.packageName,
+                      "startDate" to b.startDate,
+                      "endDate" to b.endDate,
+                      "isEnabled" to b.isEnabled,
+                      "label" to b.label
+              )
+            }
+
+    val blockTemplatesData =
+            blockTemplates.map { t ->
+              mapOf(
+                      "id" to t.id,
+                      "name" to t.name,
+                      "type" to t.type,
+                      "payloadJson" to t.payloadJson,
+                      "createdAt" to t.createdAt
+              )
+            }
+
     val exportMap =
             mutableMapOf<String, Any>(
-                    "version" to 1,
+                    "version" to 2,
                     "exportedAt" to System.currentTimeMillis(),
-                    "restrictions" to restrictionsData
+                    "restrictions" to restrictionsData,
+                    "dateBlocks" to dateBlocksData,
+                    "blockTemplates" to blockTemplatesData
             )
 
     if (adminSettings != null && adminSettings.isEnabled) {
@@ -519,7 +741,7 @@ class MainActivity : FlutterActivity() {
                     ?: return mapOf("success" to false, "error" to "JSON inválido")
 
     val version = (data["version"] as? Number)?.toInt() ?: 0
-    if (version != 1) {
+    if (version != 1 && version != 2) {
       return mapOf("success" to false, "error" to "Versión no soportada: $version")
     }
 
@@ -560,8 +782,87 @@ class MainActivity : FlutterActivity() {
       imported++
     }
 
-    Log.i("MainActivity", "Import: $imported imported, $skipped skipped")
-    return mapOf("success" to true, "imported" to imported, "skipped" to skipped)
+    var dateBlocksImported = 0
+    var dateBlocksSkipped = 0
+    var templatesImported = 0
+    var templatesSkipped = 0
+
+    if (version >= 2) {
+      @Suppress("UNCHECKED_CAST")
+      val dateBlocks =
+              data["dateBlocks"] as? List<Map<String, Any>> ?: emptyList()
+      for (item in dateBlocks) {
+        val id = item["id"] as? String ?: UUID.randomUUID().toString()
+        val existing = database.dateBlockDao().getById(id)
+        if (existing != null) {
+          dateBlocksSkipped++
+          continue
+        }
+
+        val pkg = item["packageName"] as? String ?: continue
+        val startDate = item["startDate"] as? String ?: continue
+        val endDate = item["endDate"] as? String ?: continue
+        val isEnabled = item["isEnabled"] as? Boolean ?: true
+        val label = item["label"] as? String
+
+        val block =
+                DateBlock(
+                        id = id,
+                        packageName = pkg,
+                        startDate = startDate,
+                        endDate = endDate,
+                        isEnabled = isEnabled,
+                        label = label,
+                        createdAt = System.currentTimeMillis()
+                )
+        database.dateBlockDao().insert(block)
+        dateBlocksImported++
+      }
+
+      @Suppress("UNCHECKED_CAST")
+      val templates =
+              data["blockTemplates"] as? List<Map<String, Any>> ?: emptyList()
+      for (item in templates) {
+        val id = item["id"] as? String ?: UUID.randomUUID().toString()
+        val existing = database.blockTemplateDao().getById(id)
+        if (existing != null) {
+          templatesSkipped++
+          continue
+        }
+
+        val name = item["name"] as? String ?: continue
+        val typeValue = item["type"] as? String ?: continue
+        val payloadJson = item["payloadJson"] as? String ?: continue
+        val createdAt = (item["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
+
+        val template =
+                BlockTemplate(
+                        id = id,
+                        name = name,
+                        type = typeValue,
+                        payloadJson = payloadJson,
+                        createdAt = createdAt
+                )
+        database.blockTemplateDao().insert(template)
+        templatesImported++
+      }
+    }
+
+    Log.i(
+            "MainActivity",
+            "Import: $imported imported, $skipped skipped, " +
+                    "dateBlocks $dateBlocksImported/$dateBlocksSkipped, " +
+                    "templates $templatesImported/$templatesSkipped"
+    )
+    return mapOf(
+            "success" to true,
+            "imported" to imported,
+            "skipped" to skipped,
+            "dateBlocksImported" to dateBlocksImported,
+            "dateBlocksSkipped" to dateBlocksSkipped,
+            "templatesImported" to templatesImported,
+            "templatesSkipped" to templatesSkipped
+    )
   }
 
   private fun hasUsageStatsPermission(): Boolean {
@@ -811,6 +1112,7 @@ class MainActivity : FlutterActivity() {
     val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return
     database.appRestrictionDao().delete(restriction)
     database.appScheduleDao().deleteByPackage(packageName)
+    database.dateBlockDao().deleteByPackage(packageName)
     Log.i("MainActivity", "Deleted restriction for $packageName")
   }
 

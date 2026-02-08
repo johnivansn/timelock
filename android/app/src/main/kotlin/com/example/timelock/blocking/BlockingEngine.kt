@@ -7,7 +7,6 @@ import com.example.timelock.database.AppDatabase
 import com.example.timelock.monitoring.ScheduleMonitor
 import com.example.timelock.notifications.PillNotificationHelper
 import com.example.timelock.utils.AppUtils
-import java.text.SimpleDateFormat
 import java.util.*
 
 class BlockingEngine(private val context: Context) {
@@ -19,21 +18,31 @@ class BlockingEngine(private val context: Context) {
   sealed class BlockReason {
     object TimeQuota : BlockReason()
     object ScheduleBlocked : BlockReason()
+    object DateBlocked : BlockReason()
     object Combined : BlockReason()
   }
 
   suspend fun shouldBlock(packageName: String): Boolean {
     val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
     if (!restriction.isEnabled) return false
-    return isQuotaBlocked(packageName) || isScheduleBlocked(packageName)
+    return isQuotaBlocked(packageName) || isScheduleBlocked(packageName) || isDateBlocked(packageName)
   }
 
   suspend fun shouldBlockSync(packageName: String): BlockReason? {
+    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return null
+    if (!restriction.isEnabled) return null
+
+    val quotaBlocked = isQuotaBlocked(packageName)
+    val scheduleBlocked = isScheduleBlocked(packageName)
+    val dateBlocked = isDateBlocked(packageName)
+    val activeCount = listOf(quotaBlocked, scheduleBlocked, dateBlocked).count { it }
+
     return when {
-      isQuotaBlocked(packageName) && isScheduleBlocked(packageName) -> BlockReason.Combined
-      isQuotaBlocked(packageName) -> BlockReason.TimeQuota
-      isScheduleBlocked(packageName) -> BlockReason.ScheduleBlocked
-      else -> null
+      activeCount == 0 -> null
+      activeCount > 1 -> BlockReason.Combined
+      quotaBlocked -> BlockReason.TimeQuota
+      scheduleBlocked -> BlockReason.ScheduleBlocked
+      else -> BlockReason.DateBlocked
     }
   }
 
@@ -49,6 +58,36 @@ class BlockingEngine(private val context: Context) {
     return scheduleMonitor.isCurrentlyBlocked(schedules)
   }
 
+  suspend fun isDateBlocked(packageName: String): Boolean {
+    val today = dateFormat.format(Date())
+    return database.dateBlockDao().getActiveForDate(packageName, today).isNotEmpty()
+  }
+
+  suspend fun getDateBlockRemainingDays(packageName: String): Int? {
+    val today = dateFormat.format(Date())
+    val active = database.dateBlockDao().getActiveForDate(packageName, today)
+    if (active.isEmpty()) return null
+
+    val todayDate = dateFormat.parse(today) ?: return null
+    val minDays =
+            active.mapNotNull { block ->
+              val end = dateFormat.parse(block.endDate) ?: return@mapNotNull null
+              val diffMillis = end.time - todayDate.time
+              (diffMillis / 86400000L).toInt().coerceAtLeast(0)
+            }.minOrNull()
+    return minDays
+  }
+
+  suspend fun getDateBlockRangeSummary(packageName: String): String? {
+    val today = dateFormat.format(Date())
+    val active = database.dateBlockDao().getActiveForDate(packageName, today)
+    if (active.isEmpty()) return null
+
+    val earliestStart = active.minByOrNull { it.startDate }?.startDate ?: return null
+    val latestEnd = active.maxByOrNull { it.endDate }?.endDate ?: return null
+    return "Del $earliestStart al $latestEnd"
+  }
+
   suspend fun blockApp(packageName: String, reason: BlockReason): Boolean {
     val today = dateFormat.format(Date())
     val usage = database.dailyUsageDao().getUsage(packageName, today) ?: return false
@@ -62,7 +101,8 @@ class BlockingEngine(private val context: Context) {
             when (reason) {
               BlockReason.TimeQuota -> PillNotificationHelper.BlockReason.QUOTA_EXCEEDED
               BlockReason.ScheduleBlocked -> PillNotificationHelper.BlockReason.SCHEDULE_BLOCKED
-              BlockReason.Combined -> PillNotificationHelper.BlockReason.QUOTA_EXCEEDED
+              BlockReason.DateBlocked -> PillNotificationHelper.BlockReason.DATE_BLOCKED
+              BlockReason.Combined -> PillNotificationHelper.BlockReason.MANUAL
             }
 
     pillNotification.notifyAppBlocked(restriction.appName, packageName, notificationReason)
