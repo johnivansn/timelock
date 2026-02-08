@@ -1602,6 +1602,31 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     );
   }
 
+  Future<void> _showBottomSheet({required Widget child}) {
+    final reduce = MediaQuery.of(context).disableAnimations;
+    if (!reduce) {
+      return showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => child,
+      );
+    }
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'sheet',
+      barrierColor: Colors.black54,
+      transitionDuration: Duration.zero,
+      pageBuilder: (context, _, __) {
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: child,
+        );
+      },
+    );
+  }
+
   Widget _blockingTypeSection() {
     final scheduleActive =
         _schedules.where((s) => (s['isEnabled'] as bool? ?? true)).length;
@@ -1650,11 +1675,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 rightSelected: dateActive > 0,
                 onLeft: () {
                   if (_packageName == null) return;
-                  showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => ScheduleEditorDialog(
+                  _showBottomSheet(
+                    child: ScheduleEditorDialog(
                       appName: widget.appName,
                       packageName: _packageName!,
                     ),
@@ -1662,11 +1684,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 },
                 onRight: () {
                   if (_packageName == null) return;
-                  showModalBottomSheet<void>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => DateBlockEditorDialog(
+                  _showBottomSheet(
+                    child: DateBlockEditorDialog(
                       appName: widget.appName,
                       packageName: _packageName!,
                     ),

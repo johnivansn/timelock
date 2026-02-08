@@ -137,6 +137,9 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
                             fontWeight: FontWeight.w700,
                             color: AppColors.textPrimary,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          softWrap: false,
                         ),
                         Text(
                           widget.appName,
@@ -146,6 +149,7 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                          softWrap: false,
                         ),
                       ],
                     ),
@@ -186,6 +190,9 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
                               color: AppColors.textTertiary,
                               fontSize: 13,
                             ),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         )
                       : ListView.builder(

@@ -142,6 +142,17 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
           controller: controller,
           decoration: InputDecoration(
             hintText: 'Nombre de la etiqueta',
+            isDense: true,
+            filled: true,
+            fillColor: AppColors.surfaceVariant.withValues(alpha: 0.4),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
         actions: [
@@ -159,72 +170,92 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
   }
 
   void _manageTemplates() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) {
-        return SafeArea(
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius:
-                  BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(height: AppSpacing.sm),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
+    _showBottomSheet(
+      child: SafeArea(
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius:
+                BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: AppSpacing.sm),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                SizedBox(height: AppSpacing.md),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Etiquetas de horarios',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
+              ),
+              SizedBox(height: AppSpacing.md),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Etiquetas de horarios',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(Icons.close_rounded),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: AppSpacing.sm),
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    padding: EdgeInsets.fromLTRB(
-                      AppSpacing.lg,
-                      0,
-                      AppSpacing.lg,
-                      AppSpacing.lg,
                     ),
-                    itemCount: _templates.length,
-                    itemBuilder: (_, i) {
-                      final t = _templates[i];
-                      return _templateTile(t);
-                    },
-                  ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close_rounded),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              SizedBox(height: AppSpacing.sm),
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    0,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                  ),
+                  itemCount: _templates.length,
+                  itemBuilder: (_, i) {
+                    final t = _templates[i];
+                    return _templateTile(t);
+                  },
+                ),
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showBottomSheet({required Widget child}) {
+    final reduce = MediaQuery.of(context).disableAnimations;
+    if (!reduce) {
+      return showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (_) => child,
+      );
+    }
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'sheet',
+      barrierColor: Colors.black54,
+      transitionDuration: Duration.zero,
+      pageBuilder: (context, _, __) {
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: child,
         );
       },
     );
@@ -304,6 +335,17 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
           controller: controller,
           decoration: InputDecoration(
             hintText: 'Nombre de la etiqueta',
+            isDense: true,
+            filled: true,
+            fillColor: AppColors.surfaceVariant.withValues(alpha: 0.4),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: BorderSide.none,
+            ),
           ),
         ),
         actions: [

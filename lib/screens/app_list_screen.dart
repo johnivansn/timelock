@@ -13,7 +13,6 @@ import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
 import 'package:timelock/utils/app_motion.dart';
-import 'package:timelock/utils/schedule_utils.dart';
 import 'package:timelock/screens/app_picker_screen.dart';
 import 'package:timelock/widgets/schedule_editor_dialog.dart';
 import 'package:timelock/widgets/date_block_editor_dialog.dart';
@@ -130,8 +129,10 @@ class _AppListScreenState extends State<AppListScreen> {
         // Preserve cached fields to avoid rebuild flicker.
         if (existing != null) {
           r['iconBytes'] = existing['iconBytes'];
-          r['schedules'] = existing['schedules'];
-          r['dateBlocks'] = existing['dateBlocks'];
+          r['scheduleCount'] = existing['scheduleCount'];
+          r['scheduleActiveCount'] = existing['scheduleActiveCount'];
+          r['dateBlockCount'] = existing['dateBlockCount'];
+          r['dateBlockActiveCount'] = existing['dateBlockActiveCount'];
           r['usedMinutes'] = existing['usedMinutes'];
           r['isBlocked'] = existing['isBlocked'];
           r['usedMillis'] = existing['usedMillis'];
@@ -160,25 +161,33 @@ class _AppListScreenState extends State<AppListScreen> {
           // Keep previous values on error to avoid flicker.
         }
 
-        if (r['schedules'] == null || _scheduleDirty.contains(pkg)) {
+        if (r['scheduleCount'] == null || _scheduleDirty.contains(pkg)) {
           try {
             final schedules = await NativeService.getSchedules(pkg);
-            r['schedules'] = schedules.map(normalizeScheduleDays).toList();
+            final active =
+                schedules.where((s) => (s['isEnabled'] as bool? ?? true)).length;
+            r['scheduleCount'] = schedules.length;
+            r['scheduleActiveCount'] = active;
             changed = true;
             _scheduleDirty.remove(pkg);
           } catch (_) {
-            r['schedules'] = [];
+            r['scheduleCount'] = 0;
+            r['scheduleActiveCount'] = 0;
           }
         }
 
-        if (r['dateBlocks'] == null || _dateBlockDirty.contains(pkg)) {
+        if (r['dateBlockCount'] == null || _dateBlockDirty.contains(pkg)) {
           try {
             final blocks = await NativeService.getDateBlocks(pkg);
-            r['dateBlocks'] = blocks;
+            final active =
+                blocks.where((b) => (b['isEnabled'] as bool? ?? true)).length;
+            r['dateBlockCount'] = blocks.length;
+            r['dateBlockActiveCount'] = active;
             changed = true;
             _dateBlockDirty.remove(pkg);
           } catch (_) {
-            r['dateBlocks'] = [];
+            r['dateBlockCount'] = 0;
+            r['dateBlockActiveCount'] = 0;
           }
         }
 
@@ -287,11 +296,8 @@ class _AppListScreenState extends State<AppListScreen> {
         await _requireAdmin('Ingresa tu PIN para modificar horarios');
     if (!allowed || !mounted) return;
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ScheduleEditorDialog(
+    await _showBottomSheet(
+      child: ScheduleEditorDialog(
         appName: r['appName'],
         packageName: r['packageName'],
       ),
@@ -304,16 +310,38 @@ class _AppListScreenState extends State<AppListScreen> {
         await _requireAdmin('Ingresa tu PIN para modificar fechas');
     if (!allowed || !mounted) return;
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => DateBlockEditorDialog(
+    await _showBottomSheet(
+      child: DateBlockEditorDialog(
         appName: r['appName'],
         packageName: r['packageName'],
       ),
     );
     await _loadRestrictions();
+  }
+
+  Future<void> _showBottomSheet({required Widget child}) {
+    final reduce = MediaQuery.of(context).disableAnimations;
+    if (!reduce) {
+      return showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => child,
+      );
+    }
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'sheet',
+      barrierColor: Colors.black54,
+      transitionDuration: Duration.zero,
+      pageBuilder: (context, _, __) {
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: child,
+        );
+      },
+    );
   }
 
   Future<void> _openLimitEditor(Map<String, dynamic> r) async {
@@ -1074,36 +1102,28 @@ class _AppListScreenState extends State<AppListScreen> {
 
 
   Widget _directBlocksRow(Map<String, dynamic> r) {
-    final schedules = (r['schedules'] as List<dynamic>? ?? [])
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
-    final blocks = (r['dateBlocks'] as List<dynamic>? ?? [])
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
-
-    final scheduleActive = schedules
-        .where((s) => (s['isEnabled'] as bool? ?? true))
-        .length;
-    final dateActive =
-        blocks.where((b) => (b['isEnabled'] as bool? ?? true)).length;
-    if (schedules.isEmpty && blocks.isEmpty) {
+    final scheduleCount = (r['scheduleCount'] as int?) ?? 0;
+    final scheduleActive = (r['scheduleActiveCount'] as int?) ?? 0;
+    final dateCount = (r['dateBlockCount'] as int?) ?? 0;
+    final dateActive = (r['dateBlockActiveCount'] as int?) ?? 0;
+    if (scheduleCount == 0 && dateCount == 0) {
       return SizedBox.shrink();
     }
 
     final columns = <Widget>[];
-    if (schedules.isNotEmpty) {
+    if (scheduleCount > 0) {
       columns.add(
         Expanded(
           child: _countColumn(
             title: 'Horarios',
-            total: schedules.length,
+            total: scheduleCount,
             active: scheduleActive,
             onTap: () => _openScheduleEditor(r),
           ),
         ),
       );
     }
-    if (blocks.isNotEmpty) {
+    if (dateCount > 0) {
       if (columns.isNotEmpty) {
         columns.add(SizedBox(width: AppSpacing.sm));
       }
@@ -1111,7 +1131,7 @@ class _AppListScreenState extends State<AppListScreen> {
         Expanded(
           child: _countColumn(
             title: 'Fechas',
-            total: blocks.length,
+            total: dateCount,
             active: dateActive,
             onTap: () => _openDateBlockEditor(r),
           ),

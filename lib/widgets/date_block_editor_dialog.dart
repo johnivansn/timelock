@@ -130,6 +130,9 @@ class _DateBlockEditorDialogState extends State<DateBlockEditorDialog> {
                               fontWeight: FontWeight.w700,
                               color: AppColors.textPrimary,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: false,
                           ),
                           Text(
                             widget.appName,
@@ -139,6 +142,7 @@ class _DateBlockEditorDialogState extends State<DateBlockEditorDialog> {
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                            softWrap: false,
                           ),
                         ],
                       ),
@@ -178,6 +182,9 @@ class _DateBlockEditorDialogState extends State<DateBlockEditorDialog> {
                                 color: AppColors.textTertiary,
                                 fontSize: 13,
                               ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           )
                         : ListView.builder(
