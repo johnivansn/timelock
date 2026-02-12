@@ -67,7 +67,19 @@ class UsageMonitorService : Service() {
 
     scope.launch {
       monitoredAppsCount = database.appRestrictionDao().getEnabled().size
-      withContext(Dispatchers.Main) { startForeground(NOTIFICATION_ID, buildServiceNotification()) }
+      withContext(Dispatchers.Main) {
+        if (isServiceNotificationEnabled()) {
+          startForeground(NOTIFICATION_ID, createVisibleNotification(monitoredAppsCount))
+        } else {
+          getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+          } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+          }
+        }
+      }
     }
 
     scheduleDailyReset()
@@ -160,10 +172,21 @@ class UsageMonitorService : Service() {
   private fun updateServiceNotification() {
     scope.launch {
       monitoredAppsCount = database.appRestrictionDao().getEnabled().size
-      val notification = buildServiceNotification()
-
       withContext(Dispatchers.Main) {
-        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, notification)
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        if (isServiceNotificationEnabled()) {
+          val notification = createVisibleNotification(monitoredAppsCount)
+          startForeground(NOTIFICATION_ID, notification)
+          notificationManager.notify(NOTIFICATION_ID, notification)
+        } else {
+          notificationManager.cancel(NOTIFICATION_ID)
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+          } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+          }
+        }
       }
     }
   }

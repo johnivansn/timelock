@@ -89,7 +89,13 @@ class PillNotificationHelper(private val context: Context) {
   }
 
   private fun show(appName: String, packageName: String, message: String) {
-    if (prefs.notificationStyle != "pill" || !canShowOverlay()) {
+    val style = prefs.notificationStyle.trim().lowercase()
+    val canOverlay = canShowOverlay()
+    if (style != "pill" || !prefs.overlayEnabled || !canOverlay) {
+      if (style == "pill" && !canOverlay) {
+        prefs.notificationStyle = "normal"
+        prefs.overlayEnabled = false
+      }
       showSystemNotification(appName, message, packageName.hashCode())
       return
     }
@@ -157,7 +163,12 @@ class PillNotificationHelper(private val context: Context) {
   private fun canShowOverlay(): Boolean {
     val prefs = context.getSharedPreferences("permission_prefs", Context.MODE_PRIVATE)
     val overlayBlocked = prefs.getBoolean("overlay_blocked", false)
-    return !overlayBlocked && Settings.canDrawOverlays(context)
+    val canDraw = Settings.canDrawOverlays(context)
+    if (canDraw && overlayBlocked) {
+      prefs.edit().putBoolean("overlay_blocked", false).apply()
+      return true
+    }
+    return !overlayBlocked && canDraw
   }
 
   private fun showSystemNotification(appName: String, message: String, notificationId: Int) {

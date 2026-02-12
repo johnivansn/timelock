@@ -16,6 +16,7 @@ class NotificationPreferences(context: Context) {
     private const val KEY_DATE_BLOCK = "notify_date_block"
     private const val KEY_SERVICE_NOTIFICATION = "notify_service_status"
     private const val KEY_STYLE = "notify_style"
+    private const val KEY_OVERLAY_ENABLED = "notify_overlay_enabled"
   }
 
   var quota50Enabled: Boolean
@@ -49,6 +50,10 @@ class NotificationPreferences(context: Context) {
   var notificationStyle: String
     get() = prefs.getString(KEY_STYLE, "pill") ?: "pill"
     set(value) = prefs.edit().putString(KEY_STYLE, value).apply()
+
+  var overlayEnabled: Boolean
+    get() = prefs.getBoolean(KEY_OVERLAY_ENABLED, true)
+    set(value) = prefs.edit().putBoolean(KEY_OVERLAY_ENABLED, value).apply()
 
   fun getAll(): Map<String, Boolean> {
     return mapOf(

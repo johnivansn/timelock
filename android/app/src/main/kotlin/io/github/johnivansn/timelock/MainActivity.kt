@@ -2,6 +2,8 @@ package io.github.johnivansn.timelock
 
 import android.app.AppOpsManager
 import android.app.ActivityManager
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
 import android.os.BatteryManager
 import android.content.IntentFilter
 import android.app.admin.DevicePolicyManager
@@ -35,6 +37,7 @@ import io.github.johnivansn.timelock.services.AppBlockAccessibilityService
 import io.github.johnivansn.timelock.services.UsageMonitorService
 import io.github.johnivansn.timelock.utils.AppUtils
 import io.github.johnivansn.timelock.monitoring.UsageStatsMonitor
+import io.github.johnivansn.timelock.blocking.BlockingEngine
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -566,7 +569,8 @@ class MainActivity : FlutterActivity() {
         scope.launch {
           try {
             val prefs = getSharedPreferences(prefsName, Context.MODE_PRIVATE)
-            prefs.edit().apply {
+            val success =
+                    prefs.edit().run {
               when (value) {
                 is Boolean -> putBoolean(key, value)
                 is String -> putString(key, value)
@@ -575,7 +579,10 @@ class MainActivity : FlutterActivity() {
                 is Float -> putFloat(key, value)
                 else -> remove(key)
               }
-              apply()
+              commit()
+            }
+            if (!success) {
+              throw IllegalStateException("No se pudo guardar $prefsName.$key")
             }
 
             if (prefsName == "notification_prefs") {
@@ -1039,22 +1046,45 @@ class MainActivity : FlutterActivity() {
   }
 
   private fun hasUsageStatsPermission(): Boolean {
-    val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-    val mode =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-              appOps.unsafeCheckOpNoThrow(
-                      AppOpsManager.OPSTR_GET_USAGE_STATS,
-                      Process.myUid(),
-                      packageName
-              )
-            } else {
-              appOps.checkOpNoThrow(
-                      AppOpsManager.OPSTR_GET_USAGE_STATS,
-                      Process.myUid(),
-                      packageName
-              )
-            }
-    return mode == AppOpsManager.MODE_ALLOWED
+    return try {
+      val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+      val mode =
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                appOps.unsafeCheckOpNoThrow(
+                        AppOpsManager.OPSTR_GET_USAGE_STATS,
+                        Process.myUid(),
+                        packageName
+                )
+              } else {
+                appOps.checkOpNoThrow(
+                        AppOpsManager.OPSTR_GET_USAGE_STATS,
+                        Process.myUid(),
+                        packageName
+                )
+              }
+      if (mode == AppOpsManager.MODE_ALLOWED) {
+        return true
+      }
+      if (mode != AppOpsManager.MODE_DEFAULT) {
+        return false
+      }
+
+      val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+      val end = System.currentTimeMillis()
+      val start = end - 60 * 60 * 1000L
+
+      val stats =
+              usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, start, end)
+      if (!stats.isNullOrEmpty()) {
+        return true
+      }
+
+      val events = usageStatsManager.queryEvents(end - 60 * 1000L, end)
+      val event = UsageEvents.Event()
+      events != null && events.hasNextEvent().also { if (it) events.getNextEvent(event) }
+    } catch (_: Exception) {
+      false
+    }
   }
 
   private fun getInstalledAppsQuick(result: MethodChannel.Result) {
@@ -1120,13 +1150,18 @@ class MainActivity : FlutterActivity() {
   }
 
   private fun isAccessibilityServiceEnabled(): Boolean {
-    val service = "${packageName}/${AppBlockAccessibilityService::class.java.canonicalName}"
+    val component = ComponentName(this, AppBlockAccessibilityService::class.java)
+    val expected = component.flattenToString()
+    val expectedShort = component.flattenToShortString()
     val enabledServices =
             Settings.Secure.getString(
                     contentResolver,
                     Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-            )
-    return enabledServices?.contains(service) == true
+            ) ?: return false
+    return enabledServices
+            .split(':')
+            .map { it.trim() }
+            .any { it.equals(expected, ignoreCase = true) || it.equals(expectedShort, ignoreCase = true) }
   }
 
   private fun requestAccessibilityPermission() {
@@ -1135,7 +1170,9 @@ class MainActivity : FlutterActivity() {
 
   private fun startMonitoringService() {
     val intent = Intent(this, UsageMonitorService::class.java)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+    val prefs = getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+    val serviceNotificationEnabled = prefs.getBoolean("notify_service_status", true)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && serviceNotificationEnabled) {
       startForegroundService(intent)
     } else {
       startService(intent)
@@ -1533,9 +1570,10 @@ class MainActivity : FlutterActivity() {
               else today
     val weekUsages = database.dailyUsageDao().getUsageSince(packageName, weekStart)
     val weekMinutes = weekUsages.sumOf { it.usedMinutes }
+    val blockReason = BlockingEngine(this).shouldBlockSync(packageName)
     return mapOf(
             "usedMinutes" to (usage?.usedMinutes ?: 0),
-            "isBlocked" to (usage?.isBlocked ?: false),
+            "isBlocked" to ((usage?.isBlocked ?: false) || blockReason != null),
             "usedMillis" to liveMillis,
             "usedMinutesWeek" to weekMinutes,
             "weekStart" to weekStart

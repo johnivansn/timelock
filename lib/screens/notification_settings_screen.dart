@@ -20,6 +20,7 @@ class _NotificationSettingsScreenState
   bool _dateBlockEnabled = true;
   bool _serviceNotificationEnabled = true;
   String _notificationStyle = 'pill';
+  bool _overlayForPillEnabled = true;
   bool _overlayAvailable = true;
   bool _loading = true;
 
@@ -36,7 +37,15 @@ class _NotificationSettingsScreenState
       final permissionPrefs =
           await NativeService.getSharedPreferences('permission_prefs');
       final overlay = await NativeService.checkOverlayPermission();
-      final overlayBlocked = permissionPrefs?['overlay_blocked'] == true;
+      final prefOverlayBlocked = permissionPrefs?['overlay_blocked'] == true;
+      final overlayBlocked = !overlay && prefOverlayBlocked;
+      if (overlay && prefOverlayBlocked) {
+        await NativeService.saveSharedPreference({
+          'prefsName': 'permission_prefs',
+          'key': 'overlay_blocked',
+          'value': false,
+        });
+      }
       final overlayAvailable = overlay && !overlayBlocked;
       if (prefs != null && mounted) {
         setState(() {
@@ -48,14 +57,30 @@ class _NotificationSettingsScreenState
           _dateBlockEnabled = prefs['notify_date_block'] as bool? ?? true;
           _serviceNotificationEnabled =
               prefs['notify_service_status'] as bool? ?? true;
-          _notificationStyle =
-              prefs['notify_style']?.toString() ?? 'pill';
+          _notificationStyle = prefs['notify_style']?.toString() ?? 'pill';
+          _overlayForPillEnabled =
+              prefs['notify_overlay_enabled'] as bool? ?? true;
           _overlayAvailable = overlayAvailable;
           _loading = false;
         });
-        if (!_overlayAvailable && _notificationStyle == 'pill') {
-          _notificationStyle = 'normal';
-          await _saveSetting('notify_style', 'normal');
+        if (!_overlayAvailable) {
+          if (_notificationStyle != 'normal') {
+            _notificationStyle = 'normal';
+            await NativeService.saveSharedPreference({
+              'prefsName': 'notification_prefs',
+              'key': 'notify_style',
+              'value': 'normal',
+            });
+          }
+          if (_overlayForPillEnabled) {
+            _overlayForPillEnabled = false;
+            await NativeService.saveSharedPreference({
+              'prefsName': 'notification_prefs',
+              'key': 'notify_overlay_enabled',
+              'value': false,
+            });
+          }
+          if (mounted) setState(() {});
         }
       }
     } catch (_) {
@@ -88,15 +113,15 @@ class _NotificationSettingsScreenState
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-          SliverAppBar(
-            pinned: true,
-            title: Text('Notificaciones'),
-          ),
-          if (_loading)
-            SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator(strokeWidth: 3)),
-            )
-          else ...[
+            SliverAppBar(
+              pinned: true,
+              title: Text('Notificaciones'),
+            ),
+            if (_loading)
+              SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator(strokeWidth: 3)),
+              )
+            else ...[
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(
@@ -156,7 +181,7 @@ class _NotificationSettingsScreenState
                   child: _notificationStyleCard(),
                 ),
               ),
-            SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(
                     AppSpacing.lg,
@@ -175,46 +200,46 @@ class _NotificationSettingsScreenState
                   ),
                 ),
               ),
-            SliverPadding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _notificationToggle(
-                    icon: Icons.hourglass_bottom_rounded,
-                    title: 'Mitad del tiempo usado (50%)',
-                    description: 'Cuando consumes el 50% de tu cuota diaria',
-                    value: _quota50Enabled,
-                    onChanged: (val) {
-                      setState(() => _quota50Enabled = val);
-                      _saveSetting('notify_quota_50', val);
-                    },
-                  ),
+              SliverPadding(
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _notificationToggle(
+                      icon: Icons.hourglass_bottom_rounded,
+                      title: 'Mitad del tiempo usado (50%)',
+                      description: 'Cuando consumes el 50% de tu cuota diaria',
+                      value: _quota50Enabled,
+                      onChanged: (val) {
+                        setState(() => _quota50Enabled = val);
+                        _saveSetting('notify_quota_50', val);
+                      },
+                    ),
                     SizedBox(height: AppSpacing.sm),
                     _notificationToggle(
                       icon: Icons.warning_amber_rounded,
                       title: 'Quedan pocos minutos (75%)',
                       description: 'Cuando consumes el 75% de tu cuota diaria',
                       value: _quota75Enabled,
-                    onChanged: (val) {
-                      setState(() => _quota75Enabled = val);
-                      _saveSetting('notify_quota_75', val);
-                    },
-                  ),
+                      onChanged: (val) {
+                        setState(() => _quota75Enabled = val);
+                        _saveSetting('notify_quota_75', val);
+                      },
+                    ),
                     SizedBox(height: AppSpacing.sm),
                     _notificationToggle(
                       icon: Icons.error_outline_rounded,
                       title: 'Último minuto disponible',
                       description: 'Cuando solo queda 1 minuto de tu cuota',
                       value: _lastMinuteEnabled,
-                    onChanged: (val) {
-                      setState(() => _lastMinuteEnabled = val);
-                      _saveSetting('notify_last_minute', val);
-                    },
-                  ),
-                ]),
+                      onChanged: (val) {
+                        setState(() => _lastMinuteEnabled = val);
+                        _saveSetting('notify_last_minute', val);
+                      },
+                    ),
+                  ]),
+                ),
               ),
-            ),
-            SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(
                     AppSpacing.lg,
@@ -233,31 +258,32 @@ class _NotificationSettingsScreenState
                   ),
                 ),
               ),
-            SliverPadding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  _notificationToggle(
-                    icon: Icons.lock_outline_rounded,
-                    title: 'App bloqueada',
-                    description: 'Cuando una app es bloqueada automáticamente',
-                    value: _blockedEnabled,
-                    onChanged: (val) {
-                      setState(() => _blockedEnabled = val);
-                      _saveSetting('notify_blocked', val);
-                    },
-                  ),
+              SliverPadding(
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    _notificationToggle(
+                      icon: Icons.lock_outline_rounded,
+                      title: 'App bloqueada',
+                      description:
+                          'Cuando una app es bloqueada automáticamente',
+                      value: _blockedEnabled,
+                      onChanged: (val) {
+                        setState(() => _blockedEnabled = val);
+                        _saveSetting('notify_blocked', val);
+                      },
+                    ),
                     SizedBox(height: AppSpacing.sm),
                     _notificationToggle(
                       icon: Icons.schedule_rounded,
                       title: 'Horarios programados',
                       description: 'Avisos sobre bloqueos por horario',
                       value: _scheduleEnabled,
-                    onChanged: (val) {
-                      setState(() => _scheduleEnabled = val);
-                      _saveSetting('notify_schedule', val);
-                    },
-                  ),
+                      onChanged: (val) {
+                        setState(() => _scheduleEnabled = val);
+                        _saveSetting('notify_schedule', val);
+                      },
+                    ),
                     SizedBox(height: AppSpacing.sm),
                     _notificationToggle(
                       icon: Icons.event_busy_rounded,
@@ -265,15 +291,15 @@ class _NotificationSettingsScreenState
                       description:
                           'Avisos con días restantes para terminar el bloqueo',
                       value: _dateBlockEnabled,
-                    onChanged: (val) {
-                      setState(() => _dateBlockEnabled = val);
-                      _saveSetting('notify_date_block', val);
-                    },
-                  ),
-                ]),
+                      onChanged: (val) {
+                        setState(() => _dateBlockEnabled = val);
+                        _saveSetting('notify_date_block', val);
+                      },
+                    ),
+                  ]),
+                ),
               ),
-            ),
-            SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.fromLTRB(
                     AppSpacing.lg,
@@ -292,24 +318,24 @@ class _NotificationSettingsScreenState
                   ),
                 ),
               ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: _notificationToggle(
-                  icon: Icons.notifications_active_outlined,
-                  title: 'Mostrar estado de monitoreo',
-                  description:
-                      'Notificación permanente que indica apps monitoreadas',
-                  value: _serviceNotificationEnabled,
-                  onChanged: (val) {
-                    setState(() => _serviceNotificationEnabled = val);
-                    _saveSetting('notify_service_status', val);
-                  },
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  child: _notificationToggle(
+                    icon: Icons.notifications_active_outlined,
+                    title: 'Mostrar estado de monitoreo',
+                    description:
+                        'Notificación permanente que indica apps monitoreadas',
+                    value: _serviceNotificationEnabled,
+                    onChanged: (val) {
+                      setState(() => _serviceNotificationEnabled = val);
+                      _saveSetting('notify_service_status', val);
+                    },
+                  ),
                 ),
               ),
-            ),
-            SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
-          ],
+              SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
+            ],
           ],
         ),
       ),
@@ -318,59 +344,278 @@ class _NotificationSettingsScreenState
 
   Widget _notificationStyleCard() {
     final pillDisabled = !_overlayAvailable;
+    final overlayToggleEnabled = _overlayAvailable;
+    final usingPill = _notificationStyle == 'pill';
+    final styleLabel = usingPill ? 'Píldora' : 'Normal';
+    final overlayLabel = _overlayForPillEnabled
+        ? 'Bloqueo en pantalla activo'
+        : 'Bloqueo en pantalla inactivo';
     return Card(
       child: Padding(
         padding: EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Selecciona el formato',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Icon(
+                    usingPill
+                        ? Icons.view_stream_rounded
+                        : Icons.notifications_rounded,
+                    size: 18,
+                    color: AppColors.primary,
+                  ),
+                ),
+                SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Formato de alertas',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        '$styleLabel • $overlayLabel',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: AppSpacing.xs),
             Text(
               pillDisabled
-                  ? 'La opción píldora requiere permiso de overlay'
+                  ? 'La opción píldora requiere "Mostrar sobre otras apps"'
                   : 'Píldora flotante o notificación normal',
               style: TextStyle(
                 fontSize: 11,
-                color: pillDisabled
-                    ? AppColors.warning
-                    : AppColors.textTertiary,
+                color:
+                    pillDisabled ? AppColors.warning : AppColors.textTertiary,
               ),
             ),
-            SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.sm,
+            SizedBox(height: AppSpacing.md),
+            Row(
               children: [
-                ChoiceChip(
-                  label: Text('Píldora'),
-                  selected: _notificationStyle == 'pill',
-                  onSelected: pillDisabled
-                      ? null
-                      : (value) {
-                          if (!value) return;
-                          setState(() => _notificationStyle = 'pill');
-                          _saveSetting('notify_style', 'pill');
-                        },
+                Expanded(
+                  child: _styleOptionCard(
+                    icon: Icons.view_stream_rounded,
+                    title: 'Píldora',
+                    subtitle: 'Flotante',
+                    selected: usingPill,
+                    enabled: !pillDisabled,
+                    onTap: () {
+                      setState(() => _notificationStyle = 'pill');
+                      _saveSetting('notify_style', 'pill');
+                    },
+                  ),
                 ),
-                ChoiceChip(
-                  label: Text('Normal'),
-                  selected: _notificationStyle == 'normal',
-                  onSelected: (value) {
-                    if (!value) return;
-                    setState(() => _notificationStyle = 'normal');
-                    _saveSetting('notify_style', 'normal');
-                  },
+                SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: _styleOptionCard(
+                    icon: Icons.notifications_active_outlined,
+                    title: 'Normal',
+                    subtitle: 'Sistema',
+                    selected: !usingPill,
+                    enabled: true,
+                    onTap: () {
+                      setState(() => _notificationStyle = 'normal');
+                      _saveSetting('notify_style', 'normal');
+                    },
+                  ),
                 ),
               ],
             ),
+            SizedBox(height: AppSpacing.md),
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: overlayToggleEnabled
+                    ? AppColors.surfaceVariant.withValues(alpha: 0.35)
+                    : AppColors.warning.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(
+                  color: overlayToggleEnabled
+                      ? AppColors.surfaceVariant.withValues(alpha: 0.75)
+                      : AppColors.warning.withValues(alpha: 0.35),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    overlayToggleEnabled
+                        ? Icons.layers_outlined
+                        : Icons.layers_clear_outlined,
+                    size: 16,
+                    color: overlayToggleEnabled
+                        ? AppColors.textSecondary
+                        : AppColors.warning,
+                  ),
+                  SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Mostrar bloqueo en pantalla',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: overlayToggleEnabled
+                                ? AppColors.textSecondary
+                                : AppColors.warning,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          overlayToggleEnabled
+                              ? (_overlayForPillEnabled
+                                  ? 'Se muestra una pantalla flotante al bloquear.'
+                                  : 'Se usa notificación normal al bloquear.')
+                              : 'No disponible sin permiso "Mostrar sobre otras apps".',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: AppSpacing.sm),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _overlayForPillEnabled
+                          ? AppColors.success.withValues(alpha: 0.16)
+                          : AppColors.surface,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: _overlayForPillEnabled
+                            ? AppColors.success.withValues(alpha: 0.4)
+                            : AppColors.surfaceVariant,
+                      ),
+                    ),
+                    child: Text(
+                      _overlayForPillEnabled ? 'ON' : 'OFF',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: _overlayForPillEnabled
+                            ? AppColors.success
+                            : AppColors.textTertiary,
+                      ),
+                    ),
+                  ),
+                  Switch(
+                    value: _overlayForPillEnabled,
+                    onChanged: overlayToggleEnabled
+                        ? (value) {
+                            setState(() => _overlayForPillEnabled = value);
+                            _saveSetting('notify_overlay_enabled', value);
+                          }
+                        : null,
+                  ),
+                ],
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _styleOptionCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool selected,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    final active = selected && enabled;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        onTap: enabled ? onTap : null,
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: 180),
+          padding: EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: !enabled
+                ? AppColors.surfaceVariant.withValues(alpha: 0.22)
+                : active
+                    ? AppColors.primary.withValues(alpha: 0.12)
+                    : AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+              color: !enabled
+                  ? AppColors.surfaceVariant
+                  : active
+                      ? AppColors.primary
+                      : AppColors.surfaceVariant.withValues(alpha: 0.8),
+              width: active ? 1.4 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: !enabled
+                    ? AppColors.textTertiary
+                    : active
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+              ),
+              SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: !enabled
+                            ? AppColors.textTertiary
+                            : AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -382,89 +627,40 @@ class _NotificationSettingsScreenState
     required String description,
     required bool value,
     required ValueChanged<bool> onChanged,
-    }) {
-      return Card(
-        child: Padding(
-          padding: EdgeInsets.all(AppSpacing.md),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final isCompact = constraints.maxWidth < 320;
-              if (isCompact) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: value
-                                ? AppColors.success.withValues(alpha: 0.15)
-                                : AppColors.surfaceVariant,
-                            borderRadius: BorderRadius.circular(AppRadius.md),
-                          ),
-                          child: Icon(
-                            icon,
-                            size: 20,
-                            color:
-                                value ? AppColors.success : AppColors.textTertiary,
-                          ),
-                        ),
-                        SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        Switch(
-                          value: value,
-                          onChanged: onChanged,
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: AppSpacing.xs),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textTertiary,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                );
-              }
-              return Row(
+  }) {
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(AppSpacing.md),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxWidth < 320;
+            if (isCompact) {
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: value
-                          ? AppColors.success.withValues(alpha: 0.15)
-                          : AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Icon(
-                      icon,
-                      size: 20,
-                      color: value ? AppColors.success : AppColors.textTertiary,
-                    ),
-                  ),
-                  SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: value
+                              ? AppColors.success.withValues(alpha: 0.15)
+                              : AppColors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: Icon(
+                          icon,
+                          size: 20,
+                          color: value
+                              ? AppColors.success
+                              : AppColors.textTertiary,
+                        ),
+                      ),
+                      SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
                           title,
                           style: TextStyle(
                             fontSize: 13,
@@ -472,29 +668,78 @@ class _NotificationSettingsScreenState
                             color: AppColors.textPrimary,
                           ),
                         ),
-                        SizedBox(height: AppSpacing.xs),
-                        Text(
-                          description,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textTertiary,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                      Switch(
+                        value: value,
+                        onChanged: onChanged,
+                      ),
+                    ],
                   ),
-                  SizedBox(width: AppSpacing.sm),
-                  Switch(
-                    value: value,
-                    onChanged: onChanged,
+                  SizedBox(height: AppSpacing.xs),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textTertiary,
+                      height: 1.4,
+                    ),
                   ),
                 ],
               );
-            },
-          ),
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: value
+                        ? AppColors.success.withValues(alpha: 0.15)
+                        : AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: value ? AppColors.success : AppColors.textTertiary,
+                  ),
+                ),
+                SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      SizedBox(height: AppSpacing.xs),
+                      Text(
+                        description,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textTertiary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: AppSpacing.sm),
+                Switch(
+                  value: value,
+                  onChanged: onChanged,
+                ),
+              ],
+            );
+          },
         ),
-      );
-    }
+      ),
+    );
+  }
 }
-

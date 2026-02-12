@@ -44,6 +44,11 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       final u = await NativeService.checkUsagePermission();
       final a = await NativeService.checkAccessibilityPermission();
       final o = await NativeService.checkOverlayPermission();
+      final prefOverlayBlocked = prefs?['overlay_blocked'] == true;
+      final effectiveOverlayBlocked = !o && prefOverlayBlocked;
+      if (o && prefOverlayBlocked) {
+        await _setOverlayBlocked(false);
+      }
       final admin = await NativeService.isAdminEnabled();
       final deviceAdmin = await NativeService.isDeviceAdminEnabled();
       final lockUntil =
@@ -53,7 +58,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
           _usage = u;
           _accessibility = a;
           _overlay = o;
-          _overlayBlocked = prefs?['overlay_blocked'] == true;
+          _overlayBlocked = effectiveOverlayBlocked;
           _adminEnabled = admin;
           _deviceAdmin = deviceAdmin;
           _adminLockUntilMs = lockUntil;
@@ -105,7 +110,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   Future<void> _configureAll() async {
     if (!_usage) await _requestUsage();
     if (!_accessibility) await _requestAccessibility();
-    if (!_overlay && !_overlayBlocked) await _requestOverlay();
   }
 
   Future<void> _setOverlayBlocked(bool value) async {
@@ -130,7 +134,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     );
   }
 
-  bool get _allOk => _usage && _accessibility && (_overlay || _overlayBlocked);
+  bool get _allOk => _usage && _accessibility;
   bool get _adminLockActive =>
       _adminLockUntilMs > DateTime.now().millisecondsSinceEpoch;
   int get _adminLockRemainingMs {
@@ -252,7 +256,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                           ? 'No disponible en este dispositivo'
                           : 'Permite dibujar la pantalla de bloqueo encima de cualquier app',
                       granted: _overlay,
-                      critical: !_overlayBlocked,
+                      critical: false,
                       onRequest: _requestOverlay,
                     ),
                   ]),

@@ -208,11 +208,22 @@ class AppBlockAccessibilityService : AccessibilityService() {
   ) {
     val now = System.currentTimeMillis()
 
-    val canOverlay = android.provider.Settings.canDrawOverlays(this)
+    val overlayEnabled = isBlockingOverlayEnabled()
+    val canDrawOverlay = android.provider.Settings.canDrawOverlays(this)
+    val canOverlay = overlayEnabled && canDrawOverlay
     if (!canOverlay) {
-      Log.w(TAG, "⚠️ Overlay no disponible: usando fallback HOME para $packageName")
-      notifyBlockedFallback(packageName, reason)
+      val reasonText =
+              when {
+                !overlayEnabled -> "overlay desactivado por usuario"
+                !canDrawOverlay -> "sin permiso de mostrar sobre otras apps"
+                else -> "overlay no disponible"
+              }
+      Log.w(TAG, "⚠️ Overlay no disponible ($reasonText): usando fallback HOME para $packageName")
+      currentBlockedPackage = packageName
+      lastBlockedPackage = packageName
+      lastBlockTime = now
       forceHomeScreen()
+      handler.post { notifyBlockedFallback(packageName, reason) }
       return
     }
 
@@ -473,6 +484,13 @@ class AppBlockAccessibilityService : AccessibilityService() {
     Log.w(TAG, "🏠 Forzando HOME")
 
     try {
+      try {
+        performGlobalAction(GLOBAL_ACTION_HOME)
+        Log.i(TAG, "  ✅ GLOBAL_ACTION_HOME ejecutado (inmediato)")
+      } catch (e: Exception) {
+        Log.w(TAG, "  ⚠️ GLOBAL_ACTION_HOME inmediato falló", e)
+      }
+
       val homeIntent =
               Intent(Intent.ACTION_MAIN).apply {
                 addCategory(Intent.CATEGORY_HOME)
@@ -488,12 +506,12 @@ class AppBlockAccessibilityService : AccessibilityService() {
               {
                 try {
                   performGlobalAction(GLOBAL_ACTION_HOME)
-                  Log.i(TAG, "  ✅ GLOBAL_ACTION_HOME ejecutado")
+                  Log.i(TAG, "  ✅ GLOBAL_ACTION_HOME ejecutado (refuerzo)")
                 } catch (e: Exception) {
                   Log.e(TAG, "  ❌ Error en GLOBAL_ACTION", e)
                 }
               },
-              150
+              80
       )
     } catch (e: Exception) {
       Log.e(TAG, "❌ Error forzando home", e)
@@ -503,6 +521,11 @@ class AppBlockAccessibilityService : AccessibilityService() {
         Log.e(TAG, "❌ Error crítico", e2)
       }
     }
+  }
+
+  private fun isBlockingOverlayEnabled(): Boolean {
+    val prefs = getSharedPreferences("notification_prefs", MODE_PRIVATE)
+    return prefs.getBoolean("notify_overlay_enabled", true)
   }
 
   override fun onInterrupt() {

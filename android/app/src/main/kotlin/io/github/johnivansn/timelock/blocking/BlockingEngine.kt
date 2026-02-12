@@ -24,20 +24,20 @@ class BlockingEngine(private val context: Context) {
   }
 
   suspend fun shouldBlock(packageName: String): Boolean {
-    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
-    if (!restriction.isEnabled) return false
-    if (isExpired(restriction)) return false
-    return isQuotaBlocked(packageName) || isScheduleBlocked(packageName) || isDateBlocked(packageName)
+    val restriction = database.appRestrictionDao().getByPackage(packageName)
+    val canEvaluateDirect = canEvaluateDirectBlocks(restriction)
+    val quotaBlocked = isQuotaBlocked(packageName, restriction)
+    val scheduleBlocked = canEvaluateDirect && isScheduleBlocked(packageName)
+    val dateBlocked = canEvaluateDirect && isDateBlocked(packageName)
+    return quotaBlocked || scheduleBlocked || dateBlocked
   }
 
   suspend fun shouldBlockSync(packageName: String): BlockReason? {
-    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return null
-    if (!restriction.isEnabled) return null
-    if (isExpired(restriction)) return null
-
-    val quotaBlocked = isQuotaBlocked(packageName)
-    val scheduleBlocked = isScheduleBlocked(packageName)
-    val dateBlocked = isDateBlocked(packageName)
+    val restriction = database.appRestrictionDao().getByPackage(packageName)
+    val canEvaluateDirect = canEvaluateDirectBlocks(restriction)
+    val quotaBlocked = isQuotaBlocked(packageName, restriction)
+    val scheduleBlocked = canEvaluateDirect && isScheduleBlocked(packageName)
+    val dateBlocked = canEvaluateDirect && isDateBlocked(packageName)
     val activeCount = listOf(quotaBlocked, scheduleBlocked, dateBlocked).count { it }
 
     return when {
@@ -50,7 +50,16 @@ class BlockingEngine(private val context: Context) {
   }
 
   suspend fun isQuotaBlocked(packageName: String): Boolean {
-    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return false
+    val restriction = database.appRestrictionDao().getByPackage(packageName)
+    return isQuotaBlocked(packageName, restriction)
+  }
+
+  private suspend fun isQuotaBlocked(
+          packageName: String,
+          restriction: io.github.johnivansn.timelock.database.AppRestriction?
+  ): Boolean {
+    restriction ?: return false
+    if (!restriction.isEnabled) return false
     if (isExpired(restriction)) return false
     val today = dateFormat.format(Date())
     val dayOfWeek = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
@@ -217,6 +226,14 @@ class BlockingEngine(private val context: Context) {
     val expiresAt = restriction.expiresAt ?: return false
     if (expiresAt <= 0) return false
     return System.currentTimeMillis() > expiresAt
+  }
+
+  private fun canEvaluateDirectBlocks(
+          restriction: io.github.johnivansn.timelock.database.AppRestriction?
+  ): Boolean {
+    if (restriction == null) return true
+    if (!restriction.isEnabled) return false
+    return !isExpired(restriction)
   }
 
   fun getAllAppsSync(): List<Pair<String, String>> {

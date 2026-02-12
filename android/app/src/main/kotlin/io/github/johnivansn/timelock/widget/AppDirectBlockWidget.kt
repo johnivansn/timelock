@@ -6,6 +6,9 @@ import android.content.Context
 import android.widget.RemoteViews
 import io.github.johnivansn.timelock.R
 import io.github.johnivansn.timelock.database.AppDatabase
+import io.github.johnivansn.timelock.monitoring.ScheduleMonitor
+import io.github.johnivansn.timelock.utils.AppUtils
+import java.util.Calendar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -13,6 +16,7 @@ import kotlinx.coroutines.launch
 
 class AppDirectBlockWidget : AppWidgetProvider() {
   private val scope = CoroutineScope(Dispatchers.IO + Job())
+  private val scheduleMonitor = ScheduleMonitor()
 
   override fun onUpdate(
           context: Context,
@@ -49,18 +53,22 @@ class AppDirectBlockWidget : AppWidgetProvider() {
         views.setViewVisibility(R.id.block_list_container, android.view.View.VISIBLE)
 
         val list = combined.take(3).map { pkg ->
-          val hasSchedule = schedulePackages.contains(pkg)
-          val hasDate = datePackages.contains(pkg)
+          val schedules = database.appScheduleDao().getByPackage(pkg).filter { it.isEnabled }
+          val dateBlocks = database.dateBlockDao().getEnabledByPackage(pkg)
+          val hasSchedule = schedules.isNotEmpty()
+          val hasDate = dateBlocks.isNotEmpty()
           val restriction = restrictionsByPackage[pkg]
           val expiresAt = restriction?.expiresAt ?: 0L
           val isExpired = expiresAt > 0L && System.currentTimeMillis() > expiresAt
+          val activeNow =
+                  !isExpired && (scheduleMonitor.isCurrentlyBlocked(schedules) || isDateBlockedNow(dateBlocks))
           val type =
                   when {
                     hasSchedule && hasDate -> "Mixto"
                     hasSchedule -> "Horario"
                     else -> "Fecha"
                   }
-          DirectItem(pkg, type, isExpired)
+          DirectItem(pkg, type, isExpired, activeNow)
         }
 
         for (i in 0 until 3) {
@@ -72,11 +80,20 @@ class AppDirectBlockWidget : AppWidgetProvider() {
             val item = list[i]
             val appName = resolveAppName(context, item.packageName)
             views.setTextViewText(nameId, appName)
-            val typeLabel = if (item.isExpired) "${item.type} • Vencida" else item.type
+            val typeLabel =
+                    when {
+                      item.isExpired -> "${item.type} • Vencida"
+                      item.activeNow -> "${item.type} • Activa ahora"
+                      else -> item.type
+                    }
             views.setTextViewText(typeId, typeLabel)
             views.setTextColor(
                     typeId,
-                    if (item.isExpired) 0xFFE74C3C.toInt() else 0xFFCCCCCC.toInt()
+                    when {
+                      item.isExpired -> 0xFFE74C3C.toInt()
+                      item.activeNow -> 0xFFF39C12.toInt()
+                      else -> 0xFFCCCCCC.toInt()
+                    }
             )
             setAppIcon(context, views, iconId, item.packageName)
             views.setViewVisibility(containerId, android.view.View.VISIBLE)
@@ -159,8 +176,37 @@ class AppDirectBlockWidget : AppWidgetProvider() {
   data class DirectItem(
           val packageName: String,
           val type: String,
-          val isExpired: Boolean
+          val isExpired: Boolean,
+          val activeNow: Boolean
   )
+
+  private fun isDateBlockedNow(blocks: List<io.github.johnivansn.timelock.database.DateBlock>): Boolean {
+    if (blocks.isEmpty()) return false
+    val now = System.currentTimeMillis()
+    val dateFormat = AppUtils.newDateFormat()
+    return blocks.any { block ->
+      val startMillis = toDateTimeMillis(dateFormat, block.startDate, block.startHour, block.startMinute)
+      val endMillis = toDateTimeMillis(dateFormat, block.endDate, block.endHour, block.endMinute)
+      startMillis != null && endMillis != null && now in startMillis..endMillis
+    }
+  }
+
+  private fun toDateTimeMillis(
+          dateFormat: java.text.SimpleDateFormat,
+          dateValue: String,
+          hour: Int,
+          minute: Int
+  ): Long? {
+    val date = dateFormat.parse(dateValue) ?: return null
+    val cal = Calendar.getInstance().apply {
+      time = date
+      set(Calendar.HOUR_OF_DAY, hour)
+      set(Calendar.MINUTE, minute)
+      set(Calendar.SECOND, 0)
+      set(Calendar.MILLISECOND, 0)
+    }
+    return cal.timeInMillis
+  }
 
   companion object {
     fun updateWidget(context: Context) {

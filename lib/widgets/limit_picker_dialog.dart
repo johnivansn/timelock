@@ -46,7 +46,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   TimeOfDay _expiresTime = TimeOfDay(hour: 23, minute: 59);
   bool _expiresEnabled = false;
   int? _initialExpiresAt;
-  String _expiredAction = 'archive';
+  String _expiredAction = 'none';
   bool _expiredPrefsLoaded = false;
   late final TextEditingController _weeklyController;
   late final TextEditingController _dailyMinutesController;
@@ -291,7 +291,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
       final prefs =
           await NativeService.getSharedPreferences('restriction_prefs');
       final action = prefs?['expired_action']?.toString();
-      if (action != null && (action == 'archive' || action == 'delete')) {
+      if (action != null &&
+          (action == 'none' || action == 'archive' || action == 'delete')) {
         _expiredAction = action;
       }
     } catch (_) {}
@@ -2478,6 +2479,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               ),
             ),
             items: const [
+              DropdownMenuItem(value: 'none', child: Text('Sin acción automática')),
               DropdownMenuItem(value: 'archive', child: Text('Archivar vencidas')),
               DropdownMenuItem(value: 'delete', child: Text('Eliminar vencidas')),
             ],
@@ -2486,6 +2488,11 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
               setState(() => _expiredAction = value);
               _saveExpiredActionPref(value);
             },
+          ),
+          SizedBox(height: 6),
+          Text(
+            'La acción se aplica solo después del vencimiento.',
+            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
           ),
         ],
       ),

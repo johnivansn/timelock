@@ -41,7 +41,7 @@ class _AppListScreenState extends State<AppListScreen>
   final Set<String> _dateBlockDirty = {};
   final Set<String> _iconLoading = {};
   int _iconPrefetchCount = 0;
-  String _expiredAction = 'archive';
+  String _expiredAction = 'none';
   bool _expiredPrefsLoaded = false;
 
   @override
@@ -203,13 +203,10 @@ class _AppListScreenState extends State<AppListScreen>
 
   Future<bool> _checkPermissions() async {
     try {
-      final prefs = await NativeService.getSharedPreferences('permission_prefs');
       final usage = await NativeService.checkUsagePermission();
       final acc = await NativeService.checkAccessibilityPermission();
-      final overlay = await NativeService.checkOverlayPermission();
       final admin = await NativeService.isAdminEnabled();
-      final overlayBlocked = prefs?['overlay_blocked'] == true;
-      final nowOk = usage && acc && (overlay || overlayBlocked);
+      final nowOk = usage && acc;
       if (mounted) {
         final prevOk = _lastPermissionsOk;
         setState(() {
@@ -221,8 +218,9 @@ class _AppListScreenState extends State<AppListScreen>
           _notifyPermissionChange(nowOk);
         }
       }
+      return nowOk;
     } catch (_) {}
-    return false;
+    return _permissionsOk;
   }
 
   Future<void> _startMonitoring() async {
@@ -236,7 +234,8 @@ class _AppListScreenState extends State<AppListScreen>
     try {
       final prefs = await NativeService.getSharedPreferences('restriction_prefs');
       final action = prefs?['expired_action']?.toString();
-      if (action != null && (action == 'archive' || action == 'delete')) {
+      if (action != null &&
+          (action == 'none' || action == 'archive' || action == 'delete')) {
         _expiredAction = action;
       }
     } catch (_) {}
@@ -412,6 +411,10 @@ class _AppListScreenState extends State<AppListScreen>
                 blocks.where((b) => (b['isEnabled'] as bool? ?? true)).length;
             direct['dateBlockCount'] = blocks.length;
             direct['dateBlockActiveCount'] = activeBlocks;
+          } catch (_) {}
+          try {
+            final usage = await NativeService.getUsageToday(pkg);
+            direct['isBlocked'] = usage['isBlocked'] ?? false;
           } catch (_) {}
           filtered.add(direct);
           changed = true;
