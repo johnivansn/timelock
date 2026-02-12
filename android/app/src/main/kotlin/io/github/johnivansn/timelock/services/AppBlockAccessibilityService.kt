@@ -50,9 +50,15 @@ class AppBlockAccessibilityService : AccessibilityService() {
     HIDING
   }
 
-  private data class DateBlockInfo(
+  private data class BlockDetailInfo(
           val remainingDays: Int?,
-          val rangeSummary: String?
+          val dateRangeSummary: String?,
+          val dateLabelSummary: String?,
+          val scheduleRangeSummary: String?,
+          val expirySummary: String?,
+          val quotaBlocked: Boolean,
+          val scheduleBlocked: Boolean,
+          val dateBlocked: Boolean
   )
 
   companion object {
@@ -171,20 +177,54 @@ class AppBlockAccessibilityService : AccessibilityService() {
       Log.d(TAG, "  🔍 shouldBlock($packageName) = ${reason != null} ($reason)")
 
       if (reason != null) {
-        val dateInfo =
-                if (reason == BlockingEngine.BlockReason.DateBlocked ||
+        val quotaBlocked =
+                reason == BlockingEngine.BlockReason.TimeQuota ||
                         (reason == BlockingEngine.BlockReason.Combined &&
-                                blockingEngine.isDateBlocked(packageName))) {
-                  val remaining = blockingEngine.getDateBlockRemainingDays(packageName)
-                  val range = blockingEngine.getDateBlockRangeSummary(packageName)
-                  DateBlockInfo(remaining, range)
-                } else {
-                  null
-                }
+                                blockingEngine.isQuotaBlocked(packageName))
+        val scheduleBlocked =
+                reason == BlockingEngine.BlockReason.ScheduleBlocked ||
+                        (reason == BlockingEngine.BlockReason.Combined &&
+                                blockingEngine.isScheduleBlocked(packageName))
+        val dateBlocked =
+                reason == BlockingEngine.BlockReason.DateBlocked ||
+                        (reason == BlockingEngine.BlockReason.Combined &&
+                                blockingEngine.isDateBlocked(packageName))
+
+        val detailInfo =
+                BlockDetailInfo(
+                        remainingDays =
+                                if (dateBlocked) {
+                                  blockingEngine.getDateBlockRemainingDays(packageName)
+                                } else {
+                                  null
+                                },
+                        dateRangeSummary =
+                                if (dateBlocked) {
+                                  blockingEngine.getDateBlockRangeSummary(packageName)
+                                } else {
+                                  null
+                                },
+                        dateLabelSummary =
+                                if (dateBlocked) {
+                                  blockingEngine.getActiveDateBlockLabelSummary(packageName)
+                                } else {
+                                  null
+                                },
+                        scheduleRangeSummary =
+                                if (scheduleBlocked) {
+                                  blockingEngine.getActiveScheduleRangeSummary(packageName)
+                                } else {
+                                  null
+                                },
+                        expirySummary = blockingEngine.getRestrictionExpirySummary(packageName),
+                        quotaBlocked = quotaBlocked,
+                        scheduleBlocked = scheduleBlocked,
+                        dateBlocked = dateBlocked
+                )
 
         handler.post {
           Log.w(TAG, "  🚫 Iniciando bloqueo de $packageName")
-          blockApp(packageName, reason, dateInfo)
+          blockApp(packageName, reason, detailInfo)
         }
       } else if (currentBlockedPackage != null && currentBlockedPackage != packageName) {
         handler.post {
@@ -204,7 +244,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
   private fun blockApp(
           packageName: String,
           reason: BlockingEngine.BlockReason,
-          dateInfo: DateBlockInfo? = null
+          detailInfo: BlockDetailInfo? = null
   ) {
     val now = System.currentTimeMillis()
 
@@ -243,7 +283,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
     lastBlockedPackage = packageName
     lastBlockTime = now
 
-    showOverlay(packageName, reason, dateInfo)
+    showOverlay(packageName, reason, detailInfo)
     forceHomeScreen()
   }
 
@@ -272,7 +312,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
   private fun showOverlay(
           packageName: String,
           reason: BlockingEngine.BlockReason,
-          dateInfo: DateBlockInfo? = null
+          detailInfo: BlockDetailInfo? = null
   ) {
     if (overlayState == OverlayState.VISIBLE || overlayState == OverlayState.SHOWING) {
       Log.w(TAG, "⚠️ Overlay ya visible/mostrándose - SALTANDO")
@@ -318,42 +358,53 @@ class AppBlockAccessibilityService : AccessibilityService() {
           titleText?.text = "🚫 Bloqueada"
           reasonText?.text = "Límite de tiempo alcanzado"
           messageText?.text = "La aplicación se cerrará automáticamente"
-          footerText?.text = "Intenta de nuevo mañana o ajusta tu límite de tiempo"
+          footerText?.text = detailInfo?.expirySummary ?: "Intenta de nuevo mañana o ajusta tu límite de tiempo"
         }
         BlockingEngine.BlockReason.ScheduleBlocked -> {
           titleText?.text = "⏰ Fuera de horario"
-          reasonText?.text = "Bloqueo por horario activo"
-          messageText?.text = "Este uso no está permitido en este momento"
+          reasonText?.text = detailInfo?.scheduleRangeSummary ?: "Bloqueo por horario activo"
+          messageText?.text = "Esta app no está permitida en este horario"
           footerText?.text = "Intenta de nuevo dentro de tu horario permitido"
         }
         BlockingEngine.BlockReason.DateBlocked -> {
           titleText?.text = "📅 Bloqueada"
-          reasonText?.text = "Bloqueo por fechas activo"
-          messageText?.text = "Este uso no está permitido en este rango"
+          reasonText?.text = detailInfo?.dateLabelSummary ?: "Bloqueo por fechas activo"
+          messageText?.text = "Esta app no está permitida durante este período"
           footerText?.text =
-                  when (dateInfo?.remainingDays) {
+                  when (detailInfo?.remainingDays) {
                     null -> "Intenta de nuevo cuando termine el bloqueo"
                     0 -> "Termina hoy"
                     1 -> "Termina en 1 día"
-                    else -> "Termina en ${dateInfo.remainingDays} días"
+                    else -> "Termina en ${detailInfo.remainingDays} días"
                   }
         }
         BlockingEngine.BlockReason.Combined -> {
           titleText?.text = "⛔ Bloqueada"
-          reasonText?.text = "Restricciones múltiples activas"
-          messageText?.text = "La aplicación se cerrará automáticamente"
-          footerText?.text =
-                  when (dateInfo?.remainingDays) {
-                    null -> "Intenta más tarde o ajusta tus restricciones"
-                    0 -> "Restricción por fecha termina hoy"
-                    1 -> "Restricción por fecha termina en 1 día"
-                    else -> "Restricción por fecha termina en ${dateInfo.remainingDays} días"
+          val activeReasons = mutableListOf<String>()
+          if (detailInfo?.quotaBlocked == true) activeReasons.add("límite")
+          if (detailInfo?.scheduleBlocked == true) activeReasons.add("horario")
+          if (detailInfo?.dateBlocked == true) activeReasons.add("fecha")
+          reasonText?.text =
+                  if (activeReasons.isEmpty()) {
+                    "Restricciones múltiples activas"
+                  } else {
+                    "Motivos: ${activeReasons.joinToString(", ")}"
                   }
+          messageText?.text = "Hay más de una restricción activa para esta app"
+          footerText?.text = detailInfo?.expirySummary ?: "Intenta más tarde o ajusta tus restricciones"
         }
       }
 
-      if (dateInfo?.rangeSummary != null) {
-        dateRangeText?.text = dateInfo.rangeSummary
+      val extraLines =
+              listOfNotNull(
+                      detailInfo?.scheduleRangeSummary,
+                      detailInfo?.dateLabelSummary,
+                      detailInfo?.dateRangeSummary,
+                      detailInfo?.expirySummary
+              )
+                      .distinct()
+      if (extraLines.isNotEmpty()) {
+        dateRangeText?.text = extraLines.joinToString("\n")
         dateRangeText?.visibility = View.VISIBLE
       } else {
         dateRangeText?.visibility = View.GONE

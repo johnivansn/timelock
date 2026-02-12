@@ -8,6 +8,7 @@ import io.github.johnivansn.timelock.database.getDailyQuotaForDay
 import io.github.johnivansn.timelock.monitoring.ScheduleMonitor
 import io.github.johnivansn.timelock.notifications.PillNotificationHelper
 import io.github.johnivansn.timelock.utils.AppUtils
+import java.text.SimpleDateFormat
 import java.util.*
 
 class BlockingEngine(private val context: Context) {
@@ -15,6 +16,7 @@ class BlockingEngine(private val context: Context) {
   private val dateFormat = AppUtils.newDateFormat()
   private val pillNotification = PillNotificationHelper(context)
   private val scheduleMonitor = ScheduleMonitor()
+  private val shortDateTimeFormat = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
 
   sealed class BlockReason {
     object TimeQuota : BlockReason()
@@ -153,6 +155,70 @@ class BlockingEngine(private val context: Context) {
     return "Del ${formatDateTime(earliestStartMillis)} al ${formatDateTime(latestEndMillis)}"
   }
 
+  suspend fun getActiveDateBlockLabelSummary(packageName: String): String? {
+    val now = System.currentTimeMillis()
+    val active =
+            database.dateBlockDao().getEnabledByPackage(packageName).filter { block ->
+              val startMillis =
+                      toDateTimeMillis(block.startDate, block.startHour, block.startMinute)
+              val endMillis = toDateTimeMillis(block.endDate, block.endHour, block.endMinute)
+              if (startMillis == null || endMillis == null) return@filter false
+              now in startMillis..endMillis
+            }
+    if (active.isEmpty()) return null
+    val labels =
+            active
+                    .mapNotNull { it.label?.trim() }
+                    .filter { it.isNotEmpty() }
+                    .distinct()
+                    .sorted()
+    if (labels.isEmpty()) return null
+    return if (labels.size == 1) {
+      "Etiqueta: ${labels.first()}"
+    } else {
+      "Etiquetas: ${labels.take(3).joinToString(", ")}"
+    }
+  }
+
+  suspend fun getActiveScheduleRangeSummary(packageName: String): String? {
+    val schedules = database.appScheduleDao().getByPackage(packageName)
+    if (schedules.isEmpty()) return null
+    val now = Calendar.getInstance()
+    val currentTimeMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+    val currentDayOfWeek = now.get(Calendar.DAY_OF_WEEK)
+    val active =
+            schedules
+                    .filter { it.isEnabled }
+                    .filter { schedule ->
+                      val dayBit = 1 shl (currentDayOfWeek - 1)
+                      val daysValue = schedule.daysOfWeek
+                      if ((daysValue and dayBit) == 0) return@filter false
+                      val startTimeMinutes = (schedule.startHour * 60) + schedule.startMinute
+                      val endTimeMinutes = (schedule.endHour * 60) + schedule.endMinute
+                      if (startTimeMinutes <= endTimeMinutes) {
+                        currentTimeMinutes >= startTimeMinutes && currentTimeMinutes < endTimeMinutes
+                      } else {
+                        currentTimeMinutes >= startTimeMinutes || currentTimeMinutes < endTimeMinutes
+                      }
+                    }
+                    .sortedWith(
+                            compareBy<io.github.johnivansn.timelock.database.AppSchedule>(
+                                            { it.startHour }
+                                    )
+                                    .thenBy { it.startMinute }
+                    )
+    val first = active.firstOrNull() ?: return null
+    return "Horario activo: ${formatTime(first.startHour, first.startMinute)} a ${formatTime(first.endHour, first.endMinute)}"
+  }
+
+  suspend fun getRestrictionExpirySummary(packageName: String): String? {
+    val restriction = database.appRestrictionDao().getByPackage(packageName) ?: return null
+    val expiresAt = restriction.expiresAt ?: return null
+    if (expiresAt <= 0) return null
+    if (expiresAt <= System.currentTimeMillis()) return "Vencimiento: expirado"
+    return "Vence: ${shortDateTimeFormat.format(Date(expiresAt))}"
+  }
+
   private fun toDateTimeMillis(dateValue: String, hour: Int, minute: Int): Long? {
     val date = dateFormat.parse(dateValue) ?: return null
     val cal = Calendar.getInstance().apply {
@@ -171,6 +237,10 @@ class BlockingEngine(private val context: Context) {
     val hour = cal.get(Calendar.HOUR_OF_DAY)
     val minute = cal.get(Calendar.MINUTE)
     return "$date ${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
+  }
+
+  private fun formatTime(hour: Int, minute: Int): String {
+    return "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
   }
 
   suspend fun blockApp(packageName: String, reason: BlockReason): Boolean {
