@@ -28,6 +28,7 @@ class UsageStatsMonitor(private val context: Context) {
   private val notifiedLastMinute = mutableSetOf<String>()
   private val notifiedDateBlocks = mutableSetOf<String>()
   private val notifiedScheduleUpcoming = mutableSetOf<String>()
+  private val notifiedDateUpcoming = mutableSetOf<String>()
 
   fun getUsageToday(packageName: String): Long {
     val calendar = Calendar.getInstance()
@@ -164,6 +165,7 @@ class UsageStatsMonitor(private val context: Context) {
         }
 
         checkAndNotifyDateBlock(restriction.packageName, restriction.appName, today)
+        checkAndNotifyDateBlockUpcoming(restriction.packageName, restriction.appName)
         checkAndNotifyScheduleUpcoming(restriction.packageName, restriction.appName)
 
         val exceeded =
@@ -240,6 +242,7 @@ class UsageStatsMonitor(private val context: Context) {
     notifiedLastMinute.clear()
     notifiedDateBlocks.clear()
     notifiedScheduleUpcoming.clear()
+    notifiedDateUpcoming.clear()
     Log.i(TAG, "Flags de notificación reseteadas")
   }
 
@@ -281,6 +284,59 @@ class UsageStatsMonitor(private val context: Context) {
     Log.i(TAG, "Notificado bloqueo por fechas para $packageName (${minDaysRemaining.second} días)")
   }
 
+  private suspend fun checkAndNotifyDateBlockUpcoming(
+          packageName: String,
+          appName: String
+  ) {
+    val blocks = database.dateBlockDao().getEnabledByPackage(packageName)
+    if (blocks.isEmpty()) return
+
+    val now = System.currentTimeMillis()
+    var bestStartMillis: Long? = null
+    var bestBlock: io.github.johnivansn.timelock.database.DateBlock? = null
+
+    for (block in blocks) {
+      val startMillis = toDateTimeMillis(block.startDate, block.startHour, block.startMinute) ?: continue
+      if (startMillis < now) continue
+      if (bestStartMillis == null || startMillis < bestStartMillis) {
+        bestStartMillis = startMillis
+        bestBlock = block
+      }
+    }
+
+    val nextStart = bestStartMillis ?: return
+    val block = bestBlock ?: return
+    val minutesUntil = ceil((nextStart - now) / 60000.0).toInt()
+    val startCal = Calendar.getInstance().apply { timeInMillis = nextStart }
+    val nowCal = Calendar.getInstance()
+    val startsTomorrow =
+            startCal.get(Calendar.YEAR) == nowCal.get(Calendar.YEAR) &&
+                    startCal.get(Calendar.DAY_OF_YEAR) == nowCal.get(Calendar.DAY_OF_YEAR) + 1
+
+    val notificationType: String
+    val message: String
+    val startLabel = String.format("%02d:%02d", block.startHour, block.startMinute)
+    val endLabel = String.format("%02d:%02d", block.endHour, block.endMinute)
+    when {
+      minutesUntil == 5 -> {
+        notificationType = "soon"
+        message = "En 5 min se activa restricción ($startLabel a $endLabel)"
+      }
+      startsTomorrow && minutesUntil in 1435..1445 -> {
+        notificationType = "tomorrow"
+        message = "Mañana se activa restricción ($startLabel a $endLabel)"
+      }
+      else -> return
+    }
+
+    val key = "${block.id}|$nextStart|$notificationType"
+    if (notifiedDateUpcoming.contains(key)) return
+
+    pillNotification.notifyDateBlockUpcoming(appName = appName, packageName = packageName, message = message)
+    notifiedDateUpcoming.add(key)
+    Log.i(TAG, "Notificado bloqueo por fecha próximo para $packageName [$notificationType]")
+  }
+
   private fun isExpired(restriction: io.github.johnivansn.timelock.database.AppRestriction): Boolean {
     val expiresAt = restriction.expiresAt ?: return false
     if (expiresAt <= 0) return false
@@ -308,6 +364,7 @@ class UsageStatsMonitor(private val context: Context) {
 
     val now = Calendar.getInstance()
     var best: Calendar? = null
+    var bestSchedule: io.github.johnivansn.timelock.database.AppSchedule? = null
 
     for (schedule in schedules) {
       if (!schedule.isEnabled) continue
@@ -324,12 +381,14 @@ class UsageStatsMonitor(private val context: Context) {
         if (candidate.before(now)) continue
         if (best == null || candidate.before(best)) {
           best = candidate
+          bestSchedule = schedule
         }
         break
       }
     }
 
     val next = best ?: return
+    val nextSchedule = bestSchedule ?: return
     val diffMillis = next.timeInMillis - now.timeInMillis
     val minutesUntil = ceil(diffMillis / 60000.0).toInt()
     if (minutesUntil != 5) return
@@ -338,7 +397,15 @@ class UsageStatsMonitor(private val context: Context) {
     val key = "$packageName|$dayKey|${next.get(Calendar.HOUR_OF_DAY)}:${next.get(Calendar.MINUTE)}"
     if (notifiedScheduleUpcoming.contains(key)) return
 
-    pillNotification.notifyScheduleUpcoming(appName, packageName, minutesUntil)
+    val startLabel = String.format("%02d:%02d", nextSchedule.startHour, nextSchedule.startMinute)
+    val endLabel = String.format("%02d:%02d", nextSchedule.endHour, nextSchedule.endMinute)
+    pillNotification.notifyScheduleUpcoming(
+            appName = appName,
+            packageName = packageName,
+            minutes = minutesUntil,
+            startLabel = startLabel,
+            endLabel = endLabel
+    )
     notifiedScheduleUpcoming.add(key)
     Log.i(TAG, "Notificado horario próximo para $packageName ($minutesUntil min)")
   }

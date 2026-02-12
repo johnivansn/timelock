@@ -144,7 +144,7 @@ class _NotificationSettingsScreenState
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
-                            'Las notificaciones aparecen como píldoras flotantes en la parte superior de la pantalla',
+                            'Configura cómo quieres recibir avisos: píldora flotante o notificación normal.',
                             style: TextStyle(
                               color: AppColors.info,
                               fontSize: 12,
@@ -278,7 +278,8 @@ class _NotificationSettingsScreenState
                     _notificationToggle(
                       icon: Icons.schedule_rounded,
                       title: 'Horarios programados',
-                      description: 'Avisos sobre bloqueos por horario',
+                      description:
+                          'Aviso 5 min antes de activar restricción (con rango horario)',
                       value: _scheduleEnabled,
                       onChanged: (val) {
                         setState(() => _scheduleEnabled = val);
@@ -290,7 +291,7 @@ class _NotificationSettingsScreenState
                       icon: Icons.event_busy_rounded,
                       title: 'Bloqueos por fechas',
                       description:
-                          'Avisos con días restantes para terminar el bloqueo',
+                          'Avisos de fecha: "Mañana se activa..." y "En 5 min..." (con horario)',
                       value: _dateBlockEnabled,
                       onChanged: (val) {
                         setState(() => _dateBlockEnabled = val);

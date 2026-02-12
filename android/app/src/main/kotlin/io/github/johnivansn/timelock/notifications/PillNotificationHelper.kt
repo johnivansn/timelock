@@ -71,10 +71,16 @@ class PillNotificationHelper(private val context: Context) {
     show(appName, packageName, text)
   }
 
-  fun notifyScheduleUpcoming(appName: String, packageName: String, minutes: Int) {
+  fun notifyScheduleUpcoming(
+          appName: String,
+          packageName: String,
+          minutes: Int,
+          startLabel: String,
+          endLabel: String
+  ) {
     if (!prefs.scheduleEnabled) return
     val timeText = AppUtils.formatTime(minutes)
-    show(appName, packageName, "Se pausará en $timeText")
+    show(appName, packageName, "En $timeText se activa restricción ($startLabel a $endLabel)")
   }
 
   fun notifyDateBlockRemaining(appName: String, packageName: String, daysRemaining: Int) {
@@ -86,6 +92,11 @@ class PillNotificationHelper(private val context: Context) {
               else -> "Bloqueo termina en $daysRemaining días"
             }
     show(appName, packageName, text)
+  }
+
+  fun notifyDateBlockUpcoming(appName: String, packageName: String, message: String) {
+    if (!prefs.dateBlockEnabled) return
+    show(appName, packageName, message)
   }
 
   private fun show(appName: String, packageName: String, message: String) {
