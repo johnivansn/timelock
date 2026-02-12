@@ -16,13 +16,20 @@ class ScheduleEditDialog extends StatefulWidget {
 }
 
 class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
+  static const Map<String, List<int>> _builtinDayLabels = {
+    'Laborables (L-V)': [2, 3, 4, 5, 6],
+    'Fin de semana (S-D)': [1, 7],
+    'Todos los dias': [1, 2, 3, 4, 5, 6, 7],
+    'Limpiar dias': [],
+  };
+
   late TimeOfDay _start;
   late TimeOfDay _end;
   late Set<int> _days;
-  String? _preset;
   bool _loadingTemplates = false;
   List<Map<String, dynamic>> _templates = [];
   String? _selectedTemplateId;
+  String _templateFilter = '';
 
   @override
   void initState() {
@@ -41,35 +48,24 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
         .where((d) => d >= 1 && d <= 7)
         .toSet();
     _days = days.isEmpty ? {2, 3, 4, 5, 6} : days;
-    _loadTemplates();
+    _loadTemplates(ensureBuiltin: true);
   }
 
   bool get _valid => _days.isNotEmpty;
 
-  String _summary() {
-    final days = _days.toList()..sort();
-    final daysText = formatDays(days);
-    final range = formatTimeRange(
-      _start.hour,
-      _start.minute,
-      _end.hour,
-      _end.minute,
-    );
-    return '$daysText · $range';
-  }
-
-  void _setDays(Set<int> value) {
-    setState(() {
-      _days = value;
-    });
-  }
-
-  Future<void> _loadTemplates() async {
+  Future<void> _loadTemplates({bool ensureBuiltin = false}) async {
     setState(() => _loadingTemplates = true);
     try {
       final raw = await NativeService.getBlockTemplates();
       final templates =
           raw.where((t) => (t['type'] ?? '').toString() == 'schedule').toList();
+      if (ensureBuiltin) {
+        final created = await _ensureBuiltinTemplates(templates);
+        if (created) {
+          await _loadTemplates();
+          return;
+        }
+      }
       if (!mounted) return;
       setState(() {
         _templates = templates;
@@ -94,22 +90,57 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
       final startMinute = (map['startMinute'] as num?)?.toInt();
       final endHour = (map['endHour'] as num?)?.toInt();
       final endMinute = (map['endMinute'] as num?)?.toInt();
+      final hasDays = map.containsKey('daysOfWeek');
       final days = (map['daysOfWeek'] as List<dynamic>? ?? [])
           .map((e) => int.tryParse(e.toString()) ?? 0)
           .where((d) => d >= 1 && d <= 7)
           .toSet();
-      if (startHour == null ||
-          startMinute == null ||
-          endHour == null ||
-          endMinute == null) {
-        return;
-      }
+      final hasTime = startHour != null &&
+          startMinute != null &&
+          endHour != null &&
+          endMinute != null;
+      if (!hasTime && !hasDays) return;
       setState(() {
-        _start = TimeOfDay(hour: startHour, minute: startMinute);
-        _end = TimeOfDay(hour: endHour, minute: endMinute);
-        if (days.isNotEmpty) _days = days;
+        if (hasTime) {
+          _start = TimeOfDay(hour: startHour, minute: startMinute);
+          _end = TimeOfDay(hour: endHour, minute: endMinute);
+        }
+        if (hasDays) {
+          _days = days;
+        }
       });
     } catch (_) {}
+  }
+
+  Future<bool> _ensureBuiltinTemplates(
+      List<Map<String, dynamic>> templates) async {
+    var created = false;
+    final existingNames = templates
+        .map((t) => (t['name']?.toString() ?? '').trim().toLowerCase())
+        .toSet();
+    for (final entry in _builtinDayLabels.entries) {
+      final normalized = entry.key.trim().toLowerCase();
+      if (existingNames.contains(normalized)) continue;
+      try {
+        await NativeService.saveBlockTemplate({
+          'name': entry.key,
+          'type': 'schedule',
+          'payloadJson': jsonEncode({'daysOfWeek': entry.value}),
+        });
+        created = true;
+      } catch (_) {}
+    }
+    return created;
+  }
+
+  List<Map<String, dynamic>> get _filteredTemplates {
+    final query = _templateFilter.trim().toLowerCase();
+    if (query.isEmpty) return _templates;
+    return _templates
+        .where(
+          (t) => (t['name']?.toString() ?? '').toLowerCase().contains(query),
+        )
+        .toList();
   }
 
   Future<void> _saveTemplate() async {
@@ -213,21 +244,56 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                 ),
               ),
               SizedBox(height: AppSpacing.sm),
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  padding: EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    0,
-                    AppSpacing.lg,
-                    AppSpacing.lg,
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: TextField(
+                  onChanged: (value) => setState(() => _templateFilter = value),
+                  decoration: InputDecoration(
+                    hintText: 'Filtrar etiquetas',
+                    isDense: true,
+                    filled: true,
+                    fillColor: AppColors.surfaceVariant.withValues(alpha: 0.4),
+                    prefixIcon: Icon(Icons.search_rounded, size: 18),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      borderSide: BorderSide.none,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      borderSide: BorderSide.none,
+                    ),
                   ),
-                  itemCount: _templates.length,
-                  itemBuilder: (_, i) {
-                    final t = _templates[i];
-                    return _templateTile(t);
-                  },
                 ),
+              ),
+              SizedBox(height: AppSpacing.sm),
+              Flexible(
+                child: _filteredTemplates.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: AppSpacing.lg),
+                          child: Text(
+                            'Sin etiquetas para este filtro',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.lg,
+                          0,
+                          AppSpacing.lg,
+                          AppSpacing.lg,
+                        ),
+                        itemCount: _filteredTemplates.length,
+                        itemBuilder: (_, i) {
+                          final t = _filteredTemplates[i];
+                          return _templateTile(t);
+                        },
+                      ),
               ),
             ],
           ),
@@ -494,11 +560,13 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                       ],
                     ),
                     SizedBox(height: AppSpacing.sm),
-                    _inlineLabel('Preconfiguración'),
+                    _inlineLabel('Etiquetas'),
                     SizedBox(height: AppSpacing.xs),
-                    DropdownButtonFormField<String>(
-                      value: _preset,
+                    TextField(
+                      onChanged: (value) =>
+                          setState(() => _templateFilter = value),
                       decoration: InputDecoration(
+                        hintText: 'Filtrar etiquetas',
                         isDense: true,
                         filled: true,
                         fillColor:
@@ -507,6 +575,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                           horizontal: AppSpacing.sm,
                           vertical: AppSpacing.xs,
                         ),
+                        prefixIcon: Icon(Icons.search_rounded, size: 18),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadius.md),
                           borderSide: BorderSide(
@@ -520,54 +589,11 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                           ),
                         ),
                       ),
-                      hint: Text('Selecciona una opción'),
-                      items: [
-                        DropdownMenuItem(
-                          value: 'Laborables',
-                          child: Text('Laborables (L–V)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Fin de semana',
-                          child: Text('Fin de semana (S–D)'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Todos',
-                          child: Text('Todos los días'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'Limpiar',
-                          child: Text('Limpiar selección'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value == null) {
-                          return;
-                        }
-                        setState(() {
-                          _preset = value;
-                        });
-                        switch (value) {
-                          case 'Laborables':
-                            _setDays({2, 3, 4, 5, 6});
-                            break;
-                          case 'Fin de semana':
-                            _setDays({1, 7});
-                            break;
-                          case 'Todos':
-                            _setDays({1, 2, 3, 4, 5, 6, 7});
-                            break;
-                          case 'Limpiar':
-                            _setDays({});
-                            break;
-                        }
-                      },
                     ),
-                    SizedBox(height: AppSpacing.sm),
-                    _inlineLabel('Etiquetas'),
                     SizedBox(height: AppSpacing.xs),
                     if (_loadingTemplates)
                       LinearProgressIndicator(minHeight: 2)
-                    else if (_templates.isNotEmpty)
+                    else if (_filteredTemplates.isNotEmpty)
                       DropdownButtonFormField<String>(
                         value: _selectedTemplateId,
                         decoration: InputDecoration(
@@ -593,11 +619,12 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                           ),
                         ),
                         hint: Text('Usar etiqueta'),
-                        items: _templates
+                        items: _filteredTemplates
                             .map(
                               (t) => DropdownMenuItem<String>(
                                 value: t['id']?.toString(),
-                                child: Text(t['name']?.toString() ?? 'Etiqueta'),
+                                child:
+                                    Text(t['name']?.toString() ?? 'Etiqueta'),
                               ),
                             )
                             .toList(),
@@ -606,6 +633,17 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                           setState(() => _selectedTemplateId = value);
                           _applyTemplate(value);
                         },
+                      ),
+                    if (!_loadingTemplates && _filteredTemplates.isEmpty)
+                      Padding(
+                        padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                        child: Text(
+                          'No hay etiquetas para el filtro actual',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.textTertiary,
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -670,8 +708,8 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
           ),
           onPressed: _valid
               ? () => Navigator.pop(
-                  context,
-                  ScheduleDraft(_start, _end, _days.toList()),
+                    context,
+                    ScheduleDraft(_start, _end, _days.toList()),
                   )
               : null,
           child: Text('Guardar'),
@@ -813,7 +851,6 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
     );
   }
 
-
   Widget _dayToggle(String label, int value) {
     final selected = _days.contains(value);
     return InkWell(
@@ -870,7 +907,6 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
     }
     return true;
   }
-
 
   Future<void> _pickTime(bool isStart) async {
     final picked = await showTimePicker(
