@@ -2275,36 +2275,6 @@ class _AppListScreenState extends State<AppListScreen>
     return {};
   }
 
-  String _usageSummaryText(
-      int usedMinutes,
-      int usedMillis,
-      int remainingMinutes,
-      int remainingMillis,
-      int quotaMinutes,
-      String limitType,
-      int weeklyResetDay,
-      int weeklyResetHour,
-      int weeklyResetMinute) {
-    final used = AppUtils.formatUsageText(
-      usedMinutes: usedMinutes,
-      usedMillis: usedMillis,
-      limitType: limitType,
-      weeklyResetDay: weeklyResetDay,
-      weeklyResetHour: weeklyResetHour,
-      weeklyResetMinute: weeklyResetMinute,
-    );
-    final remaining = AppUtils.formatRemainingText(
-      remainingMinutes: remainingMinutes,
-      remainingMillis: remainingMillis,
-      quotaMinutes: quotaMinutes,
-      limitType: limitType,
-      weeklyResetDay: weeklyResetDay,
-      weeklyResetHour: weeklyResetHour,
-      weeklyResetMinute: weeklyResetMinute,
-    );
-    return '$used · $remaining';
-  }
-
   Widget _usageSummaryTextRich(
       int usedMinutes,
       int usedMillis,

@@ -1627,44 +1627,6 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     );
   }
 
-  Widget _minutesRow(
-      {required String label,
-      required int value,
-      required VoidCallback onTap}) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: TextStyle(fontSize: 13, color: AppColors.textPrimary),
-          ),
-        ),
-        TextButton(
-          onPressed: onTap,
-          child: Text('${value}m'),
-        ),
-      ],
-    );
-  }
-
-  Widget _minutesCard({
-    String label = 'Minutos por día',
-    int? value,
-    VoidCallback? onTap,
-  }) {
-    final _ = value;
-    return _minutesInput(
-      label: label,
-      controller: _dailyMinutesController,
-      onChanged: (m) {
-        setState(() {
-          _dailyMinutes = m;
-          _recomputeDirty();
-        });
-      },
-    );
-  }
-
   Widget _minutesInput({
     required String label,
     required TextEditingController controller,
