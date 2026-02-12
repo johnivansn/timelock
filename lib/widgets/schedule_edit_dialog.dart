@@ -133,7 +133,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
     return showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Guardar etiqueta'),
+        title: const Text('Guardar etiqueta'),
         content: TextField(
           controller: controller,
           decoration: InputDecoration(
@@ -154,11 +154,11 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
+            child: const Text('Cancelar'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text),
-            child: Text('Guardar'),
+            child: const Text('Guardar'),
           ),
         ],
       ),
@@ -172,12 +172,12 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius:
-                BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+                const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               Container(
                 width: 40,
                 height: 4,
@@ -186,9 +186,9 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.md),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Row(
                   children: [
                     Expanded(
@@ -203,14 +203,14 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: Icon(Icons.close_rounded),
+                      icon: const Icon(Icons.close_rounded),
                     ),
                   ],
                 ),
               ),
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: TextField(
                   onChanged: (value) => setState(() => _templateFilter = value),
                   decoration: InputDecoration(
@@ -218,7 +218,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                     isDense: true,
                     filled: true,
                     fillColor: AppColors.surfaceVariant.withValues(alpha: 0.4),
-                    prefixIcon: Icon(Icons.search_rounded, size: 18),
+                    prefixIcon: const Icon(Icons.search_rounded, size: 18),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(AppRadius.md),
                       borderSide: BorderSide.none,
@@ -230,12 +230,12 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                   ),
                 ),
               ),
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               Flexible(
                 child: _filteredTemplates.isEmpty
                     ? Center(
                         child: Padding(
-                          padding: EdgeInsets.only(bottom: AppSpacing.lg),
+                          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
                           child: Text(
                             'Sin etiquetas para este filtro',
                             style: TextStyle(
@@ -247,7 +247,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                       )
                     : ListView.builder(
                         shrinkWrap: true,
-                        padding: EdgeInsets.fromLTRB(
+                        padding: const EdgeInsets.fromLTRB(
                           AppSpacing.lg,
                           0,
                           AppSpacing.lg,
@@ -296,9 +296,9 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
     final name = t['name']?.toString() ?? 'Etiqueta';
     final count = _templateUsageCount(t);
     return Card(
-      margin: EdgeInsets.only(bottom: AppSpacing.sm),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Padding(
-        padding: EdgeInsets.all(AppSpacing.sm),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Row(
           children: [
             Container(
@@ -311,7 +311,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
               child: Icon(Icons.bookmark_rounded,
                   size: 16, color: AppColors.primary),
             ),
-            SizedBox(width: AppSpacing.sm),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 name,
@@ -324,8 +324,8 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
             ),
             if (count > 0)
               Container(
-                margin: EdgeInsets.only(right: 4),
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                margin: const EdgeInsets.only(right: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceVariant.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(999),
@@ -341,12 +341,12 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
               ),
             IconButton(
               onPressed: () => _renameTemplate(t),
-              icon: Icon(Icons.edit_outlined, size: 18),
+              icon: const Icon(Icons.edit_outlined, size: 18),
               color: AppColors.textSecondary,
             ),
             IconButton(
               onPressed: () => _confirmDeleteTemplate(t),
-              icon: Icon(Icons.delete_outline_rounded, size: 18),
+              icon: const Icon(Icons.delete_outline_rounded, size: 18),
               color: AppColors.error,
             ),
           ],
@@ -361,7 +361,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
     final name = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Renombrar etiqueta'),
+        title: const Text('Renombrar etiqueta'),
         content: TextField(
           controller: controller,
           decoration: InputDecoration(
@@ -382,11 +382,11 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
+            child: const Text('Cancelar'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text),
-            child: Text('Guardar'),
+            child: const Text('Guardar'),
           ),
         ],
       ),
@@ -417,16 +417,16 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Eliminar etiqueta'),
+        title: const Text('Eliminar etiqueta'),
         content: Text('¿Eliminar "$name"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancelar'),
+            child: const Text('Cancelar'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Eliminar'),
+            child: const Text('Eliminar'),
           ),
         ],
       ),
@@ -479,7 +479,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(widget.existing == null ? 'Nuevo horario' : 'Editar horario'),
-          SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             'Define rangos y días para bloquear',
             style: TextStyle(
@@ -505,7 +505,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                   ],
                 ),
               ),
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               _sectionCard(
                 title: 'Días',
                 child: Column(
@@ -524,9 +524,9 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                         _dayToggle('D', 1),
                       ],
                     ),
-                    SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.sm),
                     _inlineLabel('Etiquetas'),
-                    SizedBox(height: AppSpacing.xs),
+                    const SizedBox(height: AppSpacing.xs),
                     TextField(
                       onChanged: (value) =>
                           setState(() => _templateFilter = value),
@@ -536,11 +536,11 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                         filled: true,
                         fillColor:
                             AppColors.surfaceVariant.withValues(alpha: 0.4),
-                        contentPadding: EdgeInsets.symmetric(
+                        contentPadding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.sm,
                           vertical: AppSpacing.xs,
                         ),
-                        prefixIcon: Icon(Icons.search_rounded, size: 18),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 18),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadius.md),
                           borderSide: BorderSide(
@@ -555,18 +555,18 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                         ),
                       ),
                     ),
-                    SizedBox(height: AppSpacing.xs),
+                    const SizedBox(height: AppSpacing.xs),
                     if (_loadingTemplates)
-                      LinearProgressIndicator(minHeight: 2)
+                      const LinearProgressIndicator(minHeight: 2)
                     else if (_filteredTemplates.isNotEmpty)
                       DropdownButtonFormField<String>(
-                        value: _selectedTemplateId,
+                        initialValue: _selectedTemplateId,
                         decoration: InputDecoration(
                           isDense: true,
                           filled: true,
                           fillColor:
                               AppColors.surfaceVariant.withValues(alpha: 0.4),
-                          contentPadding: EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.sm,
                             vertical: AppSpacing.xs,
                           ),
@@ -583,7 +583,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                             ),
                           ),
                         ),
-                        hint: Text('Usar etiqueta'),
+                        hint: const Text('Usar etiqueta'),
                         items: _filteredTemplates
                             .map(
                               (t) => DropdownMenuItem<String>(
@@ -601,7 +601,8 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                       ),
                     if (!_loadingTemplates && _filteredTemplates.isEmpty)
                       Padding(
-                        padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                        padding:
+                            const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                         child: Text(
                           'No hay etiquetas para el filtro actual',
                           style: TextStyle(
@@ -613,17 +614,17 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                   ],
                 ),
               ),
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
                   onPressed: _saveTemplate,
-                  icon: Icon(Icons.bookmark_add_outlined, size: 16),
-                  label: Text('Guardar como etiqueta'),
+                  icon: const Icon(Icons.bookmark_add_outlined, size: 16),
+                  label: const Text('Guardar como etiqueta'),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.primary,
-                    textStyle:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    textStyle: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -632,23 +633,23 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                 child: TextButton.icon(
                   onPressed:
                       _templates.isEmpty ? null : () => _manageTemplates(),
-                  icon: Icon(Icons.bookmarks_outlined, size: 16),
-                  label: Text('Gestionar etiquetas'),
+                  icon: const Icon(Icons.bookmarks_outlined, size: 16),
+                  label: const Text('Gestionar etiquetas'),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.textSecondary,
-                    textStyle:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    textStyle: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
-              SizedBox(height: AppSpacing.xs),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 'Si la hora final es menor, el bloqueo cruza medianoche.',
                 style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
               ),
               if (!_valid)
                 Padding(
-                  padding: EdgeInsets.only(top: AppSpacing.xs),
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
                   child: Text(
                     'Selecciona al menos un día',
                     style: TextStyle(
@@ -664,7 +665,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('Cancelar'),
+          child: const Text('Cancelar'),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
@@ -677,7 +678,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                     ScheduleDraft(_start, _end, _days.toList()),
                   )
               : null,
-          child: Text('Guardar'),
+          child: const Text('Guardar'),
         ),
       ],
     );
@@ -688,7 +689,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 240;
         return Container(
-          padding: EdgeInsets.all(4),
+          padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: AppColors.surfaceVariant.withValues(alpha: 0.35),
             borderRadius: BorderRadius.circular(999),
@@ -702,7 +703,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                       onTap: () => _pickTime(true),
                       selected: true,
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     _segment(
                       label: 'Fin',
                       time: _end,
@@ -721,7 +722,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                         selected: true,
                       ),
                     ),
-                    SizedBox(width: 4),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: _segment(
                         label: 'Fin',
@@ -740,7 +741,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
   Widget _sectionCard({required String title, required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.surfaceVariant.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -757,7 +758,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
               color: AppColors.textSecondary,
             ),
           ),
-          SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.xs),
           child,
         ],
       ),
@@ -784,7 +785,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
       borderRadius: BorderRadius.circular(999),
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: selected
               ? AppColors.surface.withValues(alpha: 0.9)
@@ -801,7 +802,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                 color: AppColors.textSecondary,
               ),
             ),
-            SizedBox(height: 2),
+            const SizedBox(height: 2),
             Text(
               formatTimeOfDay(time),
               style: TextStyle(
@@ -830,7 +831,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
         });
       },
       child: AnimatedContainer(
-        duration: Duration(milliseconds: 150),
+        duration: const Duration(milliseconds: 150),
         width: 36,
         height: 36,
         alignment: Alignment.center,
@@ -848,7 +849,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
                   BoxShadow(
                     color: AppColors.primary.withValues(alpha: 0.25),
                     blurRadius: 6,
-                    offset: Offset(0, 2),
+                    offset: const Offset(0, 2),
                   ),
                 ]
               : [],
