@@ -40,7 +40,9 @@ class _AppListScreenState extends State<AppListScreen>
   final Set<String> _scheduleDirty = {};
   final Set<String> _dateBlockDirty = {};
   final Set<String> _iconLoading = {};
+  final Map<String, Uint8List> _iconCache = {};
   int _iconPrefetchCount = 0;
+  String _sortMode = 'smart';
   String _expiredAction = 'none';
   bool _expiredPrefsLoaded = false;
 
@@ -314,6 +316,11 @@ class _AppListScreenState extends State<AppListScreen>
           r['isExpired'] = expired;
         }
 
+        final cachedIcon = _iconCache[pkg];
+        if (cachedIcon != null && cachedIcon.isNotEmpty) {
+          r['iconBytes'] = cachedIcon;
+        }
+
         try {
           final usage = await NativeService.getUsageToday(pkg);
           final usedMinutes = usage['usedMinutes'] ?? 0;
@@ -371,6 +378,7 @@ class _AppListScreenState extends State<AppListScreen>
           try {
             final bytes = await NativeService.getAppIcon(pkg);
             if (bytes != null && bytes.isNotEmpty) {
+              _iconCache[pkg] = bytes;
               r['iconBytes'] = bytes;
               changed = true;
             }
@@ -1016,33 +1024,351 @@ class _AppListScreenState extends State<AppListScreen>
   }
 
   Widget _buildSectionHeader() {
-    return Row(
+    final sortLabel = _sortLabel(_sortMode);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Text(
-            'Aplicaciones restringidas',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Aplicaciones restringidas',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            SizedBox(width: AppSpacing.xs),
+            TextButton.icon(
+              onPressed: _openAddFlow,
+              icon: Icon(Icons.add_rounded, size: 16),
+              label: Text('Agregar'),
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                foregroundColor: AppColors.primary,
+                textStyle: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: AppSpacing.xs),
+        Container(
+          padding: EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariant.withValues(alpha: 0.38),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(
+              color: AppColors.surfaceVariant.withValues(alpha: 0.72),
             ),
           ),
-        ),
-        TextButton.icon(
-          onPressed: _openAddFlow,
-          icon: Icon(Icons.add_rounded, size: 16),
-          label: Text('Agregar'),
-          style: TextButton.styleFrom(
-            padding: EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-            foregroundColor: AppColors.primary,
-            textStyle: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-            ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.sort_rounded,
+                      size: 16, color: AppColors.textSecondary),
+                  SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      'Orden actual: $sortLabel',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _openSortOptions,
+                    icon: Icon(Icons.tune_rounded, size: 16),
+                    label: Text('Cambiar'),
+                    style: OutlinedButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      foregroundColor: AppColors.primary,
+                      side: BorderSide(
+                        color: AppColors.primary.withValues(alpha: 0.45),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: AppSpacing.xs),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _quickSortChip('smart'),
+                    SizedBox(width: AppSpacing.xs),
+                    _quickSortChip('ending_soon'),
+                    SizedBox(width: AppSpacing.xs),
+                    _quickSortChip('blocked_first'),
+                    SizedBox(width: AppSpacing.xs),
+                    _quickSortChip('usage_high'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _quickSortChip(String mode) {
+    final selected = _sortMode == mode;
+    return ChoiceChip(
+      label: Text(_sortLabel(mode)),
+      selected: selected,
+      onSelected: (_) => _setSortMode(mode),
+      selectedColor: AppColors.primary.withValues(alpha: 0.16),
+      backgroundColor: AppColors.surfaceVariant.withValues(alpha: 0.36),
+      labelStyle: TextStyle(
+        color: selected ? AppColors.primary : AppColors.textSecondary,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+      side: BorderSide(
+        color: selected
+            ? AppColors.primary.withValues(alpha: 0.45)
+            : AppColors.surfaceVariant.withValues(alpha: 0.7),
+      ),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  void _setSortMode(String mode) {
+    if (_sortMode == mode) return;
+    setState(() {
+      _sortMode = mode;
+      _sortRestrictions(_restrictions);
+    });
+  }
+
+  String _sortLabel(String mode) {
+    switch (mode) {
+      case 'name_asc':
+        return 'Nombre A-Z';
+      case 'name_desc':
+        return 'Nombre Z-A';
+      case 'usage_high':
+        return 'Uso alto';
+      case 'usage_low':
+        return 'Uso bajo';
+      case 'active_first':
+        return 'Activas primero';
+      case 'blocked_first':
+        return 'Bloqueadas primero';
+      case 'ending_soon':
+        return 'Por terminar';
+      case 'starting_soon':
+        return 'Por empezar';
+      case 'dates_first':
+        return 'Fechas primero';
+      case 'schedules_first':
+        return 'Horarios primero';
+      default:
+        return 'Inteligente';
+    }
+  }
+
+  String _sortDescription(String mode) {
+    switch (mode) {
+      case 'name_asc':
+        return 'Orden alfabético ascendente';
+      case 'name_desc':
+        return 'Orden alfabético descendente';
+      case 'usage_high':
+        return 'Apps con mayor consumo al inicio';
+      case 'usage_low':
+        return 'Apps con menor consumo al inicio';
+      case 'active_first':
+        return 'Prioriza las activas ahora';
+      case 'blocked_first':
+        return 'Muestra bloqueadas al principio';
+      case 'ending_soon':
+        return 'Prioriza cuotas próximas a agotarse';
+      case 'starting_soon':
+        return 'Prioriza bloqueos directos pendientes';
+      case 'dates_first':
+        return 'Prioriza restricciones por fecha';
+      case 'schedules_first':
+        return 'Prioriza restricciones por horario';
+      default:
+        return 'Balancea estado, riesgo y tipo';
+    }
+  }
+
+  IconData _sortIcon(String mode) {
+    switch (mode) {
+      case 'name_asc':
+      case 'name_desc':
+        return Icons.sort_by_alpha_rounded;
+      case 'usage_high':
+      case 'usage_low':
+        return Icons.hourglass_top_rounded;
+      case 'active_first':
+        return Icons.play_circle_fill_rounded;
+      case 'blocked_first':
+        return Icons.block_rounded;
+      case 'ending_soon':
+        return Icons.timer_rounded;
+      case 'starting_soon':
+        return Icons.schedule_rounded;
+      case 'dates_first':
+        return Icons.event_rounded;
+      case 'schedules_first':
+        return Icons.access_time_filled_rounded;
+      default:
+        return Icons.auto_awesome_rounded;
+    }
+  }
+
+  Future<void> _openSortOptions() async {
+    const modes = [
+      'smart',
+      'active_first',
+      'blocked_first',
+      'ending_soon',
+      'starting_soon',
+      'usage_high',
+      'usage_low',
+      'dates_first',
+      'schedules_first',
+      'name_asc',
+      'name_desc',
+    ];
+    await _showBottomSheet(
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+          border: Border(
+            top: BorderSide(
+                color: AppColors.surfaceVariant.withValues(alpha: .8)),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(height: AppSpacing.sm),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                    AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Ordenar lista',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.fromLTRB(
+                      AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
+                  itemCount: modes.length,
+                  separatorBuilder: (_, __) => SizedBox(height: AppSpacing.xs),
+                  itemBuilder: (_, i) {
+                    final mode = modes[i];
+                    final selected = _sortMode == mode;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      onTap: () {
+                        _setSortMode(mode);
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(AppSpacing.sm),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                          color: selected
+                              ? AppColors.primary.withValues(alpha: 0.12)
+                              : AppColors.surfaceVariant
+                                  .withValues(alpha: 0.25),
+                          border: Border.all(
+                            color: selected
+                                ? AppColors.primary.withValues(alpha: 0.45)
+                                : AppColors.surfaceVariant
+                                    .withValues(alpha: 0.65),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _sortIcon(mode),
+                              size: 18,
+                              color: selected
+                                  ? AppColors.primary
+                                  : AppColors.textSecondary,
+                            ),
+                            SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _sortLabel(mode),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: selected
+                                          ? AppColors.primary
+                                          : AppColors.textPrimary,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    _sortDescription(mode),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.textTertiary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (selected)
+                              Icon(Icons.check_circle_rounded,
+                                  size: 18, color: AppColors.primary),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1726,7 +2052,9 @@ class _AppListScreenState extends State<AppListScreen>
   }
 
   Widget _buildAppIcon(Map<String, dynamic> r) {
-    final bytes = r['iconBytes'];
+    final pkg = r['packageName'] as String?;
+    final cached = pkg != null ? _iconCache[pkg] : null;
+    final bytes = cached ?? r['iconBytes'];
     if (bytes is Uint8List && bytes.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
@@ -1735,16 +2063,17 @@ class _AppListScreenState extends State<AppListScreen>
           width: 40,
           height: 40,
           fit: BoxFit.cover,
+          gaplessPlayback: true,
         ),
       );
     }
-    final pkg = r['packageName'] as String?;
     if (pkg != null && !_iconLoading.contains(pkg)) {
       _iconLoading.add(pkg);
       NativeService.getAppIcon(pkg).then((icon) {
         if (!mounted) return;
         if (icon != null && icon.isNotEmpty) {
           setState(() {
+            _iconCache[pkg] = icon;
             r['iconBytes'] = icon;
           });
         }
@@ -1826,17 +2155,22 @@ class _AppListScreenState extends State<AppListScreen>
   }
 
   void _sortRestrictions(List<Map<String, dynamic>> list) {
-    int statusRank(Map<String, dynamic> r) {
-      final isBlocked = (r['isBlocked'] as bool? ?? false) || _isExpired(r);
-      final isEnabled = r['isEnabled'] as bool? ?? true;
+    bool isBlocked(Map<String, dynamic> r) =>
+        (r['isBlocked'] as bool? ?? false) || _isExpired(r);
+
+    bool isActive(Map<String, dynamic> r) {
+      final enabled = r['isEnabled'] as bool? ?? true;
       final quota = _quotaMinutesFor(r);
       final scheduleActive = (r['scheduleActiveCount'] as int?) ?? 0;
       final dateActive = (r['dateBlockActiveCount'] as int?) ?? 0;
-      final hasActiveDirect = scheduleActive > 0 || dateActive > 0;
-      if (!isBlocked && isEnabled && (quota > 0 || hasActiveDirect)) {
-        return 0; // activas
-      }
-      if (isBlocked) return 1; // bloqueadas
+      return enabled &&
+          !isBlocked(r) &&
+          (quota > 0 || scheduleActive > 0 || dateActive > 0);
+    }
+
+    int statusRank(Map<String, dynamic> r) {
+      if (isActive(r)) return 0; // activas
+      if (isBlocked(r)) return 1; // bloqueadas
       return 2;
     }
 
@@ -1863,6 +2197,15 @@ class _AppListScreenState extends State<AppListScreen>
       return 1;
     }
 
+    int directTypeRank(Map<String, dynamic> r) {
+      final scheduleCount = (r['scheduleCount'] as int?) ?? 0;
+      final dateCount = (r['dateBlockCount'] as int?) ?? 0;
+      if (dateCount > 0 && scheduleCount == 0) return 0;
+      if (scheduleCount > 0 && dateCount == 0) return 1;
+      if (scheduleCount > 0 && dateCount > 0) return 2;
+      return 3;
+    }
+
     int typeRank(Map<String, dynamic> r) {
       final scheduleCount = (r['scheduleCount'] as int?) ?? 0;
       final dateCount = (r['dateBlockCount'] as int?) ?? 0;
@@ -1874,6 +2217,69 @@ class _AppListScreenState extends State<AppListScreen>
     }
 
     list.sort((a, b) {
+      if (_sortMode == 'name_asc') {
+        final nameA = (a['appName'] ?? '').toString().toLowerCase();
+        final nameB = (b['appName'] ?? '').toString().toLowerCase();
+        return nameA.compareTo(nameB);
+      }
+      if (_sortMode == 'name_desc') {
+        final nameA = (a['appName'] ?? '').toString().toLowerCase();
+        final nameB = (b['appName'] ?? '').toString().toLowerCase();
+        return nameB.compareTo(nameA);
+      }
+      if (_sortMode == 'usage_high') {
+        final ua = _progressFor(a);
+        final ub = _progressFor(b);
+        if (ua != ub) return ub.compareTo(ua);
+      }
+      if (_sortMode == 'usage_low') {
+        final ua = _progressFor(a);
+        final ub = _progressFor(b);
+        if (ua != ub) return ua.compareTo(ub);
+      }
+      if (_sortMode == 'blocked_first') {
+        final ba = isBlocked(a);
+        final bb = isBlocked(b);
+        if (ba != bb) return ba ? -1 : 1;
+      }
+      if (_sortMode == 'active_first') {
+        final aa = isActive(a);
+        final ab = isActive(b);
+        if (aa != ab) return aa ? -1 : 1;
+      }
+      if (_sortMode == 'ending_soon') {
+        final ea = endingSoonRank(a);
+        final eb = endingSoonRank(b);
+        if (ea != eb) return ea.compareTo(eb);
+      }
+      if (_sortMode == 'starting_soon') {
+        final pa = startingSoonRank(a);
+        final pb = startingSoonRank(b);
+        if (pa != pb) return pa.compareTo(pb);
+      }
+      if (_sortMode == 'dates_first') {
+        final ta = directTypeRank(a);
+        final tb = directTypeRank(b);
+        if (ta != tb) return ta.compareTo(tb);
+      }
+      if (_sortMode == 'schedules_first') {
+        final ta = directTypeRank(a);
+        final tb = directTypeRank(b);
+        if (ta != tb) {
+          final sa = ta == 1
+              ? 0
+              : ta == 0
+                  ? 1
+                  : ta;
+          final sb = tb == 1
+              ? 0
+              : tb == 0
+                  ? 1
+                  : tb;
+          if (sa != sb) return sa.compareTo(sb);
+        }
+      }
+
       final sa = statusRank(a);
       final sb = statusRank(b);
       if (sa != sb) return sa.compareTo(sb);
