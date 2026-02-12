@@ -8,12 +8,16 @@ class RestrictionEditScreen extends StatelessWidget {
     this.packageName,
     this.initial,
     this.isCreate = false,
+    this.initialSection = 'limit',
+    this.initialDirectTab = 'schedule',
   });
 
   final String appName;
   final String? packageName;
   final Map<String, dynamic>? initial;
   final bool isCreate;
+  final String initialSection;
+  final String initialDirectTab;
 
   @override
   Widget build(BuildContext context) {
@@ -24,8 +28,9 @@ class RestrictionEditScreen extends StatelessWidget {
         fullScreen: true,
         useEditLayoutForCreate: isCreate,
         packageName: packageName,
+        initialSection: initialSection,
+        initialDirectTab: initialDirectTab,
       ),
     );
   }
 }
-

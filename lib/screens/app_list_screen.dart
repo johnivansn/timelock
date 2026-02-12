@@ -15,8 +15,6 @@ import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
 import 'package:timelock/utils/app_motion.dart';
 import 'package:timelock/screens/app_picker_screen.dart';
-import 'package:timelock/widgets/schedule_editor_dialog.dart';
-import 'package:timelock/widgets/date_block_editor_dialog.dart';
 
 class AppListScreen extends StatefulWidget {
   AppListScreen({super.key, this.initialRestrictions});
@@ -592,13 +590,20 @@ class _AppListScreenState extends State<AppListScreen>
         await _requireAdmin('Ingresa tu PIN para modificar horarios');
     if (!allowed || !mounted) return;
 
-    await _showBottomSheet(
-      child: ScheduleEditorDialog(
-        appName: r['appName'],
-        packageName: r['packageName'],
+    await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RestrictionEditScreen(
+          appName: r['appName'],
+          packageName: r['packageName'],
+          initial: r,
+          initialSection: 'direct',
+          initialDirectTab: 'schedule',
+        ),
       ),
     );
     _scheduleDirty.add(r['packageName'].toString());
+    _dateBlockDirty.add(r['packageName'].toString());
     _refreshWidgetsSoon();
     _reloadRestrictionsSoon();
   }
@@ -607,12 +612,19 @@ class _AppListScreenState extends State<AppListScreen>
     final allowed = await _requireAdmin('Ingresa tu PIN para modificar fechas');
     if (!allowed || !mounted) return;
 
-    await _showBottomSheet(
-      child: DateBlockEditorDialog(
-        appName: r['appName'],
-        packageName: r['packageName'],
+    await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RestrictionEditScreen(
+          appName: r['appName'],
+          packageName: r['packageName'],
+          initial: r,
+          initialSection: 'direct',
+          initialDirectTab: 'date',
+        ),
       ),
     );
+    _scheduleDirty.add(r['packageName'].toString());
     _dateBlockDirty.add(r['packageName'].toString());
     _refreshWidgetsSoon();
     _reloadRestrictionsSoon();
@@ -621,66 +633,27 @@ class _AppListScreenState extends State<AppListScreen>
   Future<void> _openDirectBlocksSelector(Map<String, dynamic> r) async {
     final scheduleCount = (r['scheduleCount'] as int?) ?? 0;
     final dateCount = (r['dateBlockCount'] as int?) ?? 0;
-    if (scheduleCount > 0 && dateCount == 0) {
-      return _openScheduleEditor(r);
-    }
-    if (dateCount > 0 && scheduleCount == 0) {
-      return _openDateBlockEditor(r);
-    }
-    await _showBottomSheet(
-      child: SafeArea(
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-          ),
-          child: Padding(
-            padding: EdgeInsets.all(AppSpacing.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Bloqueos directos',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                SizedBox(height: AppSpacing.sm),
-                SizedBox(
-                  width: double.infinity,
-                  height: 40,
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _openScheduleEditor(r);
-                    },
-                    icon: Icon(Icons.schedule_rounded, size: 16),
-                    label: Text('Horarios'),
-                  ),
-                ),
-                SizedBox(height: AppSpacing.sm),
-                SizedBox(
-                  width: double.infinity,
-                  height: 40,
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _openDateBlockEditor(r);
-                    },
-                    icon: Icon(Icons.event_busy_rounded, size: 16),
-                    label: Text('Fechas'),
-                  ),
-                ),
-              ],
-            ),
-          ),
+    final allowed =
+        await _requireAdmin('Ingresa tu PIN para modificar bloqueos directos');
+    if (!allowed || !mounted) return;
+    final initialDirectTab =
+        (dateCount > scheduleCount && dateCount > 0) ? 'date' : 'schedule';
+    await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => RestrictionEditScreen(
+          appName: r['appName'],
+          packageName: r['packageName'],
+          initial: r,
+          initialSection: 'direct',
+          initialDirectTab: initialDirectTab,
         ),
       ),
     );
+    _scheduleDirty.add(r['packageName'].toString());
+    _dateBlockDirty.add(r['packageName'].toString());
+    _refreshWidgetsSoon();
+    _reloadRestrictionsSoon();
   }
 
   Future<void> _showBottomSheet({required Widget child}) {
