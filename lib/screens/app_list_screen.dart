@@ -553,28 +553,6 @@ class _AppListScreenState extends State<AppListScreen>
     return result == true;
   }
 
-  Future<void> _deleteRestriction(Map<String, dynamic> r) async {
-    final pkg = r['packageName']?.toString() ?? '';
-    if (pkg.isEmpty) return;
-    final previous = List<Map<String, dynamic>>.from(_restrictions);
-    if (mounted) {
-      setState(() {
-        _restrictions.removeWhere((x) => x['packageName'] == pkg);
-      });
-    }
-    _refreshWidgetsSoon();
-    try {
-      await NativeService.deleteRestriction(pkg);
-      _reloadRestrictionsSoon();
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _restrictions = previous;
-        });
-      }
-    }
-  }
-
   void _openAddFlow() async {
     final existing =
         _restrictions.map((r) => r['packageName'] as String).toSet();
@@ -623,28 +601,6 @@ class _AppListScreenState extends State<AppListScreen>
     _scheduleDirty.add(r['packageName'].toString());
     _refreshWidgetsSoon();
     _reloadRestrictionsSoon();
-  }
-
-  Future<void> _deleteDirectBlocks(Map<String, dynamic> r) async {
-    final pkg = r['packageName']?.toString() ?? '';
-    if (pkg.isEmpty) return;
-    final previous = List<Map<String, dynamic>>.from(_restrictions);
-    if (mounted) {
-      setState(() {
-        _restrictions.removeWhere((x) => x['packageName'] == pkg);
-      });
-    }
-    _refreshWidgetsSoon();
-    try {
-      await NativeService.deleteDirectBlocks(pkg);
-      _reloadRestrictionsSoon();
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _restrictions = previous;
-        });
-      }
-    }
   }
 
   Future<void> _openDateBlockEditor(Map<String, dynamic> r) async {
@@ -1748,178 +1704,147 @@ class _AppListScreenState extends State<AppListScreen>
             ? AppColors.warning
             : AppColors.success;
 
-    return Dismissible(
-      key: ValueKey(r['packageName']),
-      direction: DismissDirection.endToStart,
-      confirmDismiss: (_) => _requireAdmin(
-        directOnly
-            ? 'Ingresa tu PIN para eliminar estos bloqueos'
-            : 'Ingresa tu PIN para eliminar esta restricción',
-      ),
-      background: Container(
-        decoration: BoxDecoration(
-          color: AppColors.error,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        child: Align(
-          alignment: Alignment.centerRight,
-          child: Padding(
-            padding: EdgeInsets.only(right: AppSpacing.lg),
-            child: Icon(Icons.delete_outline_rounded,
-                color: Colors.white, size: 28),
-          ),
-        ),
-      ),
-      onDismissed: (_) {
-        if (directOnly) {
-          _deleteDirectBlocks(r);
-        } else {
-          _deleteRestriction(r);
-        }
-      },
-      child: Card(
-        child: InkWell(
-          onTap: () {
-            if (directOnly) {
-              _openDirectBlocksSelector(r);
-            } else {
-              _openLimitEditor(r);
-            }
-          },
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          child: Container(
-            padding: EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              gradient: LinearGradient(
-                colors: [
-                  AppColors.surface,
-                  AppColors.surfaceVariant,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              border: Border.all(
-                color: blocked
-                    ? AppColors.error
-                    : AppColors.surfaceVariant.withValues(alpha: 0.8),
-                width: blocked ? 1.5 : 1,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _buildAppIcon(r),
-                    SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        r['appName'],
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (blocked || expired)
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        alignment: WrapAlignment.end,
-                        children: [
-                          if (blocked)
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: AppSpacing.sm,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.error.withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                'BLOQUEADA',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.error,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                          if (expired)
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: AppSpacing.sm,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color:
-                                    AppColors.warning.withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                'VENCIDA',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.warning,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                  ],
-                ),
-                if (!directOnly) ...[
-                  SizedBox(height: AppSpacing.sm),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      minHeight: 6,
-                      color: progressColor,
-                      backgroundColor: AppColors.surfaceVariant,
-                    ),
-                  ),
-                  SizedBox(height: AppSpacing.xs),
-                  _usageSummaryTextRich(
-                    usedMinutes,
-                    usedMillis,
-                    remainingMinutes,
-                    remainingMillis,
-                    quota,
-                    limitType,
-                    (r['weeklyResetDay'] as int?) ?? 2,
-                    (r['weeklyResetHour'] as int?) ?? 0,
-                    (r['weeklyResetMinute'] as int?) ?? 0,
-                    progressColor,
-                  ),
-                  SizedBox(height: AppSpacing.xs),
-                  Divider(height: 1),
-                  SizedBox(height: AppSpacing.xs),
-                  _directBlocksRow(r),
-                ] else ...[
-                  SizedBox(height: AppSpacing.sm),
-                  Text(
-                    'Solo bloqueo por horario/fecha',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
-                  SizedBox(height: AppSpacing.xs),
-                  Divider(height: 1),
-                  SizedBox(height: AppSpacing.xs),
-                  _directBlocksRow(r),
-                ],
+    return Card(
+      child: InkWell(
+        onTap: () {
+          if (directOnly) {
+            _openDirectBlocksSelector(r);
+          } else {
+            _openLimitEditor(r);
+          }
+        },
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Container(
+          padding: EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            gradient: LinearGradient(
+              colors: [
+                AppColors.surface,
+                AppColors.surfaceVariant,
               ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            border: Border.all(
+              color: blocked
+                  ? AppColors.error
+                  : AppColors.surfaceVariant.withValues(alpha: 0.8),
+              width: blocked ? 1.5 : 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _buildAppIcon(r),
+                  SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      r['appName'],
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (blocked || expired)
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      alignment: WrapAlignment.end,
+                      children: [
+                        if (blocked)
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'BLOQUEADA',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.error,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        if (expired)
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: AppSpacing.sm,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'VENCIDA',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.warning,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                ],
+              ),
+              if (!directOnly) ...[
+                SizedBox(height: AppSpacing.sm),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    color: progressColor,
+                    backgroundColor: AppColors.surfaceVariant,
+                  ),
+                ),
+                SizedBox(height: AppSpacing.xs),
+                _usageSummaryTextRich(
+                  usedMinutes,
+                  usedMillis,
+                  remainingMinutes,
+                  remainingMillis,
+                  quota,
+                  limitType,
+                  (r['weeklyResetDay'] as int?) ?? 2,
+                  (r['weeklyResetHour'] as int?) ?? 0,
+                  (r['weeklyResetMinute'] as int?) ?? 0,
+                  progressColor,
+                ),
+                SizedBox(height: AppSpacing.xs),
+                Divider(height: 1),
+                SizedBox(height: AppSpacing.xs),
+                _directBlocksRow(r),
+              ] else ...[
+                SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Solo bloqueo por horario/fecha',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textTertiary,
+                  ),
+                ),
+                SizedBox(height: AppSpacing.xs),
+                Divider(height: 1),
+                SizedBox(height: AppSpacing.xs),
+                _directBlocksRow(r),
+              ],
+            ],
           ),
         ),
       ),
