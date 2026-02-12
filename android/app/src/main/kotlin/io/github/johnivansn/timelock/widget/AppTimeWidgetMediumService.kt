@@ -2,6 +2,7 @@ package io.github.johnivansn.timelock.widget
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import io.github.johnivansn.timelock.R
@@ -24,6 +25,7 @@ private class AppTimeWidgetMediumFactory(
   private val database = AppDatabase.getDatabase(context)
   private val dateFormat = AppUtils.newDateFormat()
   private val items = mutableListOf<Entry>()
+  private val iconCache = mutableMapOf<String, Bitmap?>()
 
   override fun onCreate() {}
 
@@ -75,13 +77,28 @@ private class AppTimeWidgetMediumFactory(
               all.sortedWith(
                       compareBy<Entry> { if (it.expired) 1 else 0 }
                               .thenBy { if (it.remaining > 0) 0 else 1 }
+                              .thenBy { it.appName.lowercase() }
               )
       )
+
+      val wantedPackages = items.map { it.packageName }.toSet()
+      iconCache.keys.retainAll(wantedPackages)
+      for (pkg in wantedPackages) {
+        if (iconCache.containsKey(pkg)) continue
+        iconCache[pkg] =
+                try {
+                  val drawable = context.packageManager.getApplicationIcon(pkg)
+                  WidgetUtils.drawableToBitmap(drawable)
+                } catch (_: Exception) {
+                  null
+                }
+      }
     }
   }
 
   override fun onDestroy() {
     items.clear()
+    iconCache.clear()
   }
 
   override fun getCount(): Int = items.size
@@ -99,13 +116,10 @@ private class AppTimeWidgetMediumFactory(
             }
     views.setTextViewText(R.id.app_time, timeText)
 
-    try {
-      val drawable = context.packageManager.getApplicationIcon(item.packageName)
-      val bitmap = WidgetUtils.drawableToBitmap(drawable)
-      if (bitmap != null) {
-        views.setImageViewBitmap(R.id.app_icon, bitmap)
-      }
-    } catch (_: Exception) {}
+    val bitmap = iconCache[item.packageName]
+    if (bitmap != null) {
+      views.setImageViewBitmap(R.id.app_icon, bitmap)
+    }
 
     if (item.expired || item.quota <= 0) {
       views.setViewVisibility(R.id.app_progress, android.view.View.GONE)
@@ -127,7 +141,10 @@ private class AppTimeWidgetMediumFactory(
 
   override fun getViewTypeCount(): Int = 1
 
-  override fun getItemId(position: Int): Long = position.toLong()
+  override fun getItemId(position: Int): Long {
+    val pkg = items.getOrNull(position)?.packageName ?: return position.toLong()
+    return pkg.hashCode().toLong()
+  }
 
   override fun hasStableIds(): Boolean = true
 

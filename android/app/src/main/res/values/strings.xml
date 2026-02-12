@@ -2,7 +2,10 @@
 <resources>
   <string name="app_name">TimeLock</string>
   <string name="accessibility_service_description">Permite bloquear automáticamente aplicaciones cuando se alcanza el tiempo diario configurado. Este servicio no recopila información personal.</string>
-  <string name="widget_small_description">Resumen compacto de apps monitoreadas</string>
-  <string name="widget_medium_description">Vista detallada de las 3 apps principales</string>
-  <string name="widget_direct_description">Apps con bloqueos por horario/fecha</string>
+  <string name="widget_small_label">TimeLock - Resumen</string>
+  <string name="widget_medium_label">TimeLock - Lista de tiempo</string>
+  <string name="widget_direct_label">TimeLock - Bloqueos directos</string>
+  <string name="widget_small_description">Resumen compacto: apps monitoreadas, tiempo restante y bloqueadas.</string>
+  <string name="widget_medium_description">Lista de aplicaciones con tiempo restante y barra de progreso.</string>
+  <string name="widget_direct_description">Aplicaciones con bloqueos por horario o fecha (activas y vencidas).</string>
 </resources>

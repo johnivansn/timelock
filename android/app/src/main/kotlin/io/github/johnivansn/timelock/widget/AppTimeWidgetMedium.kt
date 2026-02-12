@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.widget.RemoteViews
 import io.github.johnivansn.timelock.R
 
@@ -34,10 +35,11 @@ class AppTimeWidgetMedium : AppWidgetProvider() {
   ) {
     val views = RemoteViews(context.packageName, R.layout.widget_medium)
     views.setTextViewText(R.id.widget_title, "Tiempo disponible")
-    views.setRemoteAdapter(
-            R.id.app_list,
-            Intent(context, AppTimeWidgetMediumService::class.java)
-    )
+    val svcIntent = Intent(context, AppTimeWidgetMediumService::class.java).apply {
+      putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
+      data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))
+    }
+    views.setRemoteAdapter(R.id.app_list, svcIntent)
     views.setEmptyView(R.id.app_list, R.id.widget_empty)
     views.setOnClickPendingIntent(
             R.id.widget_container,
@@ -45,12 +47,10 @@ class AppTimeWidgetMedium : AppWidgetProvider() {
     )
 
     appWidgetManager.updateAppWidget(appWidgetId, views)
-    appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetId, R.id.app_list)
   }
 
   companion object {
     fun updateWidget(context: Context) {
-      WidgetUtils.updateWidget(context, AppTimeWidgetMedium::class.java)
       val manager = AppWidgetManager.getInstance(context)
       val ids =
               manager.getAppWidgetIds(

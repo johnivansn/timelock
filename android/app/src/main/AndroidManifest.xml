@@ -51,7 +51,7 @@
     <receiver
         android:name=".widget.AppTimeWidget"
         android:exported="true"
-        android:label="@string/app_name"
+        android:label="@string/widget_small_label"
         android:icon="@mipmap/ic_launcher">
       <intent-filter>
         <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -62,7 +62,7 @@
     <receiver
         android:name=".widget.AppTimeWidgetMedium"
         android:exported="true"
-        android:label="@string/app_name"
+        android:label="@string/widget_medium_label"
         android:icon="@mipmap/ic_launcher">
       <intent-filter>
         <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -78,7 +78,7 @@
     <receiver
         android:name=".widget.AppDirectBlockWidget"
         android:exported="true"
-        android:label="@string/app_name"
+        android:label="@string/widget_direct_label"
         android:icon="@mipmap/ic_launcher">
       <intent-filter>
         <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />

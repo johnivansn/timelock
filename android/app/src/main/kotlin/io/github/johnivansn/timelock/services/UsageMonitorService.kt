@@ -37,6 +37,7 @@ class UsageMonitorService : Service() {
   private lateinit var database: AppDatabase
   private lateinit var batteryModeManager: BatteryModeManager
   private lateinit var dataCleanupManager: DataCleanupManager
+  private var lastWidgetRefreshMs: Long = 0L
   private val handler = Handler(Looper.getMainLooper())
   private val scope = CoroutineScope(Dispatchers.IO + Job())
   private var monitoredAppsCount = 0
@@ -223,7 +224,12 @@ class UsageMonitorService : Service() {
     Log.i("UsageMonitorService", "Daily reset scheduled for ${midnight.time}")
   }
 
-  private fun updateWidgets() {
+  private fun updateWidgets(force: Boolean = false) {
+    val now = System.currentTimeMillis()
+    if (!force && now - lastWidgetRefreshMs < 60_000L) {
+      return
+    }
+    lastWidgetRefreshMs = now
     AppTimeWidget.updateWidget(this)
     AppTimeWidgetMedium.updateWidget(this)
     AppDirectBlockWidget.updateWidget(this)
