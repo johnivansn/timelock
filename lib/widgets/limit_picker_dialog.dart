@@ -1353,13 +1353,20 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     required bool selected,
     required VoidCallback onTap,
   }) {
-    final controlTone =
-        Color.lerp(_modeTone, AppColors.background, 0.32) ?? _modeTone;
+    final controlTone = Color.alphaBlend(
+      _modeTone.withValues(alpha: 0.42),
+      AppColors.surfaceVariant,
+    );
+    final controlToneStrong = Color.alphaBlend(
+      _modeTone.withValues(alpha: 0.58),
+      AppColors.surfaceVariant,
+    );
     final bg = selected
         ? controlTone
         : AppColors.surfaceVariant.withValues(alpha: 0.7);
-    final fg =
-        selected ? AppColors.onColor(controlTone) : AppColors.textSecondary;
+    final fg = selected
+        ? AppColors.onColor(controlToneStrong)
+        : AppColors.textSecondary;
     return AnimatedContainer(
       duration: AppMotion.duration(Duration(milliseconds: 180)),
       curve: Curves.easeOutCubic,
@@ -1369,13 +1376,13 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: selected
-              ? controlTone.withValues(alpha: 0.9)
+              ? controlToneStrong.withValues(alpha: 0.95)
               : AppColors.surfaceVariant.withValues(alpha: 0.7),
         ),
         boxShadow: selected
             ? [
                 BoxShadow(
-                  color: controlTone.withValues(alpha: 0.3),
+                  color: controlToneStrong.withValues(alpha: 0.28),
                   blurRadius: 10,
                   offset: Offset(0, 4),
                 ),
