@@ -22,8 +22,8 @@ class DateBlockEditDialog extends StatefulWidget {
 class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
   DateTime? _start;
   DateTime? _end;
-  TimeOfDay _startTime = TimeOfDay(hour: 0, minute: 0);
-  TimeOfDay _endTime = TimeOfDay(hour: 23, minute: 59);
+  TimeOfDay _startTime = const TimeOfDay(hour: 0, minute: 0);
+  TimeOfDay _endTime = const TimeOfDay(hour: 23, minute: 59);
   late final TextEditingController _labelController;
   bool _loadingTemplates = false;
   List<Map<String, dynamic>> _templates = [];
@@ -82,25 +82,27 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
   Future<void> _pickRange() async {
     final now = DateTime.now();
     final initialStart = _start ?? now;
-    final initialEnd = _end ?? now.add(Duration(days: 1));
+    final initialEnd = _end ?? now.add(const Duration(days: 1));
 
     final start = await showDatePicker(
       context: context,
       initialDate: initialStart,
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 5),
-      locale: Locale('es', 'ES'),
+      locale: const Locale('es', 'ES'),
     );
     if (start == null) return;
+    if (!mounted) return;
 
     final end = await showDatePicker(
       context: context,
       initialDate: initialEnd.isBefore(start) ? start : initialEnd,
       firstDate: start,
       lastDate: DateTime(now.year + 5),
-      locale: Locale('es', 'ES'),
+      locale: const Locale('es', 'ES'),
     );
     if (end == null) return;
+    if (!mounted) return;
 
     setState(() {
       _start = start;
@@ -180,7 +182,7 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
     return showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Guardar etiqueta'),
+        title: const Text('Guardar etiqueta'),
         content: TextField(
           controller: controller,
           decoration: InputDecoration(
@@ -201,11 +203,11 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
+            child: const Text('Cancelar'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text),
-            child: Text('Guardar'),
+            child: const Text('Guardar'),
           ),
         ],
       ),
@@ -221,7 +223,7 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
           Text(widget.existing == null
               ? 'Nuevo bloqueo por fecha'
               : 'Editar bloqueo por fecha'),
-          SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             'Selecciona un rango de fechas',
             style: TextStyle(
@@ -244,9 +246,9 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
                 child: Column(
                   children: [
                     _rangeButton(),
-                    SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.sm),
                     _timeRow(),
-                    SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.sm),
                     TextField(
                       controller: _labelController,
                       decoration: InputDecoration(
@@ -255,7 +257,7 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
                         filled: true,
                         fillColor:
                             AppColors.surfaceVariant.withValues(alpha: 0.4),
-                        contentPadding: EdgeInsets.symmetric(
+                        contentPadding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.sm,
                           vertical: AppSpacing.xs,
                         ),
@@ -273,18 +275,18 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
                         ),
                       ),
                     ),
-                    SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.sm),
                     if (_loadingTemplates)
-                      LinearProgressIndicator(minHeight: 2)
+                      const LinearProgressIndicator(minHeight: 2)
                     else if (_templates.isNotEmpty)
                       DropdownButtonFormField<String>(
-                        value: _selectedTemplateId,
+                        initialValue: _selectedTemplateId,
                         decoration: InputDecoration(
                           isDense: true,
                           filled: true,
                           fillColor:
                               AppColors.surfaceVariant.withValues(alpha: 0.4),
-                          contentPadding: EdgeInsets.symmetric(
+                          contentPadding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.sm,
                             vertical: AppSpacing.xs,
                           ),
@@ -301,12 +303,13 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
                             ),
                           ),
                         ),
-                        hint: Text('Usar etiqueta'),
+                        hint: const Text('Usar etiqueta'),
                         items: _templates
                             .map(
                               (t) => DropdownMenuItem<String>(
                                 value: t['id']?.toString(),
-                                child: Text(t['name']?.toString() ?? 'Etiqueta'),
+                                child:
+                                    Text(t['name']?.toString() ?? 'Etiqueta'),
                               ),
                             )
                             .toList(),
@@ -319,17 +322,17 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
                   ],
                 ),
               ),
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
                   onPressed: _saveTemplate,
-                  icon: Icon(Icons.bookmark_add_outlined, size: 16),
-                  label: Text('Guardar como etiqueta'),
+                  icon: const Icon(Icons.bookmark_add_outlined, size: 16),
+                  label: const Text('Guardar como etiqueta'),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.primary,
-                    textStyle:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    textStyle: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -338,12 +341,12 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
                 child: TextButton.icon(
                   onPressed:
                       _templates.isEmpty ? null : () => _manageTemplates(),
-                  icon: Icon(Icons.bookmarks_outlined, size: 16),
-                  label: Text('Gestionar etiquetas'),
+                  icon: const Icon(Icons.bookmarks_outlined, size: 16),
+                  label: const Text('Gestionar etiquetas'),
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.textSecondary,
-                    textStyle:
-                        TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                    textStyle: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -354,7 +357,7 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('Cancelar'),
+          child: const Text('Cancelar'),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
@@ -377,7 +380,7 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
                   );
                 }
               : null,
-          child: Text('Guardar'),
+          child: const Text('Guardar'),
         ),
       ],
     );
@@ -386,7 +389,7 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
   Widget _sectionCard({required String title, required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.surfaceVariant.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -403,7 +406,7 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
               color: AppColors.textSecondary,
             ),
           ),
-          SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.xs),
           child,
         ],
       ),
@@ -416,7 +419,7 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
       onTap: _pickRange,
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
@@ -426,9 +429,8 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
         ),
         child: Row(
           children: [
-            Icon(Icons.date_range_rounded,
-                size: 18, color: AppColors.primary),
-            SizedBox(width: AppSpacing.sm),
+            Icon(Icons.date_range_rounded, size: 18, color: AppColors.primary),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 _summary(),
@@ -457,7 +459,7 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
             onTap: _pickStartTime,
           ),
         ),
-        SizedBox(width: AppSpacing.sm),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: _timeButton(
             label: 'Fin',
@@ -479,7 +481,7 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
       onTap: onTap,
       child: Container(
         width: double.infinity,
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
@@ -489,9 +491,8 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
         ),
         child: Row(
           children: [
-            Icon(Icons.access_time_rounded,
-                size: 16, color: AppColors.primary),
-            SizedBox(width: AppSpacing.sm),
+            Icon(Icons.access_time_rounded, size: 16, color: AppColors.primary),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 '$label ${formatTimeLabel(time.hour, time.minute)}',
@@ -539,12 +540,12 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius:
-                BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+                const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               Container(
                 width: 40,
                 height: 4,
@@ -553,9 +554,9 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.md),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Row(
                   children: [
                     Expanded(
@@ -570,16 +571,16 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: Icon(Icons.close_rounded),
+                      icon: const Icon(Icons.close_rounded),
                     ),
                   ],
                 ),
               ),
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
-                  padding: EdgeInsets.fromLTRB(
+                  padding: const EdgeInsets.fromLTRB(
                     AppSpacing.lg,
                     0,
                     AppSpacing.lg,
@@ -628,9 +629,9 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
     final name = t['name']?.toString() ?? 'Etiqueta';
     final count = _templateUsageCount(t);
     return Card(
-      margin: EdgeInsets.only(bottom: AppSpacing.sm),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Padding(
-        padding: EdgeInsets.all(AppSpacing.sm),
+        padding: const EdgeInsets.all(AppSpacing.sm),
         child: Row(
           children: [
             Container(
@@ -643,7 +644,7 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
               child: Icon(Icons.bookmark_rounded,
                   size: 16, color: AppColors.primary),
             ),
-            SizedBox(width: AppSpacing.sm),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 name,
@@ -656,8 +657,8 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
             ),
             if (count > 0)
               Container(
-                margin: EdgeInsets.only(right: 4),
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                margin: const EdgeInsets.only(right: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceVariant.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(999),
@@ -673,12 +674,12 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
               ),
             IconButton(
               onPressed: () => _renameTemplate(t),
-              icon: Icon(Icons.edit_outlined, size: 18),
+              icon: const Icon(Icons.edit_outlined, size: 18),
               color: AppColors.textSecondary,
             ),
             IconButton(
               onPressed: () => _confirmDeleteTemplate(t),
-              icon: Icon(Icons.delete_outline_rounded, size: 18),
+              icon: const Icon(Icons.delete_outline_rounded, size: 18),
               color: AppColors.error,
             ),
           ],
@@ -693,7 +694,7 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
     final name = await showDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Renombrar etiqueta'),
+        title: const Text('Renombrar etiqueta'),
         content: TextField(
           controller: controller,
           decoration: InputDecoration(
@@ -714,11 +715,11 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar'),
+            child: const Text('Cancelar'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text),
-            child: Text('Guardar'),
+            child: const Text('Guardar'),
           ),
         ],
       ),
@@ -740,16 +741,16 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('Eliminar etiqueta'),
+        title: const Text('Eliminar etiqueta'),
         content: Text('¿Eliminar "$name"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancelar'),
+            child: const Text('Cancelar'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Eliminar'),
+            child: const Text('Eliminar'),
           ),
         ],
       ),
