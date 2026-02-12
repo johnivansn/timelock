@@ -181,6 +181,17 @@ class NativeService {
         false;
   }
 
+  static Future<bool> downloadApkOnly({
+    required String url,
+    String? fileName,
+  }) async {
+    return await _channel.invokeMethod<bool>('downloadApkOnly', {
+          'url': url,
+          'fileName': fileName,
+        }) ??
+        false;
+  }
+
   static Future<bool> isAdminEnabled() async {
     return await _channel.invokeMethod<bool>('isAdminEnabled') ?? false;
   }

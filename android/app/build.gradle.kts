@@ -1,4 +1,3 @@
-import java.io.ByteArrayOutputStream
 import java.time.LocalDate
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -29,13 +28,16 @@ android {
 
   fun gitOutput(vararg args: String): String? {
     return try {
-      val out = ByteArrayOutputStream()
-      val execResult = project.providers.exec {
-        commandLine("git", *args)
-        standardOutput = out
-      }.result
-      execResult.get()
-      out.toString().trim().ifEmpty { null }
+      val repoRoot = rootProject.projectDir.parentFile
+      val cmd = mutableListOf("git")
+      cmd.addAll(args.toList())
+      val process = ProcessBuilder(cmd)
+        .directory(repoRoot)
+        .redirectErrorStream(true)
+        .start()
+      val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
+      val exitCode = process.waitFor()
+      if (exitCode == 0) output.ifEmpty { null } else null
     } catch (_: Exception) {
       null
     }

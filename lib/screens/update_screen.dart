@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:timelock/extensions/context_extensions.dart';
+import 'package:timelock/screens/export_import_screen.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 
@@ -12,27 +14,107 @@ class UpdateScreen extends StatefulWidget {
 }
 
 class _UpdateScreenState extends State<UpdateScreen> {
-  bool _loading = true;
+  bool _loadingUpdates = true;
   bool _installing = false;
-  String? _error;
+  String? _updatesError;
   String _currentVersion = '';
   int _currentVersionCode = 0;
   List<ReleaseInfo> _releases = [];
   bool _showPrerelease = false;
+  bool _showBackupReminder = true;
+
+  _StatusViewData get _statusData {
+    if (_installing) {
+      return _StatusViewData(
+        icon: Icons.downloading_rounded,
+        title: 'Instalación en curso',
+        description:
+            'Se está preparando la instalación. Android abrirá el instalador al terminar.',
+        color: AppColors.info,
+      );
+    }
+    if (_updatesError != null) {
+      return _StatusViewData(
+        icon: Icons.cloud_off_rounded,
+        title: 'No se pudo actualizar',
+        description: _updatesError!,
+        color: AppColors.warning,
+      );
+    }
+    if (_loadingUpdates) {
+      return _StatusViewData(
+        icon: Icons.sync_rounded,
+        title: 'Verificando actualizaciones',
+        description: 'Buscando versiones disponibles...',
+        color: AppColors.info,
+      );
+    }
+    final latest = _latestRelease;
+    if (latest == null) {
+      return _StatusViewData(
+        icon: Icons.info_outline_rounded,
+        title: 'Sin versiones disponibles',
+        description: _showPrerelease
+            ? 'No hay versiones disponibles para instalar.'
+            : 'No hay versiones estables disponibles. Activa Beta para ver versiones de prueba.',
+        color: AppColors.textTertiary,
+      );
+    }
+    if (_isNewer(latest)) {
+      return _StatusViewData(
+        icon: Icons.system_update_alt_rounded,
+        title: 'Actualización disponible',
+        description:
+            'Hay una versión más reciente que la instalada. Puedes instalarla desde esta pantalla.',
+        color: AppColors.success,
+      );
+    }
+    return _StatusViewData(
+      icon: Icons.verified_rounded,
+      title: 'App actualizada',
+      description: 'Ya tienes la versión más reciente de este listado.',
+      color: AppColors.success,
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _loadUpdatePrefs();
+    _loadInstalledVersion();
+    _loadUpdates();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _loadUpdatePrefs() async {
+    try {
+      final prefs = await NativeService.getSharedPreferences('update_prefs');
+      final saved = prefs?['showBackupReminder'];
+      if (saved is bool && mounted) {
+        setState(() => _showBackupReminder = saved);
+      }
+    } catch (_) {
+      // Keep default if prefs cannot be read.
+    }
+  }
+
+  Future<void> _loadInstalledVersion() async {
     try {
       final version = await NativeService.getAppVersion();
+      if (mounted) {
+        setState(() {
+          _currentVersion = version['versionName']?.toString() ?? '';
+          _currentVersionCode = (version['versionCode'] as num?)?.toInt() ?? 0;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadUpdates() async {
+    setState(() {
+      _loadingUpdates = true;
+      _updatesError = null;
+    });
+    try {
       final releasesRaw = await NativeService.getReleases();
       final releases = releasesRaw
           .map((r) => ReleaseInfo.fromMap(r))
@@ -41,21 +123,19 @@ class _UpdateScreenState extends State<UpdateScreen> {
         ..sort((a, b) => b.publishedAtDate.compareTo(a.publishedAtDate));
       if (mounted) {
         setState(() {
-          _currentVersion = version['versionName']?.toString() ?? '';
-          _currentVersionCode =
-              (version['versionCode'] as num?)?.toInt() ?? 0;
           _releases = releases;
-          _loading = false;
+          _loadingUpdates = false;
         });
       }
     } catch (e) {
       if (mounted) {
-        final message = e is PlatformException && e.message != null
-            ? e.message!
-            : 'Error al consultar actualizaciones';
+        final message = _buildErrorMessage(
+          e,
+          fallback: 'Error al consultar actualizaciones',
+        );
         setState(() {
-          _error = message;
-          _loading = false;
+          _updatesError = message;
+          _loadingUpdates = false;
         });
       }
     }
@@ -90,6 +170,144 @@ class _UpdateScreenState extends State<UpdateScreen> {
     return compareVersions(release.versionTag, current) == 0;
   }
 
+  bool _isOlder(ReleaseInfo release) {
+    return !_isCurrent(release) && !_isNewer(release);
+  }
+
+  String _installLabelFor(ReleaseInfo release) {
+    if (_isOlder(release)) return 'Descargar instalador';
+    if (_isCurrent(release)) return 'Volver a instalar';
+    if (_isNewer(release)) return 'Instalar actualización';
+    return 'Instalar esta versión';
+  }
+
+  String _latestContextLabel(ReleaseInfo latest) {
+    if (_showPrerelease) {
+      return 'Más reciente (incluye Beta): ${latest.displayName}';
+    }
+    return 'Más reciente estable: ${latest.displayName}';
+  }
+
+  Future<void> _handleReleaseAction(ReleaseInfo release) async {
+    if (_isCurrent(release)) {
+      final choice = await _chooseCurrentVersionAction();
+      if (choice == null) return;
+      if (choice == 'download') {
+        await _downloadRelease(release);
+        return;
+      }
+    }
+    final accepted = await _showBackupReminderDialog();
+    if (!accepted) return;
+    if (_isOlder(release)) {
+      await _downloadRelease(release);
+      return;
+    }
+    await _installRelease(release);
+  }
+
+  Future<String?> _chooseCurrentVersionAction() async {
+    return await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Misma versión detectada'),
+          content: const Text(
+            'Puedes volver a instalar o descargar el archivo de instalación de esta misma versión.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(null),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop('download'),
+              child: const Text('Descargar instalador'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop('reinstall'),
+              child: const Text('Volver a instalar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<bool> _showBackupReminderDialog() async {
+    if (!_showBackupReminder || !mounted) return true;
+    bool dontShowAgain = false;
+
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              title: const Text('Resguarda tus datos'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Antes de instalar, reinstalar o descargar una versión, '
+                    'te recomendamos hacer un respaldo desde Exportar/Importar.',
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  CheckboxListTile(
+                    value: dontShowAgain,
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: const Text(
+                      'No volver a mostrar',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onChanged: (value) {
+                      setModalState(() => dontShowAgain = value ?? false);
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop('cancel'),
+                  child: const Text('Cancelar'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop('open_backup'),
+                  child: const Text('Exportar/Importar'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop('continue'),
+                  child: const Text('Continuar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (dontShowAgain) {
+      await NativeService.saveSharedPreference({
+        'prefsName': 'update_prefs',
+        'key': 'showBackupReminder',
+        'value': false,
+      });
+      if (mounted) setState(() => _showBackupReminder = false);
+    }
+
+    if (action == 'open_backup') {
+      if (!mounted) return false;
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const ExportImportScreen()),
+      );
+      return false;
+    }
+
+    return action == 'continue';
+  }
+
   Future<void> _installRelease(ReleaseInfo release) async {
     if (_installing) return;
     final apk = release.apkAsset;
@@ -112,15 +330,154 @@ class _UpdateScreenState extends State<UpdateScreen> {
         shaUrl: release.shaAsset?.url,
       );
       if (mounted) {
-        context.showSnack(ok
-            ? 'Descargando actualización...'
-            : 'No se pudo iniciar la instalación');
+        context.showSnack(
+          ok
+              ? 'Preparando instalación...'
+              : 'No se pudo iniciar la instalación',
+        );
       }
-    } catch (_) {
-      if (mounted) context.showSnack('Error al instalar', isError: true);
+    } catch (e) {
+      if (mounted) {
+        context.showSnack(
+          _buildErrorMessage(
+            e,
+            fallback: 'Error al instalar',
+          ),
+          isError: true,
+        );
+      }
     } finally {
       if (mounted) setState(() => _installing = false);
     }
+  }
+
+  Future<void> _downloadRelease(ReleaseInfo release) async {
+    final apk = release.apkAsset;
+    if (apk == null) return;
+    try {
+      final suggestedName = release.versionTag.isNotEmpty
+          ? 'timelock-${release.versionTag}.apk'
+          : apk.name;
+      final ok = await NativeService.downloadApkOnly(
+        url: apk.url,
+        fileName: suggestedName,
+      );
+      if (!mounted) return;
+      context.showSnack(
+        ok
+            ? 'Descarga iniciada. Revisa la notificación de descargas.'
+            : 'No se pudo iniciar la descarga',
+        isError: !ok,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      context.showSnack(
+        _buildErrorMessage(
+          e,
+          fallback: 'No se pudo descargar el archivo de instalación',
+        ),
+        isError: true,
+      );
+    }
+  }
+
+  void _showReleaseNotes(ReleaseInfo release) {
+    final notes = release.body.trim();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return SafeArea(
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.75,
+            minChildSize: 0.45,
+            maxChildSize: 0.95,
+            builder: (context, scrollController) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.textTertiary.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Notas de ${release.displayName}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        controller: scrollController,
+                        child: MarkdownBody(
+                          data: notes.isNotEmpty
+                              ? notes
+                              : 'Esta versión no incluye notas publicadas.',
+                          selectable: true,
+                          styleSheet: MarkdownStyleSheet.fromTheme(
+                            Theme.of(context),
+                          ).copyWith(
+                            p: TextStyle(
+                              fontSize: 12,
+                              height: 1.4,
+                              color: AppColors.textSecondary,
+                            ),
+                            listBullet: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  String _buildErrorMessage(
+    Object error, {
+    required String fallback,
+  }) {
+    if (error is PlatformException) {
+      final message = error.message?.trim();
+      if (message != null && message.isNotEmpty) {
+        return message;
+      }
+    }
+    return fallback;
   }
 
   @override
@@ -153,34 +510,34 @@ class _UpdateScreenState extends State<UpdateScreen> {
                 const SizedBox(width: AppSpacing.sm),
               ],
             ),
-            if (_loading)
-              const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator(strokeWidth: 3)),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.lg,
+                  AppSpacing.sm,
+                ),
+                child: _overviewBanner(),
+              ),
+            ),
+            if (_loadingUpdates)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  child: _updatesLoadingCard(),
+                ),
               )
-            else if (_error != null)
-              SliverFillRemaining(
-                child: Center(
-                  child: Text(
-                    _error!,
-                    style: TextStyle(
-                      color: AppColors.textTertiary,
-                      fontSize: 12,
-                    ),
-                  ),
+            else if (_updatesError != null)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  child: _updatesErrorCard(),
                 ),
               )
             else ...[
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.lg,
-                    AppSpacing.lg,
-                    AppSpacing.sm,
-                  ),
-                  child: _currentVersionCard(),
-                ),
-              ),
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
@@ -196,14 +553,27 @@ class _UpdateScreenState extends State<UpdateScreen> {
                     AppSpacing.lg,
                     AppSpacing.xs,
                   ),
-                  child: Text(
-                    'VERSIONES ANTERIORES',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textTertiary,
-                      letterSpacing: 1.0,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'VERSIONES ANTERIORES',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textTertiary,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Las versiones anteriores se descargan como archivo de instalación.',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -224,50 +594,216 @@ class _UpdateScreenState extends State<UpdateScreen> {
     );
   }
 
-  Widget _currentVersionCard() {
+  Widget _overviewBanner() {
+    final latest = _latestRelease;
+    final data = _statusData;
+    final versionLabel =
+        _currentVersion.isNotEmpty ? _currentVersion : 'Desconocida';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: Icon(
+                    Icons.inventory_2_rounded,
+                    size: 18,
+                    color: AppColors.info,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'Versión actual',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
             Container(
-              width: 36,
-              height: 36,
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.sm),
               decoration: BoxDecoration(
-                color: AppColors.info.withValues(alpha: 0.15),
+                color: AppColors.surfaceVariant,
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-              child: Icon(Icons.info_outline_rounded,
-                  color: AppColors.info, size: 18),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Versión instalada',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  Text(
+                    versionLabel,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      height: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _currentVersion.isNotEmpty
-                        ? '$_currentVersion (code $_currentVersionCode)'
-                        : 'Desconocida',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textTertiary,
+                  if (latest != null) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      _latestContextLabel(latest),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (latest != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              SizedBox(
+                width: double.infinity,
+                height: 42,
+                child: FilledButton.tonalIcon(
+                  onPressed:
+                      _installing ? null : () => _handleReleaseAction(latest),
+                  icon: _installing
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.system_update_alt_rounded, size: 18),
+                  label: Text(_installLabelFor(latest)),
+                ),
+              ),
+            ],
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              decoration: BoxDecoration(
+                color: data.color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: data.color.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(data.icon, size: 14, color: data.color),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          data.title,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: data.color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      data.description,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textTertiary,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            TextButton(
-              onPressed: _load,
-              child: const Text('Actualizar'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _updatesLoadingCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                'Verificando actualizaciones...',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _updatesErrorCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.cloud_off_rounded,
+                  color: AppColors.warning,
+                  size: 18,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  'No se pudieron cargar las actualizaciones',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              _updatesError ?? 'Error al consultar actualizaciones',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.textTertiary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            FilledButton.tonalIcon(
+              onPressed: _loadUpdates,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Reintentar'),
             ),
           ],
         ),
@@ -283,16 +819,14 @@ class _UpdateScreenState extends State<UpdateScreen> {
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Text(
             _showPrerelease
-                ? 'No se encontraron releases con APK.'
-                : 'No se encontraron releases estables con APK.',
+                ? 'No se encontraron versiones para instalar.'
+                : 'No se encontraron versiones estables para instalar.',
             style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
           ),
         ),
       );
     }
-    final hasSha = latest.shaAsset != null;
-    final isNewer = _isNewer(latest);
-    final isCurrent = _isCurrent(latest);
+    final hasNotes = latest.body.trim().isNotEmpty;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -302,18 +836,16 @@ class _UpdateScreenState extends State<UpdateScreen> {
             Row(
               children: [
                 Container(
-                  width: 36,
-                  height: 36,
+                  width: 34,
+                  height: 34,
                   decoration: BoxDecoration(
-                    color: isNewer
-                        ? AppColors.success.withValues(alpha: 0.15)
-                        : AppColors.surfaceVariant,
+                    color: AppColors.surfaceVariant,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: Icon(
                     Icons.system_update_alt_rounded,
-                    size: 18,
-                    color: isNewer ? AppColors.success : AppColors.textTertiary,
+                    size: 17,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -330,9 +862,9 @@ class _UpdateScreenState extends State<UpdateScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        latest.publishedAt.isNotEmpty
-                            ? 'Publicado: ${latest.publishedAt}'
-                            : 'Release sin fecha',
+                        latest.hasPublishedDate
+                            ? 'Publicado: ${latest.publishedDateLabel}'
+                            : 'Versión sin fecha',
                         style: TextStyle(
                           fontSize: 11,
                           color: AppColors.textTertiary,
@@ -341,102 +873,23 @@ class _UpdateScreenState extends State<UpdateScreen> {
                     ],
                   ),
                 ),
-                if (latest.prerelease)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.warning.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      'Beta',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.warning,
-                      ),
-                    ),
-                  ),
-                if (latest.prerelease) const SizedBox(width: AppSpacing.xs),
-                if (isCurrent)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      'Actual',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                if (isCurrent) const SizedBox(width: AppSpacing.xs),
-                if (isNewer)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      'Nuevo',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.success,
-                      ),
-                    ),
+                if (hasNotes)
+                  IconButton(
+                    tooltip: 'Ver notas',
+                    onPressed: () => _showReleaseNotes(latest),
+                    icon: const Icon(Icons.description_outlined, size: 18),
                   ),
               ],
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              hasSha
-                  ? 'Verificación SHA256 disponible'
-                  : 'Sin verificación SHA256 publicada',
-              style: TextStyle(
-                fontSize: 11,
-                color: hasSha ? AppColors.textSecondary : AppColors.warning,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            SizedBox(
-              width: double.infinity,
-              height: 40,
-              child: FilledButton.icon(
-                onPressed:
-                    _installing ? null : () => _installRelease(latest),
-                icon: _installing
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.download_rounded, size: 18),
-                label: Text(isNewer ? 'Instalar actualización' : 'Reinstalar'),
-              ),
-            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Nota: Android puede bloquear el downgrade. '
-              'Para volver a una versión anterior podrías necesitar desinstalar.',
-              style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
+              latest.prerelease
+                  ? 'Versión en pruebas.'
+                  : 'Versión estable publicada.',
+              style: TextStyle(
+                fontSize: 10,
+                color: AppColors.textTertiary,
+              ),
             ),
           ],
         ),
@@ -463,20 +916,60 @@ class _UpdateScreenState extends State<UpdateScreen> {
       children: visible.skip(1).map((release) {
         return Card(
           margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-          child: ListTile(
-            title: Text(
-              release.displayName,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              release.publishedAt.isNotEmpty
-                  ? 'Publicado: ${release.publishedAt}'
-                  : 'Release sin fecha',
-              style: TextStyle(fontSize: 10, color: AppColors.textTertiary),
-            ),
-            trailing: TextButton(
-              onPressed: _installing ? null : () => _installRelease(release),
-              child: const Text('Instalar'),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            release.displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            release.hasPublishedDate
+                                ? 'Publicado: ${release.publishedDateLabel}'
+                                : 'Versión sin fecha',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppColors.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Ver notas',
+                      onPressed: () => _showReleaseNotes(release),
+                      icon: const Icon(Icons.description_outlined, size: 18),
+                    ),
+                    IconButton(
+                      tooltip: _installLabelFor(release),
+                      onPressed: _installing
+                          ? null
+                          : () => _handleReleaseAction(release),
+                      icon: Icon(
+                        _isOlder(release)
+                            ? Icons.download_rounded
+                            : Icons.system_update_alt_rounded,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         );
@@ -504,17 +997,29 @@ class ReleaseInfo {
 
   String get displayName {
     if (name.isNotEmpty) return name;
-    return tagName.isNotEmpty ? tagName : 'Release';
+    return tagName.isNotEmpty ? tagName : 'Versión';
   }
 
   String get versionTag => tagName.isNotEmpty ? tagName : name;
 
   DateTime get publishedAtDate {
-    return DateTime.tryParse(publishedAt) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    return DateTime.tryParse(publishedAt) ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  bool get hasPublishedDate => publishedAtDate.millisecondsSinceEpoch > 0;
+
+  String get publishedDateLabel {
+    if (!hasPublishedDate) return '';
+    final date = publishedAtDate.toLocal();
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+    return '$day/$month/$year';
   }
 
   int get versionCode {
-    final match = RegExp(r'(\\d{2})\\.(\\d{2})\\.(\\d+)').firstMatch(versionTag);
+    final match = RegExp(r'(\d{2})\.(\d{2})\.(\d+)').firstMatch(versionTag);
     if (match != null) {
       final major = int.tryParse(match.group(1)!) ?? 0;
       final minor = int.tryParse(match.group(2)!) ?? 0;
@@ -525,18 +1030,19 @@ class ReleaseInfo {
   }
 
   ReleaseAsset? get apkAsset {
-    return assets.firstWhere(
-      (a) => a.name.toLowerCase().endsWith('.apk'),
-      orElse: () => ReleaseAsset.empty(),
-    ).isEmpty
+    return assets
+            .firstWhere(
+              (a) => a.name.toLowerCase().endsWith('.apk'),
+              orElse: () => ReleaseAsset.empty(),
+            )
+            .isEmpty
         ? null
         : assets.firstWhere((a) => a.name.toLowerCase().endsWith('.apk'));
   }
 
   ReleaseAsset? get shaAsset {
-    final lower = assets
-        .where((a) => a.name.toLowerCase().contains('sha256'))
-        .toList();
+    final lower =
+        assets.where((a) => a.name.toLowerCase().contains('sha256')).toList();
     if (lower.isEmpty) return null;
     return lower.first;
   }
@@ -580,6 +1086,20 @@ class ReleaseAsset {
       size: (map['size'] as num?)?.toInt() ?? 0,
     );
   }
+}
+
+class _StatusViewData {
+  const _StatusViewData({
+    required this.icon,
+    required this.title,
+    required this.description,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final String description;
+  final Color color;
 }
 
 int compareVersions(String a, String b) {

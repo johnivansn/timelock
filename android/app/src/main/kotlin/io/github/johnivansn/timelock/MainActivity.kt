@@ -2,6 +2,7 @@ package io.github.johnivansn.timelock
 
 import android.app.AppOpsManager
 import android.app.ActivityManager
+import android.app.DownloadManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.os.BatteryManager
@@ -21,8 +22,10 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
+import android.os.Environment
 import android.provider.Settings
 import android.util.Log
+import android.webkit.URLUtil
 import androidx.core.content.FileProvider
 import io.github.johnivansn.timelock.admin.AdminManager
 import io.github.johnivansn.timelock.database.AppDatabase
@@ -49,11 +52,15 @@ import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.net.ConnectException
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.net.URL
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.*
+import javax.net.ssl.SSLException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -316,7 +323,14 @@ class MainActivity : FlutterActivity() {
             } catch (e: Exception) {
               Log.e("MainActivity", "Error getting releases", e)
               withContext(Dispatchers.Main) {
-                result.error("RELEASES_ERROR", e.message, null)
+                result.error(
+                        "RELEASES_ERROR",
+                        mapNetworkErrorMessage(
+                                e,
+                                "No se pudieron consultar las actualizaciones. Intenta de nuevo."
+                        ),
+                        null
+                )
               }
             }
           }
@@ -331,9 +345,27 @@ class MainActivity : FlutterActivity() {
               withContext(Dispatchers.Main) { result.success(ok) }
             } catch (e: Exception) {
               withContext(Dispatchers.Main) {
-                result.error("APK_INSTALL_ERROR", e.message, null)
+                result.error(
+                        "APK_INSTALL_ERROR",
+                        mapNetworkErrorMessage(
+                                e,
+                                "No se pudo instalar la versión seleccionada."
+                        ),
+                        null
+                )
               }
             }
+          }
+        }
+        "downloadApkOnly" -> {
+          val args = call.arguments as Map<*, *>
+          val url = args["url"] as String
+          val fileName = args["fileName"] as? String
+          try {
+            val ok = downloadApkOnly(url, fileName)
+            result.success(ok)
+          } catch (e: Exception) {
+            result.error("APK_DOWNLOAD_ERROR", e.message, null)
           }
         }
         "canInstallPackages" -> {
@@ -1380,6 +1412,28 @@ class MainActivity : FlutterActivity() {
     return true
   }
 
+  private fun downloadApkOnly(url: String, fileName: String?): Boolean {
+    val request =
+            DownloadManager.Request(Uri.parse(url)).apply {
+              setTitle("TimeLock")
+              setDescription("Descargando APK")
+              setNotificationVisibility(
+                      DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+              )
+              setMimeType("application/vnd.android.package-archive")
+              setAllowedOverMetered(true)
+              setAllowedOverRoaming(true)
+              val safeName =
+                      if (fileName.isNullOrBlank()) URLUtil.guessFileName(url, null, null)
+                      else fileName
+              setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, safeName)
+            }
+
+    val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+    manager.enqueue(request)
+    return true
+  }
+
   private fun downloadToFile(url: String, dest: File) {
     val conn = URL(url).openConnection() as HttpURLConnection
     conn.connectTimeout = 10000
@@ -1634,6 +1688,26 @@ class MainActivity : FlutterActivity() {
 
   companion object {
     private const val REQUEST_ENABLE_ADMIN = 1001
+  }
+
+  private fun mapNetworkErrorMessage(error: Throwable, fallback: String): String {
+    val root = rootCause(error)
+    return when (root) {
+      is UnknownHostException, is ConnectException ->
+              "Sin conexión a internet. Revisa tu red e intenta de nuevo."
+      is SocketTimeoutException ->
+              "La conexión tardó demasiado. Verifica tu internet e intenta otra vez."
+      is SSLException -> "No se pudo establecer una conexión segura."
+      else -> fallback
+    }
+  }
+
+  private fun rootCause(error: Throwable): Throwable {
+    var current = error
+    while (current.cause != null && current.cause !== current) {
+      current = current.cause!!
+    }
+    return current
   }
 }
 
