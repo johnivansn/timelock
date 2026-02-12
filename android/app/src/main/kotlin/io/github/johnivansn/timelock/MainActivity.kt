@@ -1177,9 +1177,7 @@ class MainActivity : FlutterActivity() {
 
   private fun startMonitoringService() {
     val intent = Intent(this, UsageMonitorService::class.java)
-    val prefs = getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
-    val serviceNotificationEnabled = prefs.getBoolean("notify_service_status", true)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && serviceNotificationEnabled) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       startForegroundService(intent)
     } else {
       startService(intent)

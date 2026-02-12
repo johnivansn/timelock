@@ -15,7 +15,6 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import io.github.johnivansn.timelock.database.AppDatabase
-import io.github.johnivansn.timelock.monitoring.ScheduleMonitor
 import io.github.johnivansn.timelock.monitoring.UsageStatsMonitor
 import io.github.johnivansn.timelock.optimization.BatteryModeManager
 import io.github.johnivansn.timelock.optimization.DataCleanupManager
@@ -33,7 +32,6 @@ import kotlinx.coroutines.withContext
 
 class UsageMonitorService : Service() {
   private lateinit var usageStatsMonitor: UsageStatsMonitor
-  private lateinit var scheduleMonitor: ScheduleMonitor
   private lateinit var database: AppDatabase
   private lateinit var batteryModeManager: BatteryModeManager
   private lateinit var dataCleanupManager: DataCleanupManager
@@ -60,26 +58,16 @@ class UsageMonitorService : Service() {
     super.onCreate()
     database = AppDatabase.getDatabase(this)
     usageStatsMonitor = UsageStatsMonitor(this)
-    scheduleMonitor = ScheduleMonitor(this)
     batteryModeManager = BatteryModeManager(this)
     dataCleanupManager = DataCleanupManager(this)
 
     createNotificationChannels()
+    startForeground(NOTIFICATION_ID, buildServiceNotification())
 
     scope.launch {
       monitoredAppsCount = database.appRestrictionDao().getEnabled().size
       withContext(Dispatchers.Main) {
-        if (isServiceNotificationEnabled()) {
-          startForeground(NOTIFICATION_ID, createVisibleNotification(monitoredAppsCount))
-        } else {
-          getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-          } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
-          }
-        }
+        startForeground(NOTIFICATION_ID, buildServiceNotification())
       }
     }
 
@@ -174,20 +162,7 @@ class UsageMonitorService : Service() {
     scope.launch {
       monitoredAppsCount = database.appRestrictionDao().getEnabled().size
       withContext(Dispatchers.Main) {
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        if (isServiceNotificationEnabled()) {
-          val notification = createVisibleNotification(monitoredAppsCount)
-          startForeground(NOTIFICATION_ID, notification)
-          notificationManager.notify(NOTIFICATION_ID, notification)
-        } else {
-          notificationManager.cancel(NOTIFICATION_ID)
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-          } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
-          }
-        }
+        startForeground(NOTIFICATION_ID, buildServiceNotification())
       }
     }
   }
