@@ -1,4 +1,3 @@
-
 class AppUtils {
   static String formatTime(int minutes) {
     if (minutes >= 60) {
@@ -35,7 +34,7 @@ class AppUtils {
     final daysBack = (now.weekday - targetWeekday) % 7;
     var candidate = todayReset.subtract(Duration(days: daysBack));
     if (now.isBefore(candidate)) {
-      candidate = candidate.subtract(Duration(days: 7));
+      candidate = candidate.subtract(const Duration(days: 7));
     }
     return candidate;
   }
@@ -63,7 +62,7 @@ class AppUtils {
   static DateTime nextWeeklyReset(
       DateTime now, int resetDay, int resetHour, int resetMinute) {
     final last = lastWeeklyReset(now, resetDay, resetHour, resetMinute);
-    return last.add(Duration(days: 7));
+    return last.add(const Duration(days: 7));
   }
 
   static String formatWeeklyNextResetLabel(
@@ -172,4 +171,3 @@ class AppUtils {
     return base;
   }
 }
-

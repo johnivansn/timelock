@@ -6,7 +6,7 @@ import 'package:timelock/widgets/bottom_sheet_handle.dart';
 import 'package:timelock/widgets/date_block_edit_dialog.dart';
 
 class DateBlockEditorDialog extends StatefulWidget {
-  DateBlockEditorDialog({
+  const DateBlockEditorDialog({
     super.key,
     required this.appName,
     required this.packageName,
@@ -116,15 +116,15 @@ class _DateBlockEditorDialogState extends State<DateBlockEditorDialog> {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius:
-                BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+                const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
           ),
           child: Column(
             children: [
-              SizedBox(height: AppSpacing.sm),
-              BottomSheetHandle(),
-              SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.sm),
+              const BottomSheetHandle(),
+              const SizedBox(height: AppSpacing.md),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Row(
                   children: [
                     Expanded(
@@ -157,31 +157,32 @@ class _DateBlockEditorDialogState extends State<DateBlockEditorDialog> {
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: Icon(Icons.close_rounded),
+                      icon: const Icon(Icons.close_rounded),
                     ),
                   ],
                 ),
               ),
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: SizedBox(
                   width: double.infinity,
                   height: 36,
                   child: FilledButton.icon(
                     onPressed: _addBlock,
-                    icon: Icon(Icons.add_rounded, size: 16),
-                    label: Text('Agregar fecha'),
+                    icon: const Icon(Icons.add_rounded, size: 16),
+                    label: const Text('Agregar fecha'),
                   ),
                 ),
               ),
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               ConstrainedBox(
                 constraints: BoxConstraints(
                   maxHeight: MediaQuery.of(context).size.height * 0.45,
                 ),
                 child: _loading
-                    ? Center(child: CircularProgressIndicator(strokeWidth: 3))
+                    ? const Center(
+                        child: CircularProgressIndicator(strokeWidth: 3))
                     : _blocks.isEmpty
                         ? Center(
                             child: Text(
@@ -196,13 +197,13 @@ class _DateBlockEditorDialogState extends State<DateBlockEditorDialog> {
                             ),
                           )
                         : ListView.builder(
-                            padding:
-                                EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.lg),
                             itemCount: _blocks.length,
                             itemBuilder: (_, i) => _blockTile(_blocks[i]),
                           ),
               ),
-              SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.md),
             ],
           ),
         ),
@@ -229,12 +230,12 @@ class _DateBlockEditorDialogState extends State<DateBlockEditorDialog> {
     );
 
     return Card(
-      margin: EdgeInsets.only(bottom: AppSpacing.sm),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: InkWell(
         onTap: () => _editBlock(b),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Padding(
-          padding: EdgeInsets.all(10),
+          padding: const EdgeInsets.all(10),
           child: Row(
             children: [
               Expanded(
@@ -249,13 +250,13 @@ class _DateBlockEditorDialogState extends State<DateBlockEditorDialog> {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     if (label?.isNotEmpty == true)
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Container(
-                          padding:
-                              EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppColors.info.withValues(alpha: 0.18),
                             borderRadius: BorderRadius.circular(999),
@@ -290,13 +291,13 @@ class _DateBlockEditorDialogState extends State<DateBlockEditorDialog> {
               ),
               IconButton(
                 onPressed: () => _deleteBlock(b),
-                icon: Icon(Icons.delete_outline_rounded, size: 16),
+                icon: const Icon(Icons.delete_outline_rounded, size: 16),
                 style: IconButton.styleFrom(
                   foregroundColor: AppColors.error,
                   backgroundColor: AppColors.surfaceVariant,
-                  minimumSize: Size(28, 28),
-                  fixedSize: Size(28, 28),
-                  padding: EdgeInsets.all(4),
+                  minimumSize: const Size(28, 28),
+                  fixedSize: const Size(28, 28),
+                  padding: const EdgeInsets.all(4),
                 ),
               ),
             ],

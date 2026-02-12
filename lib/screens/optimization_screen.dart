@@ -6,7 +6,7 @@ import 'package:timelock/utils/app_utils.dart';
 import 'package:timelock/utils/app_settings.dart';
 
 class OptimizationScreen extends StatefulWidget {
-  OptimizationScreen({super.key});
+  const OptimizationScreen({super.key});
 
   @override
   State<OptimizationScreen> createState() => _OptimizationScreenState();
@@ -32,8 +32,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
   Future<void> _loadSettings() async {
     try {
       final enabled = await NativeService.isBatterySaverEnabled();
-      final prefs =
-          await NativeService.getSharedPreferences('battery_prefs');
+      final prefs = await NativeService.getSharedPreferences('battery_prefs');
       final memoryClass = await NativeService.getMemoryClass();
       final batteryLevel = await NativeService.getBatteryLevel();
       final stats = await NativeService.getOptimizationStats();
@@ -145,403 +144,411 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-          SliverAppBar(
-            pinned: true,
-            title: Text('Optimización'),
-          ),
-          if (_loading)
-            SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator(strokeWidth: 3)),
-            )
-          else ...[
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.sm,
-                ),
-                child: Container(
-                  padding: EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: AppColors.info.withValues(alpha: 0.1),
-                    border: Border.all(color: AppColors.info, width: 1),
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
+            const SliverAppBar(
+              pinned: true,
+              title: Text('Optimización'),
+            ),
+            if (_loading)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator(strokeWidth: 3)),
+              )
+            else ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.sm,
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.speed_rounded,
-                          color: AppColors.info, size: 18),
-                      SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          'Optimiza el rendimiento y reduce el consumo de batería',
-                          style: TextStyle(
-                            color: AppColors.info,
-                            fontSize: 12,
-                            height: 1.4,
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.info.withValues(alpha: 0.1),
+                      border: Border.all(color: AppColors.info, width: 1),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.speed_rounded,
+                            color: AppColors.info, size: 18),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            'Optimiza el rendimiento y reduce el consumo de batería',
+                            style: TextStyle(
+                              color: AppColors.info,
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
                           ),
                         ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.xs,
+                  ),
+                  child: Text(
+                    'MODO AHORRO DE BATERÍA',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textTertiary,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isCompact = constraints.maxWidth < 320;
+                          final content = Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Reducir frecuencia de tracking',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                _batterySaverEnabled
+                                    ? 'Actualización cada 2 minutos'
+                                    : 'Actualización cada 30 segundos',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textTertiary,
+                                ),
+                              ),
+                            ],
+                          );
+                          if (isCompact) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 36,
+                                      height: 36,
+                                      decoration: BoxDecoration(
+                                        color: _batterySaverEnabled
+                                            ? AppColors.success
+                                                .withValues(alpha: 0.15)
+                                            : AppColors.surfaceVariant,
+                                        borderRadius:
+                                            BorderRadius.circular(AppRadius.md),
+                                      ),
+                                      child: Icon(
+                                        _batterySaverEnabled
+                                            ? Icons.battery_saver_rounded
+                                            : Icons.battery_std_rounded,
+                                        size: 20,
+                                        color: _batterySaverEnabled
+                                            ? AppColors.success
+                                            : AppColors.textTertiary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: AppSpacing.sm),
+                                    Expanded(child: content),
+                                  ],
+                                ),
+                                const SizedBox(height: AppSpacing.sm),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Switch(
+                                    value: _batterySaverEnabled,
+                                    onChanged: _toggleBatterySaver,
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: _batterySaverEnabled
+                                      ? AppColors.success
+                                          .withValues(alpha: 0.15)
+                                      : AppColors.surfaceVariant,
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.md),
+                                ),
+                                child: Icon(
+                                  _batterySaverEnabled
+                                      ? Icons.battery_saver_rounded
+                                      : Icons.battery_std_rounded,
+                                  size: 20,
+                                  color: _batterySaverEnabled
+                                      ? AppColors.success
+                                      : AppColors.textTertiary,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Expanded(child: content),
+                              Switch(
+                                value: _batterySaverEnabled,
+                                onChanged: _toggleBatterySaver,
+                              ),
+                            ],
+                          );
+                        },
                       ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.xs,
-                ),
-                child: Text(
-                  'MODO AHORRO DE BATERÍA',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textTertiary,
-                    letterSpacing: 1.0,
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.xs,
+                  ),
+                  child: Text(
+                    'AHORRO AUTOMÁTICO',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textTertiary,
+                      letterSpacing: 1.0,
+                    ),
                   ),
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(AppSpacing.md),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isCompact = constraints.maxWidth < 320;
-                        final content = Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Reducir frecuencia de tracking',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  child: Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final statusText = _batteryLevel != null
+                              ? 'Batería actual: $_batteryLevel%'
+                              : 'Batería actual: desconocida';
+                          final header = Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Activar automáticamente',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
-                            ),
-                            SizedBox(height: AppSpacing.xs),
-                            Text(
-                              _batterySaverEnabled
-                                  ? 'Actualización cada 2 minutos'
-                                  : 'Actualización cada 30 segundos',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textTertiary,
+                              const SizedBox(height: AppSpacing.xs),
+                              Text(
+                                statusText,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textTertiary,
+                                ),
                               ),
-                            ),
-                          ],
-                        );
-                        if (isCompact) {
+                            ],
+                          );
+                          final toggle = Switch(
+                            value: _batteryAutoEnabled,
+                            onChanged: _toggleAutoBattery,
+                          );
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
-                                  Container(
-                                    width: 36,
-                                    height: 36,
-                                    decoration: BoxDecoration(
-                                      color: _batterySaverEnabled
-                                          ? AppColors.success.withValues(alpha: 0.15)
-                                          : AppColors.surfaceVariant,
-                                      borderRadius: BorderRadius.circular(AppRadius.md),
-                                    ),
-                                    child: Icon(
-                                      _batterySaverEnabled
-                                          ? Icons.battery_saver_rounded
-                                          : Icons.battery_std_rounded,
-                                      size: 20,
-                                      color: _batterySaverEnabled
-                                          ? AppColors.success
-                                          : AppColors.textTertiary,
-                                    ),
-                                  ),
-                                  SizedBox(width: AppSpacing.sm),
-                                  Expanded(child: content),
+                                  Expanded(child: header),
+                                  toggle,
                                 ],
                               ),
-                              SizedBox(height: AppSpacing.sm),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Switch(
-                                  value: _batterySaverEnabled,
-                                  onChanged: _toggleBatterySaver,
-                                ),
-                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              _autoThresholdRow(),
                             ],
                           );
-                        }
-                        return Row(
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: _batterySaverEnabled
-                                    ? AppColors.success.withValues(alpha: 0.15)
-                                    : AppColors.surfaceVariant,
-                                borderRadius: BorderRadius.circular(AppRadius.md),
-                              ),
-                              child: Icon(
-                                _batterySaverEnabled
-                                    ? Icons.battery_saver_rounded
-                                    : Icons.battery_std_rounded,
-                                size: 20,
-                                color: _batterySaverEnabled
-                                    ? AppColors.success
-                                    : AppColors.textTertiary,
-                              ),
-                            ),
-                            SizedBox(width: AppSpacing.sm),
-                            Expanded(child: content),
-                            Switch(
-                              value: _batterySaverEnabled,
-                              onChanged: _toggleBatterySaver,
-                            ),
-                          ],
-                        );
-                      },
+                        },
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.xs,
-                ),
-                child: Text(
-                  'AHORRO AUTOMÁTICO',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textTertiary,
-                    letterSpacing: 1.0,
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.xs,
+                  ),
+                  child: Text(
+                    'ESTADÍSTICAS',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textTertiary,
+                      letterSpacing: 1.0,
+                    ),
                   ),
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Card(
+              if (_stats != null) ...[
+                SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.all(AppSpacing.md),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final statusText = _batteryLevel != null
-                            ? 'Batería actual: ${_batteryLevel}%'
-                            : 'Batería actual: desconocida';
-                        final header = Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    child: Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        child: Column(
                           children: [
-                            Text(
-                              'Activar automáticamente',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
+                            _statRow(
+                              icon: Icons.storage_rounded,
+                              label: 'Base de datos',
+                              value: '${_stats!['databaseSizeMB']} MB',
                             ),
-                            SizedBox(height: AppSpacing.xs),
-                            Text(
-                              statusText,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textTertiary,
-                              ),
+                            const Divider(height: AppSpacing.md),
+                            _statRow(
+                              icon: Icons.cached_rounded,
+                              label: 'Cache',
+                              value: '${_stats!['cacheSizeKB']} KB',
+                            ),
+                            const Divider(height: AppSpacing.md),
+                            _statRow(
+                              icon: Icons.memory_rounded,
+                              label: 'RAM clase',
+                              value: '$_memoryClassMb MB',
+                            ),
+                            const Divider(height: AppSpacing.md),
+                            _statRow(
+                              icon: Icons.folder_special_rounded,
+                              label: 'Límite cache íconos',
+                              value:
+                                  '${_iconCacheLimitMb.toStringAsFixed(1)} MB',
+                            ),
+                            const Divider(height: AppSpacing.md),
+                            _statRow(
+                              icon: Icons.download_for_offline_rounded,
+                              label: 'Prefetch íconos',
+                              value: '$_iconPrefetchCount',
+                            ),
+                            const Divider(height: AppSpacing.md),
+                            _statRow(
+                              icon: Icons.bar_chart_rounded,
+                              label: 'Registros de uso',
+                              value: '${_stats!['usageRecordCount']}',
                             ),
                           ],
-                        );
-                        final toggle = Switch(
-                          value: _batteryAutoEnabled,
-                          onChanged: _toggleAutoBattery,
-                        );
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(child: header),
-                                toggle,
-                              ],
-                            ),
-                            SizedBox(height: AppSpacing.sm),
-                            _autoThresholdRow(),
-                          ],
-                        );
-                      },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.lg,
+                    AppSpacing.xs,
+                  ),
+                  child: Text(
+                    'MANTENIMIENTO',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textTertiary,
+                      letterSpacing: 1.0,
                     ),
                   ),
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.xs,
-                ),
-                child: Text(
-                  'ESTADÍSTICAS',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textTertiary,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-              ),
-            ),
-            if (_stats != null) ...[
               SliverToBoxAdapter(
                 child: Padding(
                   padding:
-                      EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(AppSpacing.md),
-                      child: Column(
-                        children: [
-                          _statRow(
-                            icon: Icons.storage_rounded,
-                            label: 'Base de datos',
-                            value: '${_stats!['databaseSizeMB']} MB',
+                    child: Column(
+                      children: [
+                        ListTile(
+                          leading: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: AppColors.warning.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: Icon(Icons.delete_sweep_rounded,
+                                color: AppColors.warning, size: 18),
                           ),
-                          Divider(height: AppSpacing.md),
-                          _statRow(
-                            icon: Icons.cached_rounded,
-                            label: 'Cache',
-                            value: '${_stats!['cacheSizeKB']} KB',
+                          title: const Text(
+                            'Limpiar cache',
+                            style: TextStyle(fontSize: 13),
                           ),
-                          Divider(height: AppSpacing.md),
-                          _statRow(
-                            icon: Icons.memory_rounded,
-                            label: 'RAM clase',
-                            value: '$_memoryClassMb MB',
+                          subtitle: const Text(
+                            'Elimina datos temporales',
+                            style: TextStyle(fontSize: 11),
                           ),
-                          Divider(height: AppSpacing.md),
-                          _statRow(
-                            icon: Icons.folder_special_rounded,
-                            label: 'Límite cache íconos',
-                            value: '${_iconCacheLimitMb.toStringAsFixed(1)} MB',
+                          trailing:
+                              const Icon(Icons.chevron_right_rounded, size: 18),
+                          onTap: _invalidateCache,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        const Divider(height: 1, indent: 56),
+                        ListTile(
+                          leading: Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: AppColors.error.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: Icon(Icons.cleaning_services_rounded,
+                                color: AppColors.error, size: 18),
                           ),
-                          Divider(height: AppSpacing.md),
-                          _statRow(
-                            icon: Icons.download_for_offline_rounded,
-                            label: 'Prefetch íconos',
-                            value: '$_iconPrefetchCount',
+                          title: const Text(
+                            'Limpieza profunda',
+                            style: TextStyle(fontSize: 13),
                           ),
-                          Divider(height: AppSpacing.md),
-                          _statRow(
-                            icon: Icons.bar_chart_rounded,
-                            label: 'Registros de uso',
-                            value: '${_stats!['usageRecordCount']}',
+                          subtitle: const Text(
+                            'Elimina datos antiguos',
+                            style: TextStyle(fontSize: 11),
                           ),
-                        ],
-                      ),
+                          trailing:
+                              const Icon(Icons.chevron_right_rounded, size: 18),
+                          onTap: _forceCleanup,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
             ],
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.xs,
-                ),
-                child: Text(
-                  'MANTENIMIENTO',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textTertiary,
-                    letterSpacing: 1.0,
-                  ),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                child: Card(
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: AppColors.warning.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                          ),
-                          child: Icon(Icons.delete_sweep_rounded,
-                              color: AppColors.warning, size: 18),
-                        ),
-                        title: Text(
-                          'Limpiar cache',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        subtitle: Text(
-                          'Elimina datos temporales',
-                          style: TextStyle(fontSize: 11),
-                        ),
-                        trailing:
-                            Icon(Icons.chevron_right_rounded, size: 18),
-                        onTap: _invalidateCache,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                      Divider(height: 1, indent: 56),
-                      ListTile(
-                        leading: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: AppColors.error.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                          ),
-                          child: Icon(Icons.cleaning_services_rounded,
-                              color: AppColors.error, size: 18),
-                        ),
-                        title: Text(
-                          'Limpieza profunda',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        subtitle: Text(
-                          'Elimina datos antiguos',
-                          style: TextStyle(fontSize: 11),
-                        ),
-                        trailing:
-                            Icon(Icons.chevron_right_rounded, size: 18),
-                        onTap: _forceCleanup,
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
-          ],
           ],
         ),
       ),
@@ -560,7 +567,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
               Row(
                 children: [
                   Icon(icon, color: AppColors.textSecondary, size: 18),
-                  SizedBox(width: AppSpacing.sm),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       label,
@@ -572,7 +579,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                   ),
                 ],
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 value,
                 style: TextStyle(
@@ -587,7 +594,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
         return Row(
           children: [
             Icon(icon, color: AppColors.textSecondary, size: 18),
-            SizedBox(width: AppSpacing.sm),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 label,
@@ -623,7 +630,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
             color: AppColors.textSecondary,
           ),
         ),
-        SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.xs),
         Row(
           children: [
             Text(
@@ -634,7 +641,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                 color: AppColors.textPrimary,
               ),
             ),
-            SizedBox(width: AppSpacing.sm),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Slider(
                 value: _batteryAutoThreshold.toDouble(),
@@ -658,4 +665,3 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
     );
   }
 }
-

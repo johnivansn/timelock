@@ -4,7 +4,7 @@ import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_motion.dart';
 
 class PinSetupScreen extends StatefulWidget {
-  PinSetupScreen({super.key});
+  const PinSetupScreen({super.key});
 
   @override
   State<PinSetupScreen> createState() => _PinSetupScreenState();
@@ -112,23 +112,23 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             children: [
               Align(
                 alignment: Alignment.centerLeft,
                 child: IconButton(
                   onPressed: _onBack,
-                  icon: Icon(Icons.arrow_back_ios_new_rounded),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
                 ),
               ),
-              Spacer(),
+              const Spacer(),
               Icon(
                 _confirming ? Icons.lock_rounded : Icons.lock_open_rounded,
                 color: AppColors.primary,
                 size: 48,
               ),
-              SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 _confirming ? 'Confirma tu PIN' : 'Crea tu PIN',
                 style: TextStyle(
@@ -137,7 +137,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                   color: AppColors.textPrimary,
                 ),
               ),
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 _confirming
                     ? 'Ingresa el mismo PIN para confirmar'
@@ -147,9 +147,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                   color: AppColors.textSecondary,
                 ),
               ),
-              SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.xl),
               _dotIndicator(),
-              SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.md),
               if (_error != null)
                 Text(
                   _error!,
@@ -160,10 +160,10 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                   ),
                 )
               else
-                SizedBox(height: 16),
-              Spacer(),
+                const SizedBox(height: 16),
+              const Spacer(),
               _numpad(),
-              SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.md),
             ],
           ),
         ),
@@ -181,9 +181,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         final isFilled = i < filled;
         final isFocus = i == filled;
         return Padding(
-          padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           child: AnimatedContainer(
-            duration: AppMotion.duration(Duration(milliseconds: 200)),
+            duration: AppMotion.duration(const Duration(milliseconds: 200)),
             width: 14,
             height: 14,
             decoration: BoxDecoration(
@@ -207,11 +207,11 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     return Column(
       children: [
         _numRow([1, 2, 3], size),
-        SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.md),
         _numRow([4, 5, 6], size),
-        SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.md),
         _numRow([7, 8, 9], size),
-        SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.md),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -220,7 +220,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
             _backspaceButton(size),
           ],
         ),
-        SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.lg),
         SizedBox(
           width: double.infinity,
           height: 48,
@@ -231,7 +231,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
                     ? (_canSave ? _onSave : null)
                     : (_canConfirm ? _onConfirmTap : null)),
             child: _saving
-                ? SizedBox(
+                ? const SizedBox(
                     width: 24,
                     height: 24,
                     child: CircularProgressIndicator(
@@ -256,7 +256,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
   Widget _numButton(int digit, double size) {
     return InkWell(
       onTap: () => _onDigit(digit),
-      customBorder: CircleBorder(),
+      customBorder: const CircleBorder(),
       child: Container(
         width: size,
         height: size,
@@ -282,7 +282,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
   Widget _backspaceButton(double size) {
     return InkWell(
       onTap: _onBackspace,
-      customBorder: CircleBorder(),
+      customBorder: const CircleBorder(),
       child: Container(
         width: size,
         height: size,
@@ -309,4 +309,3 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     return size;
   }
 }
-

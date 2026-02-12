@@ -82,7 +82,8 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: Card(
                     child: Padding(
                       padding: const EdgeInsets.all(AppSpacing.md),
@@ -90,19 +91,21 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                         builder: (context, constraints) {
                           final isCompact = constraints.maxWidth < 320;
                           final dropdown = DropdownButtonFormField<String>(
-                            value: _themeChoice,
+                            initialValue: _themeChoice,
                             isExpanded: true,
                             decoration: InputDecoration(
                               isDense: true,
                               filled: true,
-                              fillColor:
-                                  AppColors.surfaceVariant.withValues(alpha: 0.4),
+                              fillColor: AppColors.surfaceVariant
+                                  .withValues(alpha: 0.4),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.md),
                                 borderSide: BorderSide.none,
                               ),
                               enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppRadius.md),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.md),
                                 borderSide: BorderSide.none,
                               ),
                               contentPadding: const EdgeInsets.symmetric(
@@ -132,9 +135,8 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                               if (value == null) return;
                               setState(() => _themeChoice = value);
                               await AppSettings.update(themeChoice: value);
-                              if (mounted) {
-                                context.showSnack('Tema actualizado');
-                              }
+                              if (!mounted) return;
+                              this.context.showSnack('Tema actualizado');
                             },
                           );
                           final info = Column(
@@ -162,8 +164,8 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                                       width: 32,
                                       height: 32,
                                       decoration: BoxDecoration(
-                                        color:
-                                            AppColors.info.withValues(alpha: 0.15),
+                                        color: AppColors.info
+                                            .withValues(alpha: 0.15),
                                         borderRadius:
                                             BorderRadius.circular(AppRadius.sm),
                                       ),
@@ -189,7 +191,8 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                                 height: 32,
                                 decoration: BoxDecoration(
                                   color: AppColors.info.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.sm),
                                 ),
                                 child: Icon(Icons.palette_rounded,
                                     color: AppColors.info, size: 18),
@@ -227,7 +230,8 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: Card(
                     child: ListTile(
                       leading: Container(
@@ -253,13 +257,12 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                         onChanged: (value) async {
                           setState(() => _reduceAnimations = value);
                           await AppSettings.update(reduceAnimations: value);
-                          if (mounted) {
-                            context.showSnack(
-                              value
-                                  ? 'Animaciones reducidas'
-                                  : 'Animaciones normales',
-                            );
-                          }
+                          if (!mounted) return;
+                          this.context.showSnack(
+                                value
+                                    ? 'Animaciones reducidas'
+                                    : 'Animaciones normales',
+                              );
                         },
                       ),
                       visualDensity: VisualDensity.compact,

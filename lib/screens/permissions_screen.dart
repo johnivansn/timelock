@@ -756,7 +756,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       onPressed: () {
         Navigator.push<bool>(
           context,
-          MaterialPageRoute(builder: (_) => PinSetupScreen()),
+          MaterialPageRoute(builder: (_) => const PinSetupScreen()),
         ).then((result) {
           if (result == true) _refresh();
         });
@@ -771,7 +771,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
         Navigator.push<bool>(
           context,
           MaterialPageRoute(
-            builder: (_) => PinVerifyScreen(
+            builder: (_) => const PinVerifyScreen(
               reason: 'Ingresa tu PIN para desactivar el modo administrador',
             ),
           ),

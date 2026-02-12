@@ -6,7 +6,7 @@ import 'package:timelock/widgets/schedule_edit_dialog.dart';
 import 'package:timelock/widgets/bottom_sheet_handle.dart';
 
 class ScheduleEditorDialog extends StatefulWidget {
-  ScheduleEditorDialog({
+  const ScheduleEditorDialog({
     super.key,
     required this.appName,
     required this.packageName,
@@ -42,7 +42,6 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
       if (mounted) setState(() => _loading = false);
     }
   }
-
 
   Future<void> _addSchedule() async {
     final draft = await _openEditor();
@@ -106,7 +105,6 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -115,115 +113,115 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
           decoration: BoxDecoration(
             color: AppColors.surface,
             borderRadius:
-                BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+                const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
           ),
           child: Column(
             children: [
-            SizedBox(height: AppSpacing.sm),
-              BottomSheetHandle(),
-            SizedBox(height: AppSpacing.md),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final isCompact = constraints.maxWidth < 260;
-                  final title = Text(
-                    'Horarios de bloqueo',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: false,
-                  );
-                  final subtitle = Text(
-                    widget.appName,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textTertiary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    softWrap: false,
-                  );
-                  if (isCompact) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: AppSpacing.sm),
+              const BottomSheetHandle(),
+              const SizedBox(height: AppSpacing.md),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompact = constraints.maxWidth < 260;
+                    final title = Text(
+                      'Horarios de bloqueo',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                    );
+                    final subtitle = Text(
+                      widget.appName,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textTertiary,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                    );
+                    if (isCompact) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(child: title),
+                              IconButton(
+                                onPressed: () => Navigator.pop(context),
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                            ],
+                          ),
+                          subtitle,
+                        ],
+                      );
+                    }
+                    return Row(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(child: title),
-                            IconButton(
-                              onPressed: () => Navigator.pop(context),
-                              icon: Icon(Icons.close_rounded),
-                            ),
-                          ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [title, subtitle],
+                          ),
                         ),
-                        subtitle,
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
                       ],
                     );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [title, subtitle],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(Icons.close_rounded),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-            SizedBox(height: AppSpacing.sm),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: SizedBox(
-                width: double.infinity,
-                height: 36,
-                child: FilledButton.icon(
-                  onPressed: _addSchedule,
-                  icon: Icon(Icons.add_rounded, size: 16),
-                  label: Text('Agregar horario'),
+                  },
                 ),
               ),
-            ),
-            SizedBox(height: AppSpacing.sm),
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.45,
+              const SizedBox(height: AppSpacing.sm),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 36,
+                  child: FilledButton.icon(
+                    onPressed: _addSchedule,
+                    icon: const Icon(Icons.add_rounded, size: 16),
+                    label: const Text('Agregar horario'),
+                  ),
+                ),
               ),
-              child: _loading
-                  ? Center(
-                      child: CircularProgressIndicator(strokeWidth: 3))
-                  : _schedules.isEmpty
-                      ? Center(
-                          child: Text(
-                            'Sin horarios configurados',
-                            style: TextStyle(
-                              color: AppColors.textTertiary,
-                              fontSize: 13,
+              const SizedBox(height: AppSpacing.sm),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.45,
+                ),
+                child: _loading
+                    ? const Center(
+                        child: CircularProgressIndicator(strokeWidth: 3))
+                    : _schedules.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Sin horarios configurados',
+                              style: TextStyle(
+                                color: AppColors.textTertiary,
+                                fontSize: 13,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.lg),
+                            itemCount: _schedules.length,
+                            itemBuilder: (_, i) => _scheduleTile(_schedules[i]),
                           ),
-                        )
-                      : ListView.builder(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: AppSpacing.lg),
-                          itemCount: _schedules.length,
-                          itemBuilder: (_, i) => _scheduleTile(_schedules[i]),
-                        ),
-            ),
-            SizedBox(height: AppSpacing.md),
+              ),
+              const SizedBox(height: AppSpacing.md),
             ],
           ),
         ),
@@ -246,12 +244,12 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
     final dayText = formatDays(days);
 
     return Card(
-      margin: EdgeInsets.only(bottom: AppSpacing.sm),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: InkWell(
         onTap: () => _editSchedule(s),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Padding(
-          padding: EdgeInsets.all(10),
+          padding: const EdgeInsets.all(10),
           child: Row(
             children: [
               Expanded(
@@ -266,7 +264,7 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
                       dayText,
                       style: TextStyle(
@@ -283,13 +281,13 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
               ),
               IconButton(
                 onPressed: () => _deleteSchedule(s),
-                icon: Icon(Icons.delete_outline_rounded, size: 16),
+                icon: const Icon(Icons.delete_outline_rounded, size: 16),
                 style: IconButton.styleFrom(
                   foregroundColor: AppColors.error,
                   backgroundColor: AppColors.surfaceVariant,
-                  minimumSize: Size(28, 28),
-                  fixedSize: Size(28, 28),
-                  padding: EdgeInsets.all(4),
+                  minimumSize: const Size(28, 28),
+                  fixedSize: const Size(28, 28),
+                  padding: const EdgeInsets.all(4),
                 ),
               ),
             ],
@@ -298,8 +296,4 @@ class _ScheduleEditorDialogState extends State<ScheduleEditorDialog> {
       ),
     );
   }
-
 }
-
-
-

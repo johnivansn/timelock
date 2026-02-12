@@ -3,7 +3,7 @@ import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
-  NotificationSettingsScreen({super.key});
+  const NotificationSettingsScreen({super.key});
 
   @override
   State<NotificationSettingsScreen> createState() =>
@@ -97,7 +97,7 @@ class _NotificationSettingsScreenState
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Text('Configuración guardada'),
             behavior: SnackBarBehavior.floating,
             duration: Duration(seconds: 1),
@@ -113,25 +113,25 @@ class _NotificationSettingsScreenState
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            SliverAppBar(
+            const SliverAppBar(
               pinned: true,
               title: Text('Notificaciones'),
             ),
             if (_loading)
-              SliverFillRemaining(
+              const SliverFillRemaining(
                 child: Center(child: CircularProgressIndicator(strokeWidth: 3)),
               )
             else ...[
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(
+                  padding: const EdgeInsets.fromLTRB(
                     AppSpacing.lg,
                     AppSpacing.lg,
                     AppSpacing.lg,
                     AppSpacing.sm,
                   ),
                   child: Container(
-                    padding: EdgeInsets.all(AppSpacing.md),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
                       color: AppColors.info.withValues(alpha: 0.1),
                       border: Border.all(color: AppColors.info, width: 1),
@@ -141,7 +141,7 @@ class _NotificationSettingsScreenState
                       children: [
                         Icon(Icons.info_outline_rounded,
                             color: AppColors.info, size: 18),
-                        SizedBox(width: AppSpacing.sm),
+                        const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
                             'Las notificaciones aparecen como píldoras flotantes en la parte superior de la pantalla',
@@ -158,7 +158,7 @@ class _NotificationSettingsScreenState
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(
+                  padding: const EdgeInsets.fromLTRB(
                     AppSpacing.lg,
                     AppSpacing.lg,
                     AppSpacing.lg,
@@ -177,13 +177,14 @@ class _NotificationSettingsScreenState
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: _notificationStyleCard(),
                 ),
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(
+                  padding: const EdgeInsets.fromLTRB(
                     AppSpacing.lg,
                     AppSpacing.lg,
                     AppSpacing.lg,
@@ -201,7 +202,7 @@ class _NotificationSettingsScreenState
                 ),
               ),
               SliverPadding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     _notificationToggle(
@@ -214,7 +215,7 @@ class _NotificationSettingsScreenState
                         _saveSetting('notify_quota_50', val);
                       },
                     ),
-                    SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.sm),
                     _notificationToggle(
                       icon: Icons.warning_amber_rounded,
                       title: 'Quedan pocos minutos (75%)',
@@ -225,7 +226,7 @@ class _NotificationSettingsScreenState
                         _saveSetting('notify_quota_75', val);
                       },
                     ),
-                    SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.sm),
                     _notificationToggle(
                       icon: Icons.error_outline_rounded,
                       title: 'Último minuto disponible',
@@ -241,7 +242,7 @@ class _NotificationSettingsScreenState
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(
+                  padding: const EdgeInsets.fromLTRB(
                     AppSpacing.lg,
                     AppSpacing.lg,
                     AppSpacing.lg,
@@ -259,7 +260,7 @@ class _NotificationSettingsScreenState
                 ),
               ),
               SliverPadding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     _notificationToggle(
@@ -273,7 +274,7 @@ class _NotificationSettingsScreenState
                         _saveSetting('notify_blocked', val);
                       },
                     ),
-                    SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.sm),
                     _notificationToggle(
                       icon: Icons.schedule_rounded,
                       title: 'Horarios programados',
@@ -284,7 +285,7 @@ class _NotificationSettingsScreenState
                         _saveSetting('notify_schedule', val);
                       },
                     ),
-                    SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.sm),
                     _notificationToggle(
                       icon: Icons.event_busy_rounded,
                       title: 'Bloqueos por fechas',
@@ -301,7 +302,7 @@ class _NotificationSettingsScreenState
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(
+                  padding: const EdgeInsets.fromLTRB(
                     AppSpacing.lg,
                     AppSpacing.lg,
                     AppSpacing.lg,
@@ -320,7 +321,8 @@ class _NotificationSettingsScreenState
               ),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: _notificationToggle(
                     icon: Icons.notifications_active_outlined,
                     title: 'Mostrar estado de monitoreo',
@@ -334,7 +336,7 @@ class _NotificationSettingsScreenState
                   ),
                 ),
               ),
-              SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
+              const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
             ],
           ],
         ),
@@ -352,7 +354,7 @@ class _NotificationSettingsScreenState
         : 'Bloqueo en pantalla inactivo';
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -373,7 +375,7 @@ class _NotificationSettingsScreenState
                     color: AppColors.primary,
                   ),
                 ),
-                SizedBox(width: AppSpacing.sm),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -398,7 +400,7 @@ class _NotificationSettingsScreenState
                 ),
               ],
             ),
-            SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               pillDisabled
                   ? 'La opción píldora requiere "Mostrar sobre otras apps"'
@@ -409,7 +411,7 @@ class _NotificationSettingsScreenState
                     pillDisabled ? AppColors.warning : AppColors.textTertiary,
               ),
             ),
-            SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 Expanded(
@@ -425,7 +427,7 @@ class _NotificationSettingsScreenState
                     },
                   ),
                 ),
-                SizedBox(width: AppSpacing.sm),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: _styleOptionCard(
                     icon: Icons.notifications_active_outlined,
@@ -441,9 +443,9 @@ class _NotificationSettingsScreenState
                 ),
               ],
             ),
-            SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.md),
             Container(
-              padding: EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.md,
                 vertical: AppSpacing.sm,
               ),
@@ -469,7 +471,7 @@ class _NotificationSettingsScreenState
                         ? AppColors.textSecondary
                         : AppColors.warning,
                   ),
-                  SizedBox(width: AppSpacing.sm),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -484,7 +486,7 @@ class _NotificationSettingsScreenState
                                 : AppColors.warning,
                           ),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
                           overlayToggleEnabled
                               ? (_overlayForPillEnabled
@@ -499,9 +501,10 @@ class _NotificationSettingsScreenState
                       ],
                     ),
                   ),
-                  SizedBox(width: AppSpacing.sm),
+                  const SizedBox(width: AppSpacing.sm),
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: _overlayForPillEnabled
                           ? AppColors.success.withValues(alpha: 0.16)
@@ -557,8 +560,8 @@ class _NotificationSettingsScreenState
         borderRadius: BorderRadius.circular(AppRadius.md),
         onTap: enabled ? onTap : null,
         child: AnimatedContainer(
-          duration: Duration(milliseconds: 180),
-          padding: EdgeInsets.symmetric(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.sm,
             vertical: AppSpacing.sm,
           ),
@@ -589,7 +592,7 @@ class _NotificationSettingsScreenState
                         ? AppColors.primary
                         : AppColors.textSecondary,
               ),
-              SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -630,7 +633,7 @@ class _NotificationSettingsScreenState
   }) {
     return Card(
       child: Padding(
-        padding: EdgeInsets.all(AppSpacing.md),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isCompact = constraints.maxWidth < 320;
@@ -658,7 +661,7 @@ class _NotificationSettingsScreenState
                               : AppColors.textTertiary,
                         ),
                       ),
-                      SizedBox(width: AppSpacing.sm),
+                      const SizedBox(width: AppSpacing.sm),
                       Expanded(
                         child: Text(
                           title,
@@ -675,7 +678,7 @@ class _NotificationSettingsScreenState
                       ),
                     ],
                   ),
-                  SizedBox(height: AppSpacing.xs),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     description,
                     style: TextStyle(
@@ -705,7 +708,7 @@ class _NotificationSettingsScreenState
                     color: value ? AppColors.success : AppColors.textTertiary,
                   ),
                 ),
-                SizedBox(width: AppSpacing.sm),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -718,7 +721,7 @@ class _NotificationSettingsScreenState
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      SizedBox(height: AppSpacing.xs),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
                         description,
                         style: TextStyle(
@@ -730,7 +733,7 @@ class _NotificationSettingsScreenState
                     ],
                   ),
                 ),
-                SizedBox(width: AppSpacing.sm),
+                const SizedBox(width: AppSpacing.sm),
                 Switch(
                   value: value,
                   onChanged: onChanged,

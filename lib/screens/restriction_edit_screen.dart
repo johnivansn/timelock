@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:timelock/widgets/limit_picker_dialog.dart';
 
 class RestrictionEditScreen extends StatelessWidget {
-  RestrictionEditScreen({
+  const RestrictionEditScreen({
     super.key,
     required this.appName,
     this.packageName,

@@ -5,7 +5,7 @@ import 'package:timelock/utils/app_motion.dart';
 import 'package:timelock/utils/app_utils.dart';
 
 class PinVerifyScreen extends StatefulWidget {
-  PinVerifyScreen({super.key, this.reason});
+  const PinVerifyScreen({super.key, this.reason});
 
   final String? reason;
 
@@ -29,7 +29,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
     super.initState();
     _shakeController = AnimationController(
       vsync: this,
-      duration: AppMotion.duration(Duration(milliseconds: 400)),
+      duration: AppMotion.duration(const Duration(milliseconds: 400)),
     );
     _shakeAnimation = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 0.0, end: -12.0), weight: 25),
@@ -116,7 +116,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
   }
 
   void _startCountdown() {
-    Future.delayed(Duration(seconds: 1), () {
+    Future.delayed(const Duration(seconds: 1), () {
       if (!mounted || _lockedSeconds <= 0) return;
       setState(() {
         _lockedSeconds--;
@@ -169,23 +169,23 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             children: [
               Align(
                 alignment: Alignment.centerLeft,
                 child: IconButton(
                   onPressed: () => Navigator.pop(context, false),
-                  icon: Icon(Icons.arrow_back_ios_new_rounded),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
                 ),
               ),
-              Spacer(),
+              const Spacer(),
               Icon(
                 isLocked ? Icons.lock_clock_rounded : Icons.shield_rounded,
                 color: isLocked ? AppColors.error : AppColors.primary,
                 size: 48,
               ),
-              SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 'Modo Administrador',
                 style: TextStyle(
@@ -194,7 +194,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
                   color: AppColors.textPrimary,
                 ),
               ),
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 widget.reason ?? 'Ingresa tu PIN para continuar',
                 style: TextStyle(
@@ -203,7 +203,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
                 ),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.xl),
               AnimatedBuilder(
                 animation: _shakeAnimation,
                 builder: (_, child) => Transform.translate(
@@ -212,7 +212,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
                 ),
                 child: _dotIndicator(),
               ),
-              SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.md),
               if (_error != null)
                 Text(
                   _error!,
@@ -223,10 +223,10 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
                   ),
                 )
               else
-                SizedBox(height: 16),
-              Spacer(),
+                const SizedBox(height: 16),
+              const Spacer(),
               _numpad(isLocked),
-              SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.md),
             ],
           ),
         ),
@@ -243,9 +243,9 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
         final isFilled = i < filled;
         final isFocus = i == filled;
         return Padding(
-          padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
           child: AnimatedContainer(
-            duration: AppMotion.duration(Duration(milliseconds: 200)),
+            duration: AppMotion.duration(const Duration(milliseconds: 200)),
             width: 14,
             height: 14,
             decoration: BoxDecoration(
@@ -269,11 +269,11 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
     return Column(
       children: [
         _numRow([1, 2, 3], isLocked, size),
-        SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.md),
         _numRow([4, 5, 6], isLocked, size),
-        SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.md),
         _numRow([7, 8, 9], isLocked, size),
-        SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.md),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
@@ -296,7 +296,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
   Widget _numButton(int digit, bool isLocked, double size) {
     return InkWell(
       onTap: isLocked ? null : () => _onDigit(digit),
-      customBorder: CircleBorder(),
+      customBorder: const CircleBorder(),
       child: Container(
         width: size,
         height: size,
@@ -322,7 +322,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
   Widget _backspaceButton(bool isLocked, double size) {
     return InkWell(
       onTap: isLocked ? null : _onBackspace,
-      customBorder: CircleBorder(),
+      customBorder: const CircleBorder(),
       child: Container(
         width: size,
         height: size,
@@ -349,4 +349,3 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
     return size;
   }
 }
-

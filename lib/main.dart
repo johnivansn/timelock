@@ -19,11 +19,11 @@ Future<void> main() async {
       debugRepaintRainbowEnabled = false;
     });
   }
-  runApp(TimeLockApp());
+  runApp(const TimeLockApp());
 }
 
 class TimeLockApp extends StatelessWidget {
-  TimeLockApp({super.key});
+  const TimeLockApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +38,7 @@ class TimeLockApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           theme: theme,
           themeMode: ThemeMode.dark,
-          locale: Locale('es', 'ES'),
+          locale: const Locale('es', 'ES'),
           supportedLocales: const [
             Locale('es', 'ES'),
             Locale('en', 'US'),
@@ -54,13 +54,12 @@ class TimeLockApp extends StatelessWidget {
               data: data.copyWith(
                 disableAnimations: settings.reduceAnimations,
               ),
-              child: child ?? SizedBox.shrink(),
+              child: child ?? const SizedBox.shrink(),
             );
           },
-          home: SplashScreen(),
+          home: const SplashScreen(),
         );
       },
     );
   }
 }
-

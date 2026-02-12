@@ -102,7 +102,7 @@ class _AppListScreenState extends State<AppListScreen>
     while (mounted && !verified) {
       final result = await navigator.push<bool>(
         MaterialPageRoute(
-          builder: (_) => PinVerifyScreen(
+          builder: (_) => const PinVerifyScreen(
             reason: 'Ingresa tu PIN para acceder a la app',
           ),
         ),
@@ -193,7 +193,7 @@ class _AppListScreenState extends State<AppListScreen>
                 label: 'Configurar',
                 onPressed: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => PermissionsScreen()),
+                  MaterialPageRoute(builder: (_) => const PermissionsScreen()),
                 ).then((_) => _checkPermissions()),
               ),
         behavior: SnackBarBehavior.floating,
@@ -1405,7 +1405,7 @@ class _AppListScreenState extends State<AppListScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => PermissionsScreen()),
+                                    builder: (_) => const PermissionsScreen()),
                               ).then((_) => _checkPermissions());
                             },
                           ),
@@ -1419,7 +1419,7 @@ class _AppListScreenState extends State<AppListScreen>
                                 context,
                                 MaterialPageRoute(
                                     builder: (_) =>
-                                        NotificationSettingsScreen()),
+                                        const NotificationSettingsScreen()),
                               );
                             },
                           ),
@@ -1432,7 +1432,7 @@ class _AppListScreenState extends State<AppListScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => ExportImportScreen()),
+                                    builder: (_) => const ExportImportScreen()),
                               ).then((_) => _loadRestrictions());
                             },
                           ),
@@ -1458,7 +1458,7 @@ class _AppListScreenState extends State<AppListScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => OptimizationScreen()),
+                                    builder: (_) => const OptimizationScreen()),
                               );
                             },
                           ),
@@ -1592,7 +1592,7 @@ class _AppListScreenState extends State<AppListScreen>
           TextButton(
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => PermissionsScreen()),
+              MaterialPageRoute(builder: (_) => const PermissionsScreen()),
             ).then((_) => _checkPermissions()),
             style: TextButton.styleFrom(
               backgroundColor: AppColors.warning.withValues(alpha: 0.2),

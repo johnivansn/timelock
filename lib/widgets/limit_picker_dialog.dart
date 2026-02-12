@@ -823,7 +823,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                   children: [
                     if (!widget.fullScreen) ...[
                       const SizedBox(height: AppSpacing.sm),
-                      BottomSheetHandle(),
+                      const BottomSheetHandle(),
                     ],
                     const SizedBox(height: AppSpacing.md),
                     Padding(
@@ -1006,7 +1006,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
           children: [
             if (!widget.fullScreen) ...[
               const SizedBox(height: AppSpacing.sm),
-              BottomSheetHandle(),
+              const BottomSheetHandle(),
             ],
             const SizedBox(height: AppSpacing.md),
             Padding(

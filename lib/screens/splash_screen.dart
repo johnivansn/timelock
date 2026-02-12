@@ -5,7 +5,7 @@ import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/schedule_utils.dart';
 
 class SplashScreen extends StatefulWidget {
-  SplashScreen({super.key});
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -91,7 +91,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 child: Icon(Icons.shield_rounded,
                     size: 36, color: AppColors.primary),
               ),
-              SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.md),
               Text(
                 'TimeLock',
                 style: TextStyle(
@@ -100,7 +100,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   color: AppColors.textPrimary,
                 ),
               ),
-              SizedBox(height: AppSpacing.xs),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 'Preparando la app...',
                 style: TextStyle(
@@ -108,8 +108,8 @@ class _SplashScreenState extends State<SplashScreen> {
                   color: AppColors.textTertiary,
                 ),
               ),
-              SizedBox(height: AppSpacing.lg),
-              SizedBox(
+              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2),
@@ -121,4 +121,3 @@ class _SplashScreenState extends State<SplashScreen> {
     );
   }
 }
-

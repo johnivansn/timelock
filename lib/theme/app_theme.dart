@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:timelock/theme/app_palette.dart';
 
 class AppTheme {
-
   static ThemeData get darkTheme => _buildTheme(AppPalette.classic);
 
   static ThemeData get darkHighContrast => _buildTheme(AppPalette.highContrast);
@@ -42,13 +41,13 @@ class AppTheme {
         backgroundColor: palette.background,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: TextStyle(
+        titleTextStyle: const TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: Colors.white,
           letterSpacing: -0.5,
         ),
-        iconTheme: IconThemeData(
+        iconTheme: const IconThemeData(
           color: Colors.white70,
           size: 20,
         ),
@@ -66,11 +65,11 @@ class AppTheme {
           backgroundColor: palette.primary,
           foregroundColor: onPrimary,
           elevation: 0,
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: TextStyle(
+          textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.2,
@@ -81,11 +80,11 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: palette.primary,
           foregroundColor: onPrimary,
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          textStyle: TextStyle(
+          textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.2,
@@ -95,7 +94,7 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: palette.primary,
-          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -117,15 +116,15 @@ class AppTheme {
           borderSide: BorderSide(color: palette.primary, width: 2),
         ),
         contentPadding:
-            EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        hintStyle: TextStyle(color: Colors.white38),
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        hintStyle: const TextStyle(color: Colors.white38),
       ),
       dividerTheme: DividerThemeData(
         color: palette.surfaceVariant,
         thickness: 1,
         space: 1,
       ),
-      iconTheme: IconThemeData(
+      iconTheme: const IconThemeData(
         color: Colors.white70,
         size: 20,
       ),
@@ -149,7 +148,7 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: palette.surface,
-        contentTextStyle: TextStyle(color: Colors.white),
+        contentTextStyle: const TextStyle(color: Colors.white),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -165,7 +164,7 @@ class AppTheme {
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: palette.surface,
         elevation: 0,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
       ),
@@ -178,7 +177,7 @@ class AppTheme {
 
   static ThemeData withReducedAnimations(ThemeData base) {
     return base.copyWith(
-      pageTransitionsTheme: PageTransitionsTheme(
+      pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
           TargetPlatform.android: _NoTransitionsBuilder(),
           TargetPlatform.iOS: _NoTransitionsBuilder(),
@@ -243,4 +242,3 @@ class AppRadius {
   static const double xl = 20.0;
   static const double xxl = 24.0;
 }
-

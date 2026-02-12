@@ -6,7 +6,7 @@ import 'package:timelock/theme/app_theme.dart';
 import 'dart:convert';
 
 class ExportImportScreen extends StatefulWidget {
-  ExportImportScreen({super.key});
+  const ExportImportScreen({super.key});
 
   @override
   State<ExportImportScreen> createState() => _ExportImportScreenState();
@@ -82,13 +82,13 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            SliverAppBar(
+            const SliverAppBar(
               pinned: true,
               title: Text('Export / Import'),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
+                padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg,
                   AppSpacing.lg,
                   AppSpacing.lg,
@@ -106,7 +106,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                       ),
                     );
                     return Container(
-                      padding: EdgeInsets.all(AppSpacing.md),
+                      padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(
                         color: AppColors.info.withValues(alpha: 0.1),
                         border: Border.all(color: AppColors.info, width: 1),
@@ -120,7 +120,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                   children: [
                                     Icon(Icons.sync_rounded,
                                         color: AppColors.info, size: 18),
-                                    SizedBox(width: AppSpacing.sm),
+                                    const SizedBox(width: AppSpacing.sm),
                                     Expanded(child: text),
                                   ],
                                 ),
@@ -131,7 +131,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                               children: [
                                 Icon(Icons.sync_rounded,
                                     color: AppColors.info, size: 18),
-                                SizedBox(width: AppSpacing.sm),
+                                const SizedBox(width: AppSpacing.sm),
                                 Expanded(child: text),
                               ],
                             ),
@@ -142,7 +142,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
+                padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg,
                   AppSpacing.lg,
                   AppSpacing.lg,
@@ -161,10 +161,10 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Card(
                   child: Padding(
-                    padding: EdgeInsets.all(AppSpacing.md),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -182,7 +182,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                     color: AppColors.textPrimary,
                                   ),
                                 ),
-                                SizedBox(height: 2),
+                                const SizedBox(height: 2),
                                 Text(
                                   'Genera JSON con tus restricciones',
                                   style: TextStyle(
@@ -213,7 +213,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                           color: AppColors.primary,
                                         ),
                                       ),
-                                      SizedBox(width: AppSpacing.sm),
+                                      const SizedBox(width: AppSpacing.sm),
                                       Expanded(child: text),
                                     ],
                                   ),
@@ -237,20 +237,20 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                     color: AppColors.primary,
                                   ),
                                 ),
-                                SizedBox(width: AppSpacing.sm),
+                                const SizedBox(width: AppSpacing.sm),
                                 Expanded(child: text),
                               ],
                             );
                           },
                         ),
-                        SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: AppSpacing.md),
                         SizedBox(
                           width: double.infinity,
                           height: 40,
                           child: FilledButton.icon(
                             onPressed: _exporting ? null : _export,
                             icon: _exporting
-                                ? SizedBox(
+                                ? const SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: CircularProgressIndicator(
@@ -258,7 +258,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : Icon(Icons.share_rounded, size: 18),
+                                : const Icon(Icons.share_rounded, size: 18),
                             label: Text(
                                 _exporting ? 'Exportando...' : 'Compartir'),
                           ),
@@ -271,7 +271,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
+                padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg,
                   AppSpacing.lg,
                   AppSpacing.lg,
@@ -290,10 +290,10 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Card(
                   child: Padding(
-                    padding: EdgeInsets.all(AppSpacing.md),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -311,7 +311,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                     color: AppColors.textPrimary,
                                   ),
                                 ),
-                                SizedBox(height: 2),
+                                const SizedBox(height: 2),
                                 Text(
                                   'Restaura desde JSON exportado',
                                   style: TextStyle(
@@ -342,7 +342,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                           color: AppColors.success,
                                         ),
                                       ),
-                                      SizedBox(width: AppSpacing.sm),
+                                      const SizedBox(width: AppSpacing.sm),
                                       Expanded(child: text),
                                     ],
                                   ),
@@ -366,20 +366,20 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                     color: AppColors.success,
                                   ),
                                 ),
-                                SizedBox(width: AppSpacing.sm),
+                                const SizedBox(width: AppSpacing.sm),
                                 Expanded(child: text),
                               ],
                             );
                           },
                         ),
-                        SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: AppSpacing.md),
                         SizedBox(
                           width: double.infinity,
                           height: 40,
                           child: FilledButton.icon(
                             onPressed: _importing ? null : _pasteAndImport,
                             icon: _importing
-                                ? SizedBox(
+                                ? const SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: CircularProgressIndicator(
@@ -387,7 +387,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : Icon(Icons.paste_rounded, size: 18),
+                                : const Icon(Icons.paste_rounded, size: 18),
                             label: Text(_importing
                                 ? 'Importando...'
                                 : 'Pegar del portapapeles'),
@@ -406,7 +406,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
+                padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg,
                   AppSpacing.lg,
                   AppSpacing.lg,
@@ -425,19 +425,19 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 child: Card(
                   child: Padding(
-                    padding: EdgeInsets.all(AppSpacing.md),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _noteItem(
                             'Las restricciones importadas no sobreescriben las existentes'),
-                        SizedBox(height: AppSpacing.sm),
+                        const SizedBox(height: AppSpacing.sm),
                         _noteItem(
                             'El modo administrador (PIN) no se exporta por seguridad'),
-                        SizedBox(height: AppSpacing.sm),
+                        const SizedBox(height: AppSpacing.sm),
                         _noteItem(
                             'Los contadores de uso diario no se exportan'),
                       ],
@@ -446,7 +446,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                 ),
               ),
             ),
-            SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
+            const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
           ],
         ),
       ),
@@ -459,7 +459,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
       children: [
         Icon(Icons.info_outline_rounded,
             color: AppColors.textTertiary, size: 16),
-        SizedBox(width: AppSpacing.sm),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             text,

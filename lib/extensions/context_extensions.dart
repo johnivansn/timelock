@@ -8,9 +8,8 @@ extension ContextExtensions on BuildContext {
         content: Text(message),
         backgroundColor: isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.all(AppSpacing.md),
+        margin: const EdgeInsets.all(AppSpacing.md),
       ),
     );
   }
 }
-
