@@ -310,7 +310,7 @@ class _NotificationSettingsScreenState
                     AppSpacing.xs,
                   ),
                   child: Text(
-                    'NOTIFICACIÓN DEL SERVICIO',
+                    'MONITOREO EN SEGUNDO PLANO',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
@@ -326,9 +326,9 @@ class _NotificationSettingsScreenState
                       const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                   child: _notificationToggle(
                     icon: Icons.notifications_active_outlined,
-                    title: 'Mostrar estado de monitoreo',
+                    title: 'Activar monitoreo continuo',
                     description:
-                        'Notificación permanente que indica apps monitoreadas',
+                        'Si se desactiva, el monitoreo y bloqueo automático en segundo plano se detienen',
                     value: _serviceNotificationEnabled,
                     onChanged: (val) {
                       setState(() => _serviceNotificationEnabled = val);

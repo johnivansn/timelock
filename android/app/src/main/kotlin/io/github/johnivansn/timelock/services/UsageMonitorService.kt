@@ -19,8 +19,6 @@ import io.github.johnivansn.timelock.monitoring.UsageStatsMonitor
 import io.github.johnivansn.timelock.optimization.BatteryModeManager
 import io.github.johnivansn.timelock.optimization.DataCleanupManager
 import io.github.johnivansn.timelock.receivers.DailyResetReceiver
-import io.github.johnivansn.timelock.widget.AppTimeWidget
-import io.github.johnivansn.timelock.widget.AppTimeWidgetMedium
 import io.github.johnivansn.timelock.widget.AppDirectBlockWidget
 import java.util.Calendar
 import kotlinx.coroutines.CoroutineScope
@@ -62,12 +60,12 @@ class UsageMonitorService : Service() {
     dataCleanupManager = DataCleanupManager(this)
 
     createNotificationChannels()
-    startForeground(NOTIFICATION_ID, buildServiceNotification())
+    startForeground(NOTIFICATION_ID, createVisibleNotification(monitoredAppsCount))
 
     scope.launch {
       monitoredAppsCount = database.appRestrictionDao().getEnabled().size
       withContext(Dispatchers.Main) {
-        startForeground(NOTIFICATION_ID, buildServiceNotification())
+        ensureServiceNotificationState()
       }
     }
 
@@ -143,6 +141,8 @@ class UsageMonitorService : Service() {
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setContentText(text)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setGroup(SERVICE_GROUP_KEY)
+            .setOnlyAlertOnce(true)
             .setOngoing(true)
             .setShowWhen(false)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -153,6 +153,8 @@ class UsageMonitorService : Service() {
     return NotificationCompat.Builder(this, CHANNEL_ID_SILENT)
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setPriority(NotificationCompat.PRIORITY_MIN)
+            .setGroup(SERVICE_GROUP_KEY)
+            .setOnlyAlertOnce(true)
             .setOngoing(true)
             .setShowWhen(false)
             .build()
@@ -162,9 +164,16 @@ class UsageMonitorService : Service() {
     scope.launch {
       monitoredAppsCount = database.appRestrictionDao().getEnabled().size
       withContext(Dispatchers.Main) {
-        startForeground(NOTIFICATION_ID, buildServiceNotification())
+        ensureServiceNotificationState()
       }
     }
+  }
+
+  private fun ensureServiceNotificationState() {
+    val manager = getSystemService(NotificationManager::class.java)
+    val notification = buildServiceNotification()
+    startForeground(NOTIFICATION_ID, notification)
+    manager.notify(NOTIFICATION_ID, notification)
   }
 
   private fun scheduleDailyReset() {
@@ -205,8 +214,6 @@ class UsageMonitorService : Service() {
       return
     }
     lastWidgetRefreshMs = now
-    AppTimeWidget.updateWidget(this)
-    AppTimeWidgetMedium.updateWidget(this)
     AppDirectBlockWidget.updateWidget(this)
   }
 
@@ -214,7 +221,7 @@ class UsageMonitorService : Service() {
     private const val CHANNEL_ID_VISIBLE = "service_status_visible"
     private const val CHANNEL_ID_SILENT = "service_status_silent"
     private const val NOTIFICATION_ID = 1
+    private const val SERVICE_GROUP_KEY = "timelock_service_group"
     const val ACTION_UPDATE_NOTIFICATION = "io.github.johnivansn.timelock.UPDATE_SERVICE_NOTIFICATION"
   }
 }
-

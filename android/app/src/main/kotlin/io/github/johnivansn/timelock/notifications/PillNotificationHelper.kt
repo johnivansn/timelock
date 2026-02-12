@@ -33,6 +33,8 @@ class PillNotificationHelper(private val context: Context) {
     private const val DISPLAY_DURATION_MS = 4000L
     private const val ANIMATION_DURATION_MS = 300L
     private const val CHANNEL_ID = "timelock_alerts"
+    private const val ALERT_NOTIFICATION_ID = 9001
+    private const val ALERT_GROUP_KEY = "timelock_alerts_group"
   }
 
   enum class BlockReason {
@@ -202,9 +204,12 @@ class PillNotificationHelper(private val context: Context) {
                       .setContentText(message)
                       .setStyle(NotificationCompat.BigTextStyle().bigText(message))
                       .setPriority(NotificationCompat.PRIORITY_HIGH)
+                      .setGroup(ALERT_GROUP_KEY)
+                      .setOnlyAlertOnce(true)
                       .setAutoCancel(true)
                       .build()
-      NotificationManagerCompat.from(context).notify(notificationId, notification)
+      // Reemplaza alertas previas para evitar acumulación en bandeja.
+      NotificationManagerCompat.from(context).notify(ALERT_NOTIFICATION_ID, notification)
     } catch (e: Exception) {
       Log.e(TAG, "Error mostrando notificación estándar", e)
     }
@@ -231,9 +236,11 @@ class PillNotificationHelper(private val context: Context) {
                       .setContentText(message)
                       .setStyle(inboxStyle)
                       .setPriority(NotificationCompat.PRIORITY_HIGH)
+                      .setGroup(ALERT_GROUP_KEY)
+                      .setOnlyAlertOnce(true)
                       .setAutoCancel(true)
                       .build()
-      NotificationManagerCompat.from(context).notify(notificationId, notification)
+      NotificationManagerCompat.from(context).notify(ALERT_NOTIFICATION_ID, notification)
     } catch (e: Exception) {
       Log.e(TAG, "Error mostrando notificación agrupada", e)
     }

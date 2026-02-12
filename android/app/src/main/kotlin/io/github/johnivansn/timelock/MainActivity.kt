@@ -42,8 +42,6 @@ import io.github.johnivansn.timelock.utils.AppUtils
 import io.github.johnivansn.timelock.monitoring.UsageStatsMonitor
 import io.github.johnivansn.timelock.blocking.BlockingEngine
 import io.github.johnivansn.timelock.widget.AppDirectBlockWidget
-import io.github.johnivansn.timelock.widget.AppTimeWidget
-import io.github.johnivansn.timelock.widget.AppTimeWidgetMedium
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -625,9 +623,18 @@ class MainActivity : FlutterActivity() {
             }
 
             if (prefsName == "notification_prefs") {
-              val intent = Intent(this@MainActivity, UsageMonitorService::class.java)
-              intent.action = UsageMonitorService.ACTION_UPDATE_NOTIFICATION
-              startService(intent)
+              if (key == "notify_service_status") {
+                val enabled = value as? Boolean ?: true
+                if (enabled) {
+                  startMonitoringService()
+                } else {
+                  stopMonitoringService()
+                }
+              } else if (isMonitoringEnabled()) {
+                val intent = Intent(this@MainActivity, UsageMonitorService::class.java)
+                intent.action = UsageMonitorService.ACTION_UPDATE_NOTIFICATION
+                startService(intent)
+              }
             }
 
             withContext(Dispatchers.Main) { result.success(null) }
@@ -1208,6 +1215,10 @@ class MainActivity : FlutterActivity() {
   }
 
   private fun startMonitoringService() {
+    if (!isMonitoringEnabled()) {
+      stopMonitoringService()
+      return
+    }
     val intent = Intent(this, UsageMonitorService::class.java)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       startForegroundService(intent)
@@ -1216,9 +1227,17 @@ class MainActivity : FlutterActivity() {
     }
   }
 
+  private fun stopMonitoringService() {
+    val intent = Intent(this, UsageMonitorService::class.java)
+    stopService(intent)
+  }
+
+  private fun isMonitoringEnabled(): Boolean {
+    val prefs = getSharedPreferences("notification_prefs", Context.MODE_PRIVATE)
+    return prefs.getBoolean("notify_service_status", true)
+  }
+
   private fun refreshWidgetsNow() {
-    AppTimeWidget.updateWidget(this)
-    AppTimeWidgetMedium.updateWidget(this)
     AppDirectBlockWidget.updateWidget(this)
   }
 
