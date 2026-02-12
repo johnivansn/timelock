@@ -1826,21 +1826,70 @@ class _AppListScreenState extends State<AppListScreen>
   }
 
   void _sortRestrictions(List<Map<String, dynamic>> list) {
+    int statusRank(Map<String, dynamic> r) {
+      final isBlocked = (r['isBlocked'] as bool? ?? false) || _isExpired(r);
+      final isEnabled = r['isEnabled'] as bool? ?? true;
+      final quota = _quotaMinutesFor(r);
+      final scheduleActive = (r['scheduleActiveCount'] as int?) ?? 0;
+      final dateActive = (r['dateBlockActiveCount'] as int?) ?? 0;
+      final hasActiveDirect = scheduleActive > 0 || dateActive > 0;
+      if (!isBlocked && isEnabled && (quota > 0 || hasActiveDirect)) {
+        return 0; // activas
+      }
+      if (isBlocked) return 1; // bloqueadas
+      return 2;
+    }
+
+    int endingSoonRank(Map<String, dynamic> r) {
+      final quota = _quotaMinutesFor(r);
+      if (quota <= 0) return 1;
+      final limitType = (r['limitType'] ?? 'daily').toString();
+      final used = limitType == 'weekly'
+          ? (r['usedMinutesWeek'] as int? ?? 0)
+          : (r['usedMinutes'] as int? ?? 0);
+      final remaining = quota - used;
+      if (remaining > 0 && remaining <= 15) return 0; // por terminar
+      return 1;
+    }
+
+    int startingSoonRank(Map<String, dynamic> r) {
+      final scheduleCount = (r['scheduleCount'] as int?) ?? 0;
+      final scheduleActive = (r['scheduleActiveCount'] as int?) ?? 0;
+      final dateCount = (r['dateBlockCount'] as int?) ?? 0;
+      final dateActive = (r['dateBlockActiveCount'] as int?) ?? 0;
+      final hasDirect = scheduleCount > 0 || dateCount > 0;
+      final activeDirect = scheduleActive > 0 || dateActive > 0;
+      if (hasDirect && !activeDirect) return 0; // por empezar
+      return 1;
+    }
+
     int typeRank(Map<String, dynamic> r) {
       final scheduleCount = (r['scheduleCount'] as int?) ?? 0;
       final dateCount = (r['dateBlockCount'] as int?) ?? 0;
-      final quota = _quotaMinutesFor(r);
-      if (quota > 0) return 0; // tiempo
-      if (scheduleCount > 0 && dateCount == 0) return 1; // horario
-      if (dateCount > 0 && scheduleCount == 0) return 2; // fecha
-      if (scheduleCount > 0 && dateCount > 0) return 3; // mixto
+      if (dateCount > 0 && scheduleCount == 0) return 0; // por fechas
+      if (scheduleCount > 0 && dateCount == 0) return 1; // por horarios
+      if (scheduleCount > 0 && dateCount > 0) return 2; // mixto
+      if (_quotaMinutesFor(r) > 0) return 3; // solo cuota
       return 4;
     }
 
     list.sort((a, b) {
-      final ra = typeRank(a);
-      final rb = typeRank(b);
-      if (ra != rb) return ra.compareTo(rb);
+      final sa = statusRank(a);
+      final sb = statusRank(b);
+      if (sa != sb) return sa.compareTo(sb);
+
+      final ea = endingSoonRank(a);
+      final eb = endingSoonRank(b);
+      if (ea != eb) return ea.compareTo(eb);
+
+      final pa = startingSoonRank(a);
+      final pb = startingSoonRank(b);
+      if (pa != pb) return pa.compareTo(pb);
+
+      final ta = typeRank(a);
+      final tb = typeRank(b);
+      if (ta != tb) return ta.compareTo(tb);
+
       final nameA = (a['appName'] ?? '').toString().toLowerCase();
       final nameB = (b['appName'] ?? '').toString().toLowerCase();
       return nameA.compareTo(nameB);
