@@ -40,7 +40,6 @@ class NativeService {
     await _channel.invokeMethod('requestOverlayPermission');
   }
 
-
   static Future<List<Map<String, dynamic>>> getInstalledApps() async {
     final raw =
         await _channel.invokeMethod<List<dynamic>>('getInstalledApps') ?? [];
@@ -73,14 +72,19 @@ class NativeService {
     final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
         'getUsageToday', packageName);
     return result?.map((k, v) => MapEntry(k.toString(), v)) ??
-        {'usedMinutes': 0, 'isBlocked': false, 'usedMillis': 0, 'usedMinutesWeek': 0};
+        {
+          'usedMinutes': 0,
+          'isBlocked': false,
+          'usedMillis': 0,
+          'usedMinutesWeek': 0
+        };
   }
 
   static Future<List<Map<String, dynamic>>> getSchedules(
       String packageName) async {
-    final raw =
-        await _channel.invokeMethod<List<dynamic>>('getSchedules', packageName) ??
-            [];
+    final raw = await _channel.invokeMethod<List<dynamic>>(
+            'getSchedules', packageName) ??
+        [];
     return raw.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
@@ -98,9 +102,9 @@ class NativeService {
 
   static Future<List<Map<String, dynamic>>> getDateBlocks(
       String packageName) async {
-    final raw =
-        await _channel.invokeMethod<List<dynamic>>('getDateBlocks', packageName) ??
-            [];
+    final raw = await _channel.invokeMethod<List<dynamic>>(
+            'getDateBlocks', packageName) ??
+        [];
     return raw.map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
@@ -118,7 +122,8 @@ class NativeService {
 
   static Future<List<String>> getDirectBlockPackages() async {
     final raw =
-        await _channel.invokeMethod<List<dynamic>>('getDirectBlockPackages') ?? [];
+        await _channel.invokeMethod<List<dynamic>>('getDirectBlockPackages') ??
+            [];
     return raw.map((e) => e.toString()).toList();
   }
 
@@ -145,13 +150,13 @@ class NativeService {
   }
 
   static Future<Map<String, dynamic>> getAppVersion() async {
-    final res = await _channel.invokeMethod<Map<dynamic, dynamic>>('getAppVersion');
+    final res =
+        await _channel.invokeMethod<Map<dynamic, dynamic>>('getAppVersion');
     return res?.map((k, v) => MapEntry(k.toString(), v)) ?? {};
   }
 
   static Future<List<Map<String, dynamic>>> getReleases() async {
-    final res =
-        await _channel.invokeMethod<List<dynamic>>('getReleases') ?? [];
+    final res = await _channel.invokeMethod<List<dynamic>>('getReleases') ?? [];
     return res
         .map((e) => (e as Map).map((k, v) => MapEntry(k.toString(), v)))
         .toList();
@@ -238,6 +243,10 @@ class NativeService {
 
   static Future<void> startMonitoring() async {
     await _channel.invokeMethod('startMonitoring');
+  }
+
+  static Future<void> refreshWidgetsNow() async {
+    await _channel.invokeMethod('refreshWidgetsNow');
   }
 
   static Future<bool> isDeviceAdminEnabled() async {

@@ -38,6 +38,9 @@ import io.github.johnivansn.timelock.services.UsageMonitorService
 import io.github.johnivansn.timelock.utils.AppUtils
 import io.github.johnivansn.timelock.monitoring.UsageStatsMonitor
 import io.github.johnivansn.timelock.blocking.BlockingEngine
+import io.github.johnivansn.timelock.widget.AppDirectBlockWidget
+import io.github.johnivansn.timelock.widget.AppTimeWidget
+import io.github.johnivansn.timelock.widget.AppTimeWidgetMedium
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -117,6 +120,10 @@ class MainActivity : FlutterActivity() {
         }
         "startMonitoring" -> {
           startMonitoringService()
+          result.success(null)
+        }
+        "refreshWidgetsNow" -> {
+          refreshWidgetsNow()
           result.success(null)
         }
         "addRestriction" -> {
@@ -1177,6 +1184,12 @@ class MainActivity : FlutterActivity() {
     } else {
       startService(intent)
     }
+  }
+
+  private fun refreshWidgetsNow() {
+    AppTimeWidget.updateWidget(this)
+    AppTimeWidgetMedium.updateWidget(this)
+    AppDirectBlockWidget.updateWidget(this)
   }
 
   private fun getInstalledApps(): List<Map<String, Any>> {

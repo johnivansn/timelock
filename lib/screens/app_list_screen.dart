@@ -229,10 +229,19 @@ class _AppListScreenState extends State<AppListScreen>
     } catch (_) {}
   }
 
+  void _refreshWidgetsSoon() {
+    unawaited(NativeService.refreshWidgetsNow());
+  }
+
+  void _reloadRestrictionsSoon() {
+    unawaited(_loadRestrictions());
+  }
+
   Future<void> _loadExpiredPrefs() async {
     if (_expiredPrefsLoaded) return;
     try {
-      final prefs = await NativeService.getSharedPreferences('restriction_prefs');
+      final prefs =
+          await NativeService.getSharedPreferences('restriction_prefs');
       final action = prefs?['expired_action']?.toString();
       if (action != null &&
           (action == 'none' || action == 'archive' || action == 'delete')) {
@@ -245,7 +254,8 @@ class _AppListScreenState extends State<AppListScreen>
   bool _isExpired(Map<String, dynamic> r) {
     final raw = r['expiresAt'];
     if (raw == null) return false;
-    final expiresAt = raw is num ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
+    final expiresAt =
+        raw is num ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
     if (expiresAt <= 0) return false;
     return DateTime.now().millisecondsSinceEpoch > expiresAt;
   }
@@ -257,8 +267,7 @@ class _AppListScreenState extends State<AppListScreen>
       final existingByPkg = {
         for (final r in _restrictions) r['packageName'] as String: r
       };
-      final prefetchCount =
-          _iconPrefetchCount == 0 ? 12 : _iconPrefetchCount;
+      final prefetchCount = _iconPrefetchCount == 0 ? 12 : _iconPrefetchCount;
       final prefetchSet = list
           .take(prefetchCount.clamp(0, list.length))
           .map((r) => r['packageName'] as String)
@@ -330,8 +339,9 @@ class _AppListScreenState extends State<AppListScreen>
         if (r['scheduleCount'] == null || _scheduleDirty.contains(pkg)) {
           try {
             final schedules = await NativeService.getSchedules(pkg);
-            final active =
-                schedules.where((s) => (s['isEnabled'] as bool? ?? true)).length;
+            final active = schedules
+                .where((s) => (s['isEnabled'] as bool? ?? true))
+                .length;
             r['scheduleCount'] = schedules.length;
             r['scheduleActiveCount'] = active;
             changed = true;
@@ -400,8 +410,9 @@ class _AppListScreenState extends State<AppListScreen>
           };
           try {
             final schedules = await NativeService.getSchedules(pkg);
-            final activeSchedules =
-                schedules.where((s) => (s['isEnabled'] as bool? ?? true)).length;
+            final activeSchedules = schedules
+                .where((s) => (s['isEnabled'] as bool? ?? true))
+                .length;
             direct['scheduleCount'] = schedules.length;
             direct['scheduleActiveCount'] = activeSchedules;
           } catch (_) {}
@@ -460,7 +471,37 @@ class _AppListScreenState extends State<AppListScreen>
         'weeklyResetMinute': limit?['weeklyResetMinute'] ?? 0,
         'expiresAt': limit?['expiresAt'],
       });
-      await _loadRestrictions();
+      final optimistic = <String, dynamic>{
+        'packageName': pkg,
+        'appName': name,
+        'dailyQuotaMinutes': minutes,
+        'isEnabled': true,
+        'limitType': limit?['limitType'] ?? 'daily',
+        'dailyMode': limit?['dailyMode'] ?? 'same',
+        'dailyQuotas': limit?['dailyQuotas'] ?? {},
+        'weeklyQuotaMinutes': limit?['weeklyQuotaMinutes'] ?? 0,
+        'weeklyResetDay': limit?['weeklyResetDay'] ?? 2,
+        'weeklyResetHour': limit?['weeklyResetHour'] ?? 0,
+        'weeklyResetMinute': limit?['weeklyResetMinute'] ?? 0,
+        'expiresAt': limit?['expiresAt'],
+        'usedMinutes': 0,
+        'isBlocked': false,
+        'usedMillis': 0,
+        'usedMinutesWeek': 0,
+        'scheduleCount': 0,
+        'scheduleActiveCount': 0,
+        'dateBlockCount': 0,
+        'dateBlockActiveCount': 0,
+      };
+      if (mounted) {
+        setState(() {
+          _restrictions.removeWhere((x) => x['packageName'] == pkg);
+          _restrictions.add(optimistic);
+          _sortRestrictions(_restrictions);
+        });
+      }
+      _refreshWidgetsSoon();
+      _reloadRestrictionsSoon();
     } catch (e) {
       if (mounted) context.showSnack('Error: $e', isError: true);
     }
@@ -488,12 +529,24 @@ class _AppListScreenState extends State<AppListScreen>
   }
 
   Future<void> _deleteRestriction(Map<String, dynamic> r) async {
+    final pkg = r['packageName']?.toString() ?? '';
+    if (pkg.isEmpty) return;
+    final previous = List<Map<String, dynamic>>.from(_restrictions);
+    if (mounted) {
+      setState(() {
+        _restrictions.removeWhere((x) => x['packageName'] == pkg);
+      });
+    }
+    _refreshWidgetsSoon();
     try {
-      await NativeService.deleteRestriction(r['packageName']);
-      await _loadRestrictions();
+      await NativeService.deleteRestriction(pkg);
+      _reloadRestrictionsSoon();
     } catch (_) {
-      _restrictions.removeWhere((x) => x['packageName'] == r['packageName']);
-      if (mounted) setState(() {});
+      if (mounted) {
+        setState(() {
+          _restrictions = previous;
+        });
+      }
     }
   }
 
@@ -543,20 +596,34 @@ class _AppListScreenState extends State<AppListScreen>
       ),
     );
     _scheduleDirty.add(r['packageName'].toString());
-    await _loadRestrictions();
+    _refreshWidgetsSoon();
+    _reloadRestrictionsSoon();
   }
 
   Future<void> _deleteDirectBlocks(Map<String, dynamic> r) async {
+    final pkg = r['packageName']?.toString() ?? '';
+    if (pkg.isEmpty) return;
+    final previous = List<Map<String, dynamic>>.from(_restrictions);
+    if (mounted) {
+      setState(() {
+        _restrictions.removeWhere((x) => x['packageName'] == pkg);
+      });
+    }
+    _refreshWidgetsSoon();
     try {
-      await NativeService.deleteDirectBlocks(r['packageName']);
-      _restrictions.removeWhere((x) => x['packageName'] == r['packageName']);
-      if (mounted) setState(() {});
-    } catch (_) {}
+      await NativeService.deleteDirectBlocks(pkg);
+      _reloadRestrictionsSoon();
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _restrictions = previous;
+        });
+      }
+    }
   }
 
   Future<void> _openDateBlockEditor(Map<String, dynamic> r) async {
-    final allowed =
-        await _requireAdmin('Ingresa tu PIN para modificar fechas');
+    final allowed = await _requireAdmin('Ingresa tu PIN para modificar fechas');
     if (!allowed || !mounted) return;
 
     await _showBottomSheet(
@@ -566,7 +633,8 @@ class _AppListScreenState extends State<AppListScreen>
       ),
     );
     _dateBlockDirty.add(r['packageName'].toString());
-    await _loadRestrictions();
+    _refreshWidgetsSoon();
+    _reloadRestrictionsSoon();
   }
 
   Future<void> _openDirectBlocksSelector(Map<String, dynamic> r) async {
@@ -675,7 +743,14 @@ class _AppListScreenState extends State<AppListScreen>
     );
     if (limit == null) return;
     if (limit['deleted'] == true) {
-      await _loadRestrictions();
+      final pkg = r['packageName']?.toString() ?? '';
+      if (pkg.isNotEmpty && mounted) {
+        setState(() {
+          _restrictions.removeWhere((x) => x['packageName'] == pkg);
+        });
+      }
+      _refreshWidgetsSoon();
+      _reloadRestrictionsSoon();
       return;
     }
     if (limit['schedulesChanged'] == true) {
@@ -685,21 +760,60 @@ class _AppListScreenState extends State<AppListScreen>
       _dateBlockDirty.add(r['packageName'].toString());
     }
 
-    await NativeService.updateRestriction({
-      'packageName': r['packageName'],
+    final previous = Map<String, dynamic>.from(r);
+    final pkg = r['packageName']?.toString() ?? '';
+    final next = {
+      ...r,
       'dailyQuotaMinutes': limit['dailyQuotaMinutes'] ?? r['dailyQuotaMinutes'],
       'limitType': limit['limitType'] ?? r['limitType'],
       'dailyMode': limit['dailyMode'] ?? r['dailyMode'],
       'dailyQuotas': limit['dailyQuotas'] ?? r['dailyQuotas'],
-      'weeklyQuotaMinutes': limit['weeklyQuotaMinutes'] ?? r['weeklyQuotaMinutes'],
+      'weeklyQuotaMinutes':
+          limit['weeklyQuotaMinutes'] ?? r['weeklyQuotaMinutes'],
       'weeklyResetDay': limit['weeklyResetDay'] ?? r['weeklyResetDay'],
       'weeklyResetHour': limit['weeklyResetHour'] ?? r['weeklyResetHour'],
       'weeklyResetMinute': limit['weeklyResetMinute'] ?? r['weeklyResetMinute'],
-      'expiresAt': limit.containsKey('expiresAt')
-          ? limit['expiresAt']
-          : r['expiresAt'],
-    });
-    await _loadRestrictions();
+      'expiresAt':
+          limit.containsKey('expiresAt') ? limit['expiresAt'] : r['expiresAt'],
+    };
+    if (mounted && pkg.isNotEmpty) {
+      setState(() {
+        final idx = _restrictions.indexWhere((x) => x['packageName'] == pkg);
+        if (idx >= 0) {
+          _restrictions[idx] = Map<String, dynamic>.from(next);
+          _sortRestrictions(_restrictions);
+        }
+      });
+    }
+    try {
+      await NativeService.updateRestriction({
+        'packageName': pkg,
+        'dailyQuotaMinutes': next['dailyQuotaMinutes'],
+        'limitType': next['limitType'],
+        'dailyMode': next['dailyMode'],
+        'dailyQuotas': next['dailyQuotas'],
+        'weeklyQuotaMinutes': next['weeklyQuotaMinutes'],
+        'weeklyResetDay': next['weeklyResetDay'],
+        'weeklyResetHour': next['weeklyResetHour'],
+        'weeklyResetMinute': next['weeklyResetMinute'],
+        'expiresAt': next['expiresAt'],
+      });
+      _refreshWidgetsSoon();
+      _reloadRestrictionsSoon();
+    } catch (_) {
+      if (mounted && pkg.isNotEmpty) {
+        setState(() {
+          final idx = _restrictions.indexWhere((x) => x['packageName'] == pkg);
+          if (idx >= 0) {
+            _restrictions[idx] = previous;
+            _sortRestrictions(_restrictions);
+          }
+        });
+      }
+      if (mounted) {
+        context.showSnack('No se pudo guardar el cambio', isError: true);
+      }
+    }
   }
 
   double _progressFor(Map<String, dynamic> r) {
@@ -764,8 +878,7 @@ class _AppListScreenState extends State<AppListScreen>
                 sliver: SliverList.separated(
                   itemCount: _restrictions.length,
                   itemBuilder: (_, i) => _restrictionCard(_restrictions[i]),
-                  separatorBuilder: (_, __) =>
-                      SizedBox(height: AppSpacing.md),
+                  separatorBuilder: (_, __) => SizedBox(height: AppSpacing.md),
                 ),
               ),
           ],
@@ -774,31 +887,31 @@ class _AppListScreenState extends State<AppListScreen>
     );
   }
 
-    Widget _buildHeader() {
-      return Padding(
-        padding: EdgeInsets.fromLTRB(
-            AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
-        child: Column(
+  Widget _buildHeader() {
+    return Padding(
+      padding:
+          EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+      child: Column(
         children: [
           Row(
             children: [
-                Expanded(
-                  child: Text(
-                    'TimeLock',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
+              Expanded(
+                child: Text(
+                  'TimeLock',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-                IconButton(
-                  icon: Icon(Icons.settings_outlined, size: 20),
-                  onPressed: () => _showSettingsMenu(),
-                ),
-              ],
-            ),
-            SizedBox(height: AppSpacing.sm),
+              ),
+              IconButton(
+                icon: Icon(Icons.settings_outlined, size: 20),
+                onPressed: () => _showSettingsMenu(),
+              ),
+            ],
+          ),
+          SizedBox(height: AppSpacing.sm),
           Container(
             height: 1,
             color: AppColors.surfaceVariant.withValues(alpha: 0.5),
@@ -814,15 +927,15 @@ class _AppListScreenState extends State<AppListScreen>
     final expiring = _expiringCount();
     final date = _formatShortDate();
 
-      return Container(
-        padding: EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.background,
-              AppColors.surface,
-            ],
-            begin: Alignment.topLeft,
+    return Container(
+      padding: EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.background,
+            AppColors.surface,
+          ],
+          begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -832,29 +945,29 @@ class _AppListScreenState extends State<AppListScreen>
       ),
       child: Column(
         children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Estado del día',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-                Text(
-                  date,
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Estado del día',
                   style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textTertiary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-              ],
-            ),
-            SizedBox(height: AppSpacing.md),
-            Row(
+              ),
+              Text(
+                date,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textTertiary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: AppSpacing.md),
+          Row(
             children: [
               _statItem(
                 value: active.toString(),
@@ -880,19 +993,19 @@ class _AppListScreenState extends State<AppListScreen>
 
   Widget _statItem(
       {required String value, required String label, required Color color}) {
-      return Expanded(
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: color,
             ),
-            SizedBox(height: 2),
-            Text(
+          ),
+          SizedBox(height: 2),
+          Text(
             label,
             style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
             textAlign: TextAlign.center,
@@ -905,32 +1018,32 @@ class _AppListScreenState extends State<AppListScreen>
   Widget _buildSectionHeader() {
     return Row(
       children: [
-          Expanded(
-            child: Text(
-              'Aplicaciones restringidas',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
+        Expanded(
+          child: Text(
+            'Aplicaciones restringidas',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
             ),
           ),
-          TextButton.icon(
-            onPressed: _openAddFlow,
-            icon: Icon(Icons.add_rounded, size: 16),
-            label: Text('Agregar'),
-            style: TextButton.styleFrom(
-              padding: EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-              foregroundColor: AppColors.primary,
-              textStyle: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
+        ),
+        TextButton.icon(
+          onPressed: _openAddFlow,
+          icon: Icon(Icons.add_rounded, size: 16),
+          label: Text('Agregar'),
+          style: TextButton.styleFrom(
+            padding: EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+            foregroundColor: AppColors.primary,
+            textStyle: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ],
-      );
+        ),
+      ],
+    );
   }
 
   void _showSettingsMenu() {
@@ -969,7 +1082,7 @@ class _AppListScreenState extends State<AppListScreen>
                   ),
                   boxShadow: [
                     BoxShadow(
-                        color: AppColors.background.withValues(alpha: 0.55),
+                      color: AppColors.background.withValues(alpha: 0.55),
                       blurRadius: 28,
                       offset: Offset(-8, 0),
                     ),
@@ -979,19 +1092,18 @@ class _AppListScreenState extends State<AppListScreen>
                   children: [
                     SizedBox(height: AppSpacing.md),
                     Padding(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                      padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                       child: Row(
                         children: [
                           Expanded(
-                          child: Text(
-                            'Configuración',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                            child: Text(
+                              'Configuración',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary,
+                              ),
                             ),
-                          ),
                           ),
                           IconButton(
                             onPressed: () => Navigator.pop(context),
@@ -1004,11 +1116,8 @@ class _AppListScreenState extends State<AppListScreen>
                     SizedBox(height: AppSpacing.sm),
                     Expanded(
                       child: ListView(
-                        padding: EdgeInsets.fromLTRB(
-                            AppSpacing.lg,
-                            AppSpacing.sm,
-                            AppSpacing.lg,
-                            AppSpacing.xl),
+                        padding: EdgeInsets.fromLTRB(AppSpacing.lg,
+                            AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
                         children: [
                           _settingsItem(
                             icon: Icons.shield_rounded,
@@ -1072,8 +1181,7 @@ class _AppListScreenState extends State<AppListScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) =>
-                                        OptimizationScreen()),
+                                    builder: (_) => OptimizationScreen()),
                               );
                             },
                           ),
@@ -1115,11 +1223,11 @@ class _AppListScreenState extends State<AppListScreen>
   }
 
   Widget _settingsItem({
-      required IconData icon,
-      required String title,
-      required String subtitle,
-      required VoidCallback onTap,
-    }) {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Material(
@@ -1181,94 +1289,92 @@ class _AppListScreenState extends State<AppListScreen>
     );
   }
 
-    Widget _permissionsBanner() {
-      return Container(
-        padding: EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: AppColors.warning.withValues(alpha: 0.12),
-            border: Border.all(
-                color: AppColors.warning.withValues(alpha: 0.35), width: 1),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+  Widget _permissionsBanner() {
+    return Container(
+      padding: EdgeInsets.all(AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.12),
+        border: Border.all(
+            color: AppColors.warning.withValues(alpha: 0.35), width: 1),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 16),
+          SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Faltan permisos críticos',
+              style: TextStyle(
+                color: AppColors.warning,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
-        child: Row(
-          children: [
-            Icon(Icons.warning_amber_rounded,
-                color: AppColors.warning, size: 16),
-            SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                'Faltan permisos críticos',
-                style: TextStyle(
-                  color: AppColors.warning,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+          TextButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => PermissionsScreen()),
+            ).then((_) => _checkPermissions()),
+            style: TextButton.styleFrom(
+              backgroundColor: AppColors.warning.withValues(alpha: 0.2),
+              foregroundColor: AppColors.onColor(AppColors.warning),
+              padding: EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
-            TextButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => PermissionsScreen()),
-              ).then((_) => _checkPermissions()),
-                style: TextButton.styleFrom(
-                  backgroundColor: AppColors.warning.withValues(alpha: 0.2),
-                      foregroundColor: AppColors.onColor(AppColors.warning),
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Text(
-                'Configurar',
-                style: TextStyle(fontSize: 12),
-              ),
+            child: Text(
+              'Configurar',
+              style: TextStyle(fontSize: 12),
             ),
-          ],
-        ),
-      );
-    }
-
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _emptyState() {
     return Center(
       child: Padding(
-          padding: EdgeInsets.all(AppSpacing.xxl),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.shield_outlined,
-                  size: 40,
-                  color: AppColors.primary,
-                ),
+        padding: EdgeInsets.all(AppSpacing.xxl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
               ),
-              SizedBox(height: AppSpacing.md),
-              Text(
-                'Sin restricciones',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
+              child: Icon(
+                Icons.shield_outlined,
+                size: 40,
+                color: AppColors.primary,
               ),
-              SizedBox(height: AppSpacing.sm),
-              Text(
-                'Toca "Agregar" para comenzar a\nmonitorear el tiempo de tus apps',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textTertiary,
-                  height: 1.5,
-                ),
-                textAlign: TextAlign.center,
+            ),
+            SizedBox(height: AppSpacing.md),
+            Text(
+              'Sin restricciones',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
               ),
+            ),
+            SizedBox(height: AppSpacing.sm),
+            Text(
+              'Toca "Agregar" para comenzar a\nmonitorear el tiempo de tus apps',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.textTertiary,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -1282,12 +1388,14 @@ class _AppListScreenState extends State<AppListScreen>
     final progress = _progressFor(r);
     final limitType = (r['limitType'] ?? 'daily').toString();
     final quota = _quotaMinutesFor(r);
-    final usedMinutes =
-        limitType == 'weekly' ? (r['usedMinutesWeek'] as int? ?? 0) : (r['usedMinutes'] as int);
+    final usedMinutes = limitType == 'weekly'
+        ? (r['usedMinutesWeek'] as int? ?? 0)
+        : (r['usedMinutes'] as int);
     final usedMillis = limitType == 'weekly'
         ? usedMinutes * 60000
         : (r['usedMillis'] as num?)?.toInt() ?? usedMinutes * 60000;
-    final remainingMillis = (quota * 60000 - usedMillis).clamp(0, quota * 60000);
+    final remainingMillis =
+        (quota * 60000 - usedMillis).clamp(0, quota * 60000);
     final remainingMinutes = (quota - usedMinutes).clamp(0, quota);
 
     final progressColor = blocked
@@ -1335,16 +1443,16 @@ class _AppListScreenState extends State<AppListScreen>
             }
           },
           borderRadius: BorderRadius.circular(AppRadius.lg),
-            child: Container(
-              padding: EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
+          child: Container(
+            padding: EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.lg),
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.surface,
-                    AppColors.surfaceVariant,
-                  ],
-                  begin: Alignment.topLeft,
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.surface,
+                  AppColors.surfaceVariant,
+                ],
+                begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               border: Border.all(
@@ -1354,125 +1462,125 @@ class _AppListScreenState extends State<AppListScreen>
                 width: blocked ? 1.5 : 1,
               ),
             ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _buildAppIcon(r),
-                      SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          r['appName'],
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _buildAppIcon(r),
+                    SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        r['appName'],
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      if (blocked || expired)
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          alignment: WrapAlignment.end,
-                          children: [
-                            if (blocked)
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.sm,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.error.withValues(alpha: 0.18),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  'BLOQUEADA',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.error,
-                                    letterSpacing: 0.5,
-                                  ),
+                    ),
+                    if (blocked || expired)
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        alignment: WrapAlignment.end,
+                        children: [
+                          if (blocked)
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                'BLOQUEADA',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.error,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
-                            if (expired)
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.sm,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.warning.withValues(alpha: 0.18),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  'VENCIDA',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.warning,
-                                    letterSpacing: 0.5,
-                                  ),
+                            ),
+                          if (expired)
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: AppSpacing.sm,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    AppColors.warning.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                'VENCIDA',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.warning,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
-                          ],
-                        ),
-                    ],
-                  ),
-                  if (!directOnly) ...[
-                    SizedBox(height: AppSpacing.sm),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 6,
-                        color: progressColor,
-                        backgroundColor: AppColors.surfaceVariant,
+                            ),
+                        ],
                       ),
-                    ),
-                    SizedBox(height: AppSpacing.xs),
-                    _usageSummaryTextRich(
-                      usedMinutes,
-                      usedMillis,
-                      remainingMinutes,
-                      remainingMillis,
-                      quota,
-                      limitType,
-                      (r['weeklyResetDay'] as int?) ?? 2,
-                      (r['weeklyResetHour'] as int?) ?? 0,
-                      (r['weeklyResetMinute'] as int?) ?? 0,
-                      progressColor,
-                    ),
-                    SizedBox(height: AppSpacing.xs),
-                    Divider(height: 1),
-                    SizedBox(height: AppSpacing.xs),
-                    _directBlocksRow(r),
-                  ] else ...[
-                    SizedBox(height: AppSpacing.sm),
-                    Text(
-                      'Solo bloqueo por horario/fecha',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                    SizedBox(height: AppSpacing.xs),
-                    Divider(height: 1),
-                    SizedBox(height: AppSpacing.xs),
-                    _directBlocksRow(r),
                   ],
+                ),
+                if (!directOnly) ...[
+                  SizedBox(height: AppSpacing.sm),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 6,
+                      color: progressColor,
+                      backgroundColor: AppColors.surfaceVariant,
+                    ),
+                  ),
+                  SizedBox(height: AppSpacing.xs),
+                  _usageSummaryTextRich(
+                    usedMinutes,
+                    usedMillis,
+                    remainingMinutes,
+                    remainingMillis,
+                    quota,
+                    limitType,
+                    (r['weeklyResetDay'] as int?) ?? 2,
+                    (r['weeklyResetHour'] as int?) ?? 0,
+                    (r['weeklyResetMinute'] as int?) ?? 0,
+                    progressColor,
+                  ),
+                  SizedBox(height: AppSpacing.xs),
+                  Divider(height: 1),
+                  SizedBox(height: AppSpacing.xs),
+                  _directBlocksRow(r),
+                ] else ...[
+                  SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Solo bloqueo por horario/fecha',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
+                  SizedBox(height: AppSpacing.xs),
+                  Divider(height: 1),
+                  SizedBox(height: AppSpacing.xs),
+                  _directBlocksRow(r),
                 ],
-              ),
+              ],
             ),
           ),
         ),
-      );
-    }
-
+      ),
+    );
+  }
 
   Widget _directBlocksRow(Map<String, dynamic> r) {
     final scheduleCount = (r['scheduleCount'] as int?) ?? 0;
@@ -1617,8 +1725,8 @@ class _AppListScreenState extends State<AppListScreen>
     );
   }
 
-    Widget _buildAppIcon(Map<String, dynamic> r) {
-      final bytes = r['iconBytes'];
+  Widget _buildAppIcon(Map<String, dynamic> r) {
+    final bytes = r['iconBytes'];
     if (bytes is Uint8List && bytes.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
@@ -1647,15 +1755,15 @@ class _AppListScreenState extends State<AppListScreen>
       height: 40,
       decoration: BoxDecoration(
         color: AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          Icons.apps_rounded,
-          size: 20,
-          color: AppColors.textTertiary,
-        ),
-      );
-    }
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(
+        Icons.apps_rounded,
+        size: 20,
+        color: AppColors.textTertiary,
+      ),
+    );
+  }
 
   int _activeCount() {
     return _restrictions.where((r) => (r['isEnabled'] ?? true) == true).length;
@@ -1832,25 +1940,24 @@ class _AppListScreenState extends State<AppListScreen>
     return RichText(
       text: TextSpan(
         children: [
-            TextSpan(
-              text: used,
-              style: TextStyle(
-                fontSize: 11,
-                color: usedColor,
-                fontWeight: FontWeight.w600,
-              ),
+          TextSpan(
+            text: used,
+            style: TextStyle(
+              fontSize: 11,
+              color: usedColor,
+              fontWeight: FontWeight.w600,
             ),
-            TextSpan(
-              text: ' · ',
-              style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
-            ),
-            TextSpan(
-              text: remaining,
-              style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
-            ),
-          ],
-        ),
-      );
-    }
+          ),
+          TextSpan(
+            text: ' · ',
+            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+          ),
+          TextSpan(
+            text: remaining,
+            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+          ),
+        ],
+      ),
+    );
+  }
 }
-
