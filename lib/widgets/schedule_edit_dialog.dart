@@ -16,13 +16,6 @@ class ScheduleEditDialog extends StatefulWidget {
 }
 
 class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
-  static const Map<String, List<int>> _builtinDayLabels = {
-    'Laborables (L-V)': [2, 3, 4, 5, 6],
-    'Fin de semana (S-D)': [1, 7],
-    'Todos los dias': [1, 2, 3, 4, 5, 6, 7],
-    'Limpiar dias': [],
-  };
-
   late TimeOfDay _start;
   late TimeOfDay _end;
   late Set<int> _days;
@@ -48,24 +41,17 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
         .where((d) => d >= 1 && d <= 7)
         .toSet();
     _days = days.isEmpty ? {2, 3, 4, 5, 6} : days;
-    _loadTemplates(ensureBuiltin: true);
+    _loadTemplates();
   }
 
   bool get _valid => _days.isNotEmpty;
 
-  Future<void> _loadTemplates({bool ensureBuiltin = false}) async {
+  Future<void> _loadTemplates() async {
     setState(() => _loadingTemplates = true);
     try {
       final raw = await NativeService.getBlockTemplates();
       final templates =
           raw.where((t) => (t['type'] ?? '').toString() == 'schedule').toList();
-      if (ensureBuiltin) {
-        final created = await _ensureBuiltinTemplates(templates);
-        if (created) {
-          await _loadTemplates();
-          return;
-        }
-      }
       if (!mounted) return;
       setState(() {
         _templates = templates;
@@ -110,27 +96,6 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
         }
       });
     } catch (_) {}
-  }
-
-  Future<bool> _ensureBuiltinTemplates(
-      List<Map<String, dynamic>> templates) async {
-    var created = false;
-    final existingNames = templates
-        .map((t) => (t['name']?.toString() ?? '').trim().toLowerCase())
-        .toSet();
-    for (final entry in _builtinDayLabels.entries) {
-      final normalized = entry.key.trim().toLowerCase();
-      if (existingNames.contains(normalized)) continue;
-      try {
-        await NativeService.saveBlockTemplate({
-          'name': entry.key,
-          'type': 'schedule',
-          'payloadJson': jsonEncode({'daysOfWeek': entry.value}),
-        });
-        created = true;
-      } catch (_) {}
-    }
-    return created;
   }
 
   List<Map<String, dynamic>> get _filteredTemplates {

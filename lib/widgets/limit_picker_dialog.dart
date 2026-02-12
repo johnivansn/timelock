@@ -776,10 +776,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   }
 
   Widget _buildEditLayout({required bool isCreate}) {
-    final showSave = isCreate ||
-        _isLimitDirty() ||
-        _isScheduleDirty() ||
-        _isDateBlocksDirty();
+    final showSave =
+        isCreate || _dirty || _schedulesChanged || _dateBlocksChanged;
     final canSave = _isLimitValid();
     final modeTone = _modeTone;
     final surfaceTone = Color.lerp(
@@ -954,7 +952,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   }
 
   Future<bool> _handleBack() async {
-    if (!(_isLimitDirty() || _isScheduleDirty() || _isDateBlocksDirty())) {
+    if (!(_dirty || _schedulesChanged || _dateBlocksChanged)) {
       return true;
     }
     return await _confirmDiscard();
