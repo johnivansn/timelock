@@ -17,7 +17,7 @@ import 'package:timelock/utils/app_motion.dart';
 import 'package:timelock/screens/app_picker_screen.dart';
 
 class AppListScreen extends StatefulWidget {
-  AppListScreen({super.key, this.initialRestrictions});
+  const AppListScreen({super.key, this.initialRestrictions});
 
   final List<Map<String, dynamic>>? initialRestrictions;
 
@@ -91,6 +91,7 @@ class _AppListScreenState extends State<AppListScreen>
 
   Future<void> _ensureAppAccess() async {
     if (_accessVerified || !mounted) return;
+    final navigator = Navigator.of(context);
     final enabled = await NativeService.isAdminEnabled();
     if (!mounted) return;
     if (!enabled) {
@@ -99,8 +100,7 @@ class _AppListScreenState extends State<AppListScreen>
     }
     bool verified = false;
     while (mounted && !verified) {
-      final result = await Navigator.push<bool>(
-        context,
+      final result = await navigator.push<bool>(
         MaterialPageRoute(
           builder: (_) => PinVerifyScreen(
             reason: 'Ingresa tu PIN para acceder a la app',
@@ -154,9 +154,10 @@ class _AppListScreenState extends State<AppListScreen>
   }
 
   Future<void> _updatePrefetchCount() async {
+    if (!mounted) return;
+    final width = MediaQuery.sizeOf(context).width;
     final memoryClass = await NativeService.getMemoryClass();
     final powerSave = await NativeService.isBatterySaverEnabled();
-    final width = MediaQuery.of(context).size.width;
     if (!mounted) return;
     setState(() {
       _iconPrefetchCount = AppUtils.computeIconPrefetchCount(
@@ -169,7 +170,7 @@ class _AppListScreenState extends State<AppListScreen>
 
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(Duration(seconds: 10), (_) {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!mounted || _loading) return;
       _checkPermissions();
       _loadRestrictions();
@@ -196,7 +197,7 @@ class _AppListScreenState extends State<AppListScreen>
                 ).then((_) => _checkPermissions()),
               ),
         behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 3),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -797,14 +798,14 @@ class _AppListScreenState extends State<AppListScreen>
             SliverToBoxAdapter(child: _buildHeader()),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
+                padding: const EdgeInsets.fromLTRB(
                     AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
                 child: _buildStatsCard(),
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(
+                padding: const EdgeInsets.fromLTRB(
                     AppSpacing.md, AppSpacing.lg, AppSpacing.md, 0),
                 child: _buildSectionHeader(),
               ),
@@ -812,13 +813,13 @@ class _AppListScreenState extends State<AppListScreen>
             if (!_permissionsOk)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(
+                  padding: const EdgeInsets.fromLTRB(
                       AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
                   child: _permissionsBanner(),
                 ),
               ),
             if (_loading)
-              SliverFillRemaining(
+              const SliverFillRemaining(
                 child: Center(
                   child: CircularProgressIndicator(strokeWidth: 3),
                 ),
@@ -827,13 +828,14 @@ class _AppListScreenState extends State<AppListScreen>
               SliverFillRemaining(child: _emptyState())
             else
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(
+                padding: const EdgeInsets.fromLTRB(
                     AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xl),
                 sliver: SliverList.separated(
                   itemCount: _restrictions.length,
                   itemBuilder: (_, i) => RepaintBoundary(
                       child: _restrictionCard(_restrictions[i])),
-                  separatorBuilder: (_, __) => SizedBox(height: AppSpacing.md),
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: AppSpacing.md),
                 ),
               ),
           ],
@@ -844,8 +846,8 @@ class _AppListScreenState extends State<AppListScreen>
 
   Widget _buildHeader() {
     return Padding(
-      padding:
-          EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.md, AppSpacing.sm, AppSpacing.md, 0),
       child: Column(
         children: [
           Row(
@@ -861,12 +863,12 @@ class _AppListScreenState extends State<AppListScreen>
                 ),
               ),
               IconButton(
-                icon: Icon(Icons.settings_outlined, size: 20),
+                icon: const Icon(Icons.settings_outlined, size: 20),
                 onPressed: () => _showSettingsMenu(),
               ),
             ],
           ),
-          SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.sm),
           Container(
             height: 1,
             color: AppColors.surfaceVariant.withValues(alpha: 0.5),
@@ -883,7 +885,7 @@ class _AppListScreenState extends State<AppListScreen>
     final date = _formatShortDate();
 
     return Container(
-      padding: EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -921,7 +923,7 @@ class _AppListScreenState extends State<AppListScreen>
               ),
             ],
           ),
-          SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.md),
           Row(
             children: [
               _statItem(
@@ -959,7 +961,7 @@ class _AppListScreenState extends State<AppListScreen>
               color: color,
             ),
           ),
-          SizedBox(height: 2),
+          const SizedBox(height: 2),
           Text(
             label,
             style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
@@ -987,16 +989,16 @@ class _AppListScreenState extends State<AppListScreen>
                 ),
               ),
             ),
-            SizedBox(width: AppSpacing.xs),
+            const SizedBox(width: AppSpacing.xs),
             TextButton.icon(
               onPressed: _openAddFlow,
-              icon: Icon(Icons.add_rounded, size: 16),
-              label: Text('Agregar'),
+              icon: const Icon(Icons.add_rounded, size: 16),
+              label: const Text('Agregar'),
               style: TextButton.styleFrom(
-                padding: EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                     horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                 foregroundColor: AppColors.primary,
-                textStyle: TextStyle(
+                textStyle: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1004,9 +1006,9 @@ class _AppListScreenState extends State<AppListScreen>
             ),
           ],
         ),
-        SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: AppSpacing.xs),
         Container(
-          padding: EdgeInsets.all(AppSpacing.sm),
+          padding: const EdgeInsets.all(AppSpacing.sm),
           decoration: BoxDecoration(
             color: AppColors.surfaceVariant.withValues(alpha: 0.38),
             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -1020,7 +1022,7 @@ class _AppListScreenState extends State<AppListScreen>
                 children: [
                   Icon(Icons.sort_rounded,
                       size: 16, color: AppColors.textSecondary),
-                  SizedBox(width: AppSpacing.xs),
+                  const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: Text(
                       'Orden actual: $sortLabel',
@@ -1033,8 +1035,8 @@ class _AppListScreenState extends State<AppListScreen>
                   ),
                   OutlinedButton.icon(
                     onPressed: _openSortOptions,
-                    icon: Icon(Icons.tune_rounded, size: 16),
-                    label: Text('Cambiar'),
+                    icon: const Icon(Icons.tune_rounded, size: 16),
+                    label: const Text('Cambiar'),
                     style: OutlinedButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       foregroundColor: AppColors.primary,
@@ -1045,17 +1047,17 @@ class _AppListScreenState extends State<AppListScreen>
                   ),
                 ],
               ),
-              SizedBox(height: AppSpacing.xs),
+              const SizedBox(height: AppSpacing.xs),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
                     _quickSortChip('smart'),
-                    SizedBox(width: AppSpacing.xs),
+                    const SizedBox(width: AppSpacing.xs),
                     _quickSortChip('ending_soon'),
-                    SizedBox(width: AppSpacing.xs),
+                    const SizedBox(width: AppSpacing.xs),
                     _quickSortChip('blocked_first'),
-                    SizedBox(width: AppSpacing.xs),
+                    const SizedBox(width: AppSpacing.xs),
                     _quickSortChip('usage_high'),
                   ],
                 ),
@@ -1194,7 +1196,7 @@ class _AppListScreenState extends State<AppListScreen>
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
           border: Border(
             top: BorderSide(
                 color: AppColors.surfaceVariant.withValues(alpha: .8)),
@@ -1205,7 +1207,7 @@ class _AppListScreenState extends State<AppListScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               Container(
                 width: 40,
                 height: 4,
@@ -1215,7 +1217,7 @@ class _AppListScreenState extends State<AppListScreen>
                 ),
               ),
               Padding(
-                padding: EdgeInsets.fromLTRB(
+                padding: const EdgeInsets.fromLTRB(
                     AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
                 child: Row(
                   children: [
@@ -1231,7 +1233,7 @@ class _AppListScreenState extends State<AppListScreen>
                     ),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: Icon(Icons.close_rounded),
+                      icon: const Icon(Icons.close_rounded),
                     ),
                   ],
                 ),
@@ -1239,10 +1241,11 @@ class _AppListScreenState extends State<AppListScreen>
               Flexible(
                 child: ListView.separated(
                   shrinkWrap: true,
-                  padding: EdgeInsets.fromLTRB(
+                  padding: const EdgeInsets.fromLTRB(
                       AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
                   itemCount: modes.length,
-                  separatorBuilder: (_, __) => SizedBox(height: AppSpacing.xs),
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: AppSpacing.xs),
                   itemBuilder: (_, i) {
                     final mode = modes[i];
                     final selected = _sortMode == mode;
@@ -1253,7 +1256,7 @@ class _AppListScreenState extends State<AppListScreen>
                         Navigator.pop(context);
                       },
                       child: Container(
-                        padding: EdgeInsets.all(AppSpacing.sm),
+                        padding: const EdgeInsets.all(AppSpacing.sm),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(AppRadius.md),
                           color: selected
@@ -1276,7 +1279,7 @@ class _AppListScreenState extends State<AppListScreen>
                                   ? AppColors.primary
                                   : AppColors.textSecondary,
                             ),
-                            SizedBox(width: AppSpacing.sm),
+                            const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1291,7 +1294,7 @@ class _AppListScreenState extends State<AppListScreen>
                                           : AppColors.textPrimary,
                                     ),
                                   ),
-                                  SizedBox(height: 2),
+                                  const SizedBox(height: 2),
                                   Text(
                                     _sortDescription(mode),
                                     style: TextStyle(
@@ -1328,7 +1331,7 @@ class _AppListScreenState extends State<AppListScreen>
       barrierLabel: 'settings',
       barrierDismissible: true,
       barrierColor: AppColors.background.withValues(alpha: 0.55),
-      transitionDuration: AppMotion.duration(Duration(milliseconds: 260)),
+      transitionDuration: AppMotion.duration(const Duration(milliseconds: 260)),
       pageBuilder: (context, _, __) {
         return Align(
           alignment: Alignment.centerRight,
@@ -1349,7 +1352,7 @@ class _AppListScreenState extends State<AppListScreen>
                     end: Alignment.bottomRight,
                   ),
                   borderRadius:
-                      BorderRadius.horizontal(left: Radius.circular(28)),
+                      const BorderRadius.horizontal(left: Radius.circular(28)),
                   border: Border.all(
                     color: AppColors.surfaceVariant.withValues(alpha: 0.7),
                   ),
@@ -1357,15 +1360,16 @@ class _AppListScreenState extends State<AppListScreen>
                     BoxShadow(
                       color: AppColors.background.withValues(alpha: 0.55),
                       blurRadius: 28,
-                      offset: Offset(-8, 0),
+                      offset: const Offset(-8, 0),
                     ),
                   ],
                 ),
                 child: Column(
                   children: [
-                    SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.md),
                     Padding(
-                      padding: EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                       child: Row(
                         children: [
                           Expanded(
@@ -1380,16 +1384,16 @@ class _AppListScreenState extends State<AppListScreen>
                           ),
                           IconButton(
                             onPressed: () => Navigator.pop(context),
-                            icon: Icon(Icons.close_rounded),
+                            icon: const Icon(Icons.close_rounded),
                             color: AppColors.textSecondary,
                           ),
                         ],
                       ),
                     ),
-                    SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.sm),
                     Expanded(
                       child: ListView(
-                        padding: EdgeInsets.fromLTRB(AppSpacing.lg,
+                        padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
                             AppSpacing.sm, AppSpacing.lg, AppSpacing.xl),
                         children: [
                           _settingsItem(
@@ -1441,7 +1445,7 @@ class _AppListScreenState extends State<AppListScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => AppearanceScreen()),
+                                    builder: (_) => const AppearanceScreen()),
                               );
                             },
                           ),
@@ -1467,7 +1471,7 @@ class _AppListScreenState extends State<AppListScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => UpdateScreen()),
+                                    builder: (_) => const UpdateScreen()),
                               );
                             },
                           ),
@@ -1486,7 +1490,7 @@ class _AppListScreenState extends State<AppListScreen>
             CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
         return SlideTransition(
           position: Tween<Offset>(
-            begin: Offset(1, 0),
+            begin: const Offset(1, 0),
             end: Offset.zero,
           ).animate(curved),
           child: FadeTransition(opacity: curved, child: child),
@@ -1502,14 +1506,14 @@ class _AppListScreenState extends State<AppListScreen>
     required VoidCallback onTap,
   }) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(20),
           child: Container(
-            padding: EdgeInsets.all(AppSpacing.md),
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
               color: AppColors.surface.withValues(alpha: 0.35),
               borderRadius: BorderRadius.circular(20),
@@ -1528,7 +1532,7 @@ class _AppListScreenState extends State<AppListScreen>
                   ),
                   child: Icon(icon, color: AppColors.primary, size: 20),
                 ),
-                SizedBox(width: AppSpacing.md),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1541,7 +1545,7 @@ class _AppListScreenState extends State<AppListScreen>
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         subtitle,
                         style: TextStyle(
@@ -1564,7 +1568,7 @@ class _AppListScreenState extends State<AppListScreen>
 
   Widget _permissionsBanner() {
     return Container(
-      padding: EdgeInsets.all(AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.warning.withValues(alpha: 0.12),
         border: Border.all(
@@ -1574,7 +1578,7 @@ class _AppListScreenState extends State<AppListScreen>
       child: Row(
         children: [
           Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 16),
-          SizedBox(width: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               'Faltan permisos críticos',
@@ -1593,13 +1597,13 @@ class _AppListScreenState extends State<AppListScreen>
             style: TextButton.styleFrom(
               backgroundColor: AppColors.warning.withValues(alpha: 0.2),
               foregroundColor: AppColors.onColor(AppColors.warning),
-              padding: EdgeInsets.symmetric(
+              padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: Text(
+            child: const Text(
               'Configurar',
               style: TextStyle(fontSize: 12),
             ),
@@ -1612,7 +1616,7 @@ class _AppListScreenState extends State<AppListScreen>
   Widget _emptyState() {
     return Center(
       child: Padding(
-        padding: EdgeInsets.all(AppSpacing.xxl),
+        padding: const EdgeInsets.all(AppSpacing.xxl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -1629,7 +1633,7 @@ class _AppListScreenState extends State<AppListScreen>
                 color: AppColors.primary,
               ),
             ),
-            SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.md),
             Text(
               'Sin restricciones',
               style: TextStyle(
@@ -1638,7 +1642,7 @@ class _AppListScreenState extends State<AppListScreen>
                 color: AppColors.textPrimary,
               ),
             ),
-            SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.sm),
             Text(
               'Toca "Agregar" para comenzar a\nmonitorear el tiempo de tus apps',
               style: TextStyle(
@@ -1688,7 +1692,7 @@ class _AppListScreenState extends State<AppListScreen>
         },
         borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Container(
-          padding: EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.lg),
             gradient: LinearGradient(
@@ -1712,7 +1716,7 @@ class _AppListScreenState extends State<AppListScreen>
               Row(
                 children: [
                   _buildAppIcon(r),
-                  SizedBox(width: AppSpacing.sm),
+                  const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       r['appName'],
@@ -1733,7 +1737,7 @@ class _AppListScreenState extends State<AppListScreen>
                       children: [
                         if (blocked)
                           Container(
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                               horizontal: AppSpacing.sm,
                               vertical: 2,
                             ),
@@ -1753,7 +1757,7 @@ class _AppListScreenState extends State<AppListScreen>
                           ),
                         if (expired)
                           Container(
-                            padding: EdgeInsets.symmetric(
+                            padding: const EdgeInsets.symmetric(
                               horizontal: AppSpacing.sm,
                               vertical: 2,
                             ),
@@ -1776,7 +1780,7 @@ class _AppListScreenState extends State<AppListScreen>
                 ],
               ),
               if (!directOnly) ...[
-                SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.sm),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                   child: LinearProgressIndicator(
@@ -1786,7 +1790,7 @@ class _AppListScreenState extends State<AppListScreen>
                     backgroundColor: AppColors.surfaceVariant,
                   ),
                 ),
-                SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: AppSpacing.xs),
                 _usageSummaryTextRich(
                   usedMinutes,
                   usedMillis,
@@ -1799,12 +1803,12 @@ class _AppListScreenState extends State<AppListScreen>
                   (r['weeklyResetMinute'] as int?) ?? 0,
                   progressColor,
                 ),
-                SizedBox(height: AppSpacing.xs),
-                Divider(height: 1),
-                SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: AppSpacing.xs),
+                const Divider(height: 1),
+                const SizedBox(height: AppSpacing.xs),
                 _directBlocksRow(r),
               ] else ...[
-                SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.sm),
                 Text(
                   'Solo bloqueo por horario/fecha',
                   style: TextStyle(
@@ -1812,9 +1816,9 @@ class _AppListScreenState extends State<AppListScreen>
                     color: AppColors.textTertiary,
                   ),
                 ),
-                SizedBox(height: AppSpacing.xs),
-                Divider(height: 1),
-                SizedBox(height: AppSpacing.xs),
+                const SizedBox(height: AppSpacing.xs),
+                const Divider(height: 1),
+                const SizedBox(height: AppSpacing.xs),
                 _directBlocksRow(r),
               ],
             ],
@@ -1830,7 +1834,7 @@ class _AppListScreenState extends State<AppListScreen>
     final dateCount = (r['dateBlockCount'] as int?) ?? 0;
     final dateActive = (r['dateBlockActiveCount'] as int?) ?? 0;
     if (scheduleCount == 0 && dateCount == 0) {
-      return SizedBox.shrink();
+      return const SizedBox.shrink();
     }
 
     final columns = <Widget>[];
@@ -1848,7 +1852,7 @@ class _AppListScreenState extends State<AppListScreen>
     }
     if (dateCount > 0) {
       if (columns.isNotEmpty) {
-        columns.add(SizedBox(width: AppSpacing.sm));
+        columns.add(const SizedBox(width: AppSpacing.sm));
       }
       columns.add(
         Expanded(
@@ -1868,7 +1872,7 @@ class _AppListScreenState extends State<AppListScreen>
           return Column(
             children: [
               columns[0],
-              SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.sm),
               columns[2],
             ],
           );
@@ -1890,7 +1894,7 @@ class _AppListScreenState extends State<AppListScreen>
       borderRadius: BorderRadius.circular(12),
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(
+        padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
           color: AppColors.surfaceVariant.withValues(alpha: 0.45),
@@ -1917,7 +1921,8 @@ class _AppListScreenState extends State<AppListScreen>
                 runSpacing: 4,
                 children: [
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
                       color: hasActive
                           ? AppColors.success.withValues(alpha: 0.18)
@@ -1942,7 +1947,8 @@ class _AppListScreenState extends State<AppListScreen>
                   ),
                   if (inactive > 0)
                     Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppColors.warning.withValues(alpha: 0.18),
                         borderRadius: BorderRadius.circular(999),
