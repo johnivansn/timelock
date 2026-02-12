@@ -345,13 +345,17 @@ class _AppListScreenState extends State<AppListScreen>
 
         if (r['scheduleCount'] == null || _scheduleDirty.contains(pkg)) {
           try {
+            final prevCount = (r['scheduleCount'] as int?) ?? 0;
+            final prevActive = (r['scheduleActiveCount'] as int?) ?? 0;
             final schedules = await NativeService.getSchedules(pkg);
             final active = schedules
                 .where((s) => (s['isEnabled'] as bool? ?? true))
                 .length;
             r['scheduleCount'] = schedules.length;
             r['scheduleActiveCount'] = active;
-            changed = true;
+            if (prevCount != schedules.length || prevActive != active) {
+              changed = true;
+            }
             _scheduleDirty.remove(pkg);
           } catch (_) {
             r['scheduleCount'] = 0;
@@ -361,12 +365,16 @@ class _AppListScreenState extends State<AppListScreen>
 
         if (r['dateBlockCount'] == null || _dateBlockDirty.contains(pkg)) {
           try {
+            final prevCount = (r['dateBlockCount'] as int?) ?? 0;
+            final prevActive = (r['dateBlockActiveCount'] as int?) ?? 0;
             final blocks = await NativeService.getDateBlocks(pkg);
             final active =
                 blocks.where((b) => (b['isEnabled'] as bool? ?? true)).length;
             r['dateBlockCount'] = blocks.length;
             r['dateBlockActiveCount'] = active;
-            changed = true;
+            if (prevCount != blocks.length || prevActive != active) {
+              changed = true;
+            }
             _dateBlockDirty.remove(pkg);
           } catch (_) {
             r['dateBlockCount'] = 0;
@@ -385,7 +393,11 @@ class _AppListScreenState extends State<AppListScreen>
           } catch (_) {}
         }
 
-        filtered.add(r);
+        if (existing != null && _sameCardData(existing, r)) {
+          filtered.add(existing);
+        } else {
+          filtered.add(r);
+        }
       }
 
       // Add packages that only have direct blocks (schedules/date blocks).
@@ -435,8 +447,13 @@ class _AppListScreenState extends State<AppListScreen>
             final usage = await NativeService.getUsageToday(pkg);
             direct['isBlocked'] = usage['isBlocked'] ?? false;
           } catch (_) {}
-          filtered.add(direct);
-          changed = true;
+          final existingDirect = existingByPkg[pkg];
+          if (existingDirect != null && _sameCardData(existingDirect, direct)) {
+            filtered.add(existingDirect);
+          } else {
+            filtered.add(direct);
+            changed = true;
+          }
         }
       } catch (_) {}
 
@@ -885,7 +902,8 @@ class _AppListScreenState extends State<AppListScreen>
                     AppSpacing.md, AppSpacing.md, AppSpacing.md, AppSpacing.xl),
                 sliver: SliverList.separated(
                   itemCount: _restrictions.length,
-                  itemBuilder: (_, i) => _restrictionCard(_restrictions[i]),
+                  itemBuilder: (_, i) => RepaintBoundary(
+                      child: _restrictionCard(_restrictions[i])),
                   separatorBuilder: (_, __) => SizedBox(height: AppSpacing.md),
                 ),
               ),
@@ -2152,6 +2170,31 @@ class _AppListScreenState extends State<AppListScreen>
     final dateCount = (r['dateBlockCount'] as int?) ?? 0;
     final quota = _quotaMinutesFor(r);
     return quota <= 0 && (scheduleCount > 0 || dateCount > 0);
+  }
+
+  bool _sameCardData(Map<String, dynamic> a, Map<String, dynamic> b) {
+    int toInt(dynamic v) => v is num ? v.toInt() : int.tryParse('$v') ?? 0;
+    bool toBool(dynamic v) => v == true;
+
+    return (a['packageName'] ?? '') == (b['packageName'] ?? '') &&
+        (a['appName'] ?? '') == (b['appName'] ?? '') &&
+        toInt(a['dailyQuotaMinutes']) == toInt(b['dailyQuotaMinutes']) &&
+        toInt(a['weeklyQuotaMinutes']) == toInt(b['weeklyQuotaMinutes']) &&
+        (a['limitType'] ?? 'daily') == (b['limitType'] ?? 'daily') &&
+        (a['dailyMode'] ?? 'same') == (b['dailyMode'] ?? 'same') &&
+        '${a['dailyQuotas'] ?? ''}' == '${b['dailyQuotas'] ?? ''}' &&
+        toInt(a['scheduleCount']) == toInt(b['scheduleCount']) &&
+        toInt(a['scheduleActiveCount']) == toInt(b['scheduleActiveCount']) &&
+        toInt(a['dateBlockCount']) == toInt(b['dateBlockCount']) &&
+        toInt(a['dateBlockActiveCount']) == toInt(b['dateBlockActiveCount']) &&
+        toInt(a['usedMinutes']) == toInt(b['usedMinutes']) &&
+        toInt(a['usedMillis']) == toInt(b['usedMillis']) &&
+        toInt(a['usedMinutesWeek']) == toInt(b['usedMinutesWeek']) &&
+        toBool(a['isEnabled']) == toBool(b['isEnabled']) &&
+        toBool(a['isBlocked']) == toBool(b['isBlocked']) &&
+        toBool(a['isExpired']) == toBool(b['isExpired']) &&
+        (a['expiresAt']?.toString() ?? '') ==
+            (b['expiresAt']?.toString() ?? '');
   }
 
   void _sortRestrictions(List<Map<String, dynamic>> list) {
