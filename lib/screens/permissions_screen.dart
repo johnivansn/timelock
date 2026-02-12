@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
@@ -9,20 +10,78 @@ class PermissionsScreen extends StatefulWidget {
   State<PermissionsScreen> createState() => _PermissionsScreenState();
 }
 
-class _PermissionsScreenState extends State<PermissionsScreen> {
+class _PermissionsScreenState extends State<PermissionsScreen>
+    with WidgetsBindingObserver {
   bool _usage = false;
   bool _accessibility = false;
   bool _overlay = false;
   bool _overlayBlocked = false;
   bool _loading = true;
+  int _refreshRequestId = 0;
+  Timer? _resumeRefreshTimer;
+  int _resumeRefreshAttempts = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refresh();
   }
 
+  @override
+  void dispose() {
+    _resumeRefreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshWithResync();
+    }
+  }
+
+  void _refreshWithResync() {
+    _refresh();
+    _resumeRefreshTimer?.cancel();
+    _resumeRefreshAttempts = 0;
+    _resumeRefreshTimer = Timer.periodic(const Duration(milliseconds: 400), (t) {
+      _resumeRefreshAttempts++;
+      _refresh();
+      if (_resumeRefreshAttempts >= 4) {
+        t.cancel();
+      }
+    });
+  }
+
+  Future<void> _syncPermissionsState({int attempts = 6}) async {
+    for (int i = 0; i < attempts; i++) {
+      final requestId = ++_refreshRequestId;
+      try {
+        final prefs =
+            await NativeService.getSharedPreferences('permission_prefs');
+        final u = await NativeService.checkUsagePermission();
+        final a = await NativeService.checkAccessibilityPermission();
+        final o = await NativeService.checkOverlayPermission();
+        final prefOverlayBlocked = prefs?['overlay_blocked'] == true;
+        final effectiveOverlayBlocked = !o && prefOverlayBlocked;
+        if (!mounted || requestId != _refreshRequestId) return;
+        setState(() {
+          _usage = u;
+          _accessibility = a;
+          _overlay = o;
+          _overlayBlocked = effectiveOverlayBlocked;
+          _loading = false;
+        });
+        if (_usage && _accessibility) return;
+      } catch (_) {}
+      await Future.delayed(const Duration(milliseconds: 300));
+    }
+  }
+
   Future<void> _refresh() async {
+    final requestId = ++_refreshRequestId;
     try {
       final prefs =
           await NativeService.getSharedPreferences('permission_prefs');
@@ -34,6 +93,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       if (o && prefOverlayBlocked) {
         await _setOverlayBlocked(false);
       }
+      if (!mounted || requestId != _refreshRequestId) return;
       if (mounted) {
         setState(() {
           _usage = u;
@@ -44,31 +104,33 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted && requestId == _refreshRequestId) {
+        setState(() => _loading = false);
+      }
     }
   }
 
   Future<void> _requestUsage() async {
     try {
       await NativeService.requestUsagePermission();
-      await Future.delayed(const Duration(seconds: 2));
-      await _refresh();
+      await Future.delayed(const Duration(milliseconds: 300));
+      await _syncPermissionsState();
     } catch (_) {}
   }
 
   Future<void> _requestAccessibility() async {
     try {
       await NativeService.requestAccessibilityPermission();
-      await Future.delayed(const Duration(seconds: 2));
-      await _refresh();
+      await Future.delayed(const Duration(milliseconds: 300));
+      await _syncPermissionsState();
     } catch (_) {}
   }
 
   Future<void> _requestOverlay() async {
     try {
       await NativeService.requestOverlayPermission();
-      await Future.delayed(const Duration(seconds: 2));
-      await _refresh();
+      await Future.delayed(const Duration(milliseconds: 300));
+      await _syncPermissionsState();
       if (mounted && !_overlay) {
         await _setOverlayBlocked(true);
         _showOverlayBlockedMessage();

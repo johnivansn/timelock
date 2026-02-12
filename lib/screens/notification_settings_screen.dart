@@ -291,7 +291,7 @@ class _NotificationSettingsScreenState
                       icon: Icons.event_busy_rounded,
                       title: 'Bloqueos por fechas',
                       description:
-                          'Avisos de fecha: "Mañana se activa..." y "En 5 min..." (con horario)',
+                          'Avisos de fecha: "Mañana se activa..." y "En 5 min..." (con horario). Si varias apps comparten etiqueta, se agrupan en una sola notificación.',
                       value: _dateBlockEnabled,
                       onChanged: (val) {
                         setState(() => _dateBlockEnabled = val);

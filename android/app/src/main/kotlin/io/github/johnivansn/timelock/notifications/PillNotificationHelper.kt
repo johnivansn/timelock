@@ -99,6 +99,16 @@ class PillNotificationHelper(private val context: Context) {
     show(appName, packageName, message)
   }
 
+  fun notifyDateBlockUpcomingGrouped(label: String, message: String, appNames: List<String>) {
+    if (!prefs.dateBlockEnabled) return
+    showGroupedSystemNotification(
+            title = "Etiqueta: $label",
+            message = message,
+            appNames = appNames,
+            notificationId = ("date_upcoming_group|$label|$message").hashCode()
+    )
+  }
+
   private fun show(appName: String, packageName: String, message: String) {
     val style = prefs.notificationStyle.trim().lowercase()
     val canOverlay = canShowOverlay()
@@ -197,6 +207,35 @@ class PillNotificationHelper(private val context: Context) {
       NotificationManagerCompat.from(context).notify(notificationId, notification)
     } catch (e: Exception) {
       Log.e(TAG, "Error mostrando notificación estándar", e)
+    }
+  }
+
+  private fun showGroupedSystemNotification(
+          title: String,
+          message: String,
+          appNames: List<String>,
+          notificationId: Int
+  ) {
+    try {
+      ensureChannel()
+      val inboxStyle =
+              NotificationCompat.InboxStyle()
+                      .setBigContentTitle(message)
+                      .setSummaryText("${appNames.size} apps")
+      appNames.distinct().sorted().take(7).forEach { inboxStyle.addLine("- $it") }
+
+      val notification =
+              NotificationCompat.Builder(context, CHANNEL_ID)
+                      .setSmallIcon(android.R.drawable.ic_lock_idle_lock)
+                      .setContentTitle(title)
+                      .setContentText(message)
+                      .setStyle(inboxStyle)
+                      .setPriority(NotificationCompat.PRIORITY_HIGH)
+                      .setAutoCancel(true)
+                      .build()
+      NotificationManagerCompat.from(context).notify(notificationId, notification)
+    } catch (e: Exception) {
+      Log.e(TAG, "Error mostrando notificación agrupada", e)
     }
   }
 

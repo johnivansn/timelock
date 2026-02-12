@@ -16,6 +16,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class UsageStatsMonitor(private val context: Context) {
+  private data class DateUpcomingCandidate(
+          val key: String,
+          val startMillis: Long,
+          val notificationType: String,
+          val label: String?,
+          val appName: String,
+          val packageName: String,
+          val message: String
+  )
+
   private val usageStatsManager =
           context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
   private val database = AppDatabase.getDatabase(context)
@@ -29,6 +39,7 @@ class UsageStatsMonitor(private val context: Context) {
   private val notifiedDateBlocks = mutableSetOf<String>()
   private val notifiedScheduleUpcoming = mutableSetOf<String>()
   private val notifiedDateUpcoming = mutableSetOf<String>()
+  private val notifiedDateUpcomingGroups = mutableSetOf<String>()
 
   fun getUsageToday(packageName: String): Long {
     val calendar = Calendar.getInstance()
@@ -94,9 +105,11 @@ class UsageStatsMonitor(private val context: Context) {
       val today = dateFormat.format(Date())
 
       Log.d(TAG, "Actualizando uso para ${restrictions.size} apps")
+      val activeRestrictions = mutableListOf<io.github.johnivansn.timelock.database.AppRestriction>()
 
       for (restriction in restrictions) {
         if (isExpired(restriction)) continue
+        activeRestrictions.add(restriction)
         val usageMillis = getUsageToday(restriction.packageName)
         val usageMinutes = (usageMillis / 60000).toInt()
 
@@ -165,7 +178,6 @@ class UsageStatsMonitor(private val context: Context) {
         }
 
         checkAndNotifyDateBlock(restriction.packageName, restriction.appName, today)
-        checkAndNotifyDateBlockUpcoming(restriction.packageName, restriction.appName)
         checkAndNotifyScheduleUpcoming(restriction.packageName, restriction.appName)
 
         val exceeded =
@@ -188,6 +200,7 @@ class UsageStatsMonitor(private val context: Context) {
           sendBlockSignal(restriction.packageName)
         }
       }
+      checkAndNotifyDateBlockUpcomingForAll(activeRestrictions)
     }
   }
 
@@ -243,6 +256,7 @@ class UsageStatsMonitor(private val context: Context) {
     notifiedDateBlocks.clear()
     notifiedScheduleUpcoming.clear()
     notifiedDateUpcoming.clear()
+    notifiedDateUpcomingGroups.clear()
     Log.i(TAG, "Flags de notificación reseteadas")
   }
 
@@ -284,12 +298,12 @@ class UsageStatsMonitor(private val context: Context) {
     Log.i(TAG, "Notificado bloqueo por fechas para $packageName (${minDaysRemaining.second} días)")
   }
 
-  private suspend fun checkAndNotifyDateBlockUpcoming(
+  private suspend fun computeDateBlockUpcomingCandidate(
           packageName: String,
           appName: String
-  ) {
+  ): DateUpcomingCandidate? {
     val blocks = database.dateBlockDao().getEnabledByPackage(packageName)
-    if (blocks.isEmpty()) return
+    if (blocks.isEmpty()) return null
 
     val now = System.currentTimeMillis()
     var bestStartMillis: Long? = null
@@ -304,8 +318,8 @@ class UsageStatsMonitor(private val context: Context) {
       }
     }
 
-    val nextStart = bestStartMillis ?: return
-    val block = bestBlock ?: return
+    val nextStart = bestStartMillis ?: return null
+    val block = bestBlock ?: return null
     val minutesUntil = ceil((nextStart - now) / 60000.0).toInt()
     val startCal = Calendar.getInstance().apply { timeInMillis = nextStart }
     val nowCal = Calendar.getInstance()
@@ -326,15 +340,71 @@ class UsageStatsMonitor(private val context: Context) {
         notificationType = "tomorrow"
         message = "Mañana se activa restricción ($startLabel a $endLabel)"
       }
-      else -> return
+      else -> return null
     }
 
     val key = "${block.id}|$nextStart|$notificationType"
-    if (notifiedDateUpcoming.contains(key)) return
+    return DateUpcomingCandidate(
+            key = key,
+            startMillis = nextStart,
+            notificationType = notificationType,
+            label = block.label?.trim()?.takeIf { it.isNotEmpty() },
+            appName = appName,
+            packageName = packageName,
+            message = message
+    )
+  }
 
-    pillNotification.notifyDateBlockUpcoming(appName = appName, packageName = packageName, message = message)
-    notifiedDateUpcoming.add(key)
-    Log.i(TAG, "Notificado bloqueo por fecha próximo para $packageName [$notificationType]")
+  private suspend fun checkAndNotifyDateBlockUpcomingForAll(
+          restrictions: List<io.github.johnivansn.timelock.database.AppRestriction>
+  ) {
+    if (restrictions.isEmpty()) return
+    val candidates =
+            restrictions.mapNotNull { computeDateBlockUpcomingCandidate(it.packageName, it.appName) }
+    if (candidates.isEmpty()) return
+
+    val groupedByLabel =
+            candidates
+                    .filter { it.label != null }
+                    .groupBy {
+                      "${it.label}|${it.notificationType}|${it.startMillis}|${it.message}"
+                    }
+
+    val consumedKeys = mutableSetOf<String>()
+
+    groupedByLabel.forEach { (groupKey, group) ->
+      if (group.size < 2) return@forEach
+      if (notifiedDateUpcomingGroups.contains(groupKey)) return@forEach
+      val first = group.first()
+      val label = first.label ?: return@forEach
+      val appNames = group.map { it.appName }
+      pillNotification.notifyDateBlockUpcomingGrouped(
+              label = label,
+              message = first.message,
+              appNames = appNames
+      )
+      notifiedDateUpcomingGroups.add(groupKey)
+      group.forEach {
+        notifiedDateUpcoming.add(it.key)
+        consumedKeys.add(it.key)
+      }
+      Log.i(TAG, "Notificación agrupada por etiqueta '$label' (${group.size} apps)")
+    }
+
+    candidates.forEach { candidate ->
+      if (consumedKeys.contains(candidate.key)) return@forEach
+      if (notifiedDateUpcoming.contains(candidate.key)) return@forEach
+      pillNotification.notifyDateBlockUpcoming(
+              appName = candidate.appName,
+              packageName = candidate.packageName,
+              message = candidate.message
+      )
+      notifiedDateUpcoming.add(candidate.key)
+      Log.i(
+              TAG,
+              "Notificado bloqueo por fecha próximo para ${candidate.packageName} [${candidate.notificationType}]"
+      )
+    }
   }
 
   private fun isExpired(restriction: io.github.johnivansn.timelock.database.AppRestriction): Boolean {
