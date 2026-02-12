@@ -11,7 +11,7 @@ class PinSetupScreen extends StatefulWidget {
 }
 
 class _PinSetupScreenState extends State<PinSetupScreen> {
-  static const _maxDigits = 6;
+  static const _maxDigits = 4;
   static const _minDigits = 4;
 
   final List<int?> _pin = List.filled(_maxDigits, null);
@@ -51,11 +51,6 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     });
   }
 
-  void _onConfirmTap() {
-    if (_pinFilledCount < _minDigits) return;
-    setState(() => _confirming = true);
-  }
-
   void _onBack() {
     if (_confirming) {
       setState(() {
@@ -65,6 +60,11 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
     } else {
       Navigator.pop(context);
     }
+  }
+
+  void _onConfirmTap() {
+    if (_pinFilledCount < _minDigits) return;
+    setState(() => _confirming = true);
   }
 
   Future<void> _onSave() async {
@@ -141,7 +141,7 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
               Text(
                 _confirming
                     ? 'Ingresa el mismo PIN para confirmar'
-                    : 'Entre 4 y 6 dígitos',
+                    : 'Usa 4 dígitos',
                 style: TextStyle(
                   fontSize: 13,
                   color: AppColors.textSecondary,

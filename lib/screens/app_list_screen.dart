@@ -6,6 +6,7 @@ import 'package:timelock/screens/export_import_screen.dart';
 import 'package:timelock/screens/appearance_screen.dart';
 import 'package:timelock/screens/notification_settings_screen.dart';
 import 'package:timelock/screens/optimization_screen.dart';
+import 'package:timelock/screens/admin_security_screen.dart';
 import 'package:timelock/screens/permissions_screen.dart';
 import 'package:timelock/screens/pin_verify_screen.dart';
 import 'package:timelock/screens/restriction_edit_screen.dart';
@@ -33,6 +34,7 @@ class _AppListScreenState extends State<AppListScreen>
   bool? _lastPermissionsOk;
   bool _adminEnabled = false;
   int _adminLockUntilMs = 0;
+  bool _adminLockExpiryNotified = false;
   bool _accessVerified = false;
   Timer? _refreshTimer;
   final Set<String> _scheduleDirty = {};
@@ -73,6 +75,14 @@ class _AppListScreenState extends State<AppListScreen>
       _loadAdminLockPrefs();
       if (widget.initialRestrictions == null) {
         _loadRestrictions();
+      }
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      if (_adminEnabled && mounted) {
+        setState(() => _accessVerified = false);
+      } else {
+        _accessVerified = false;
       }
     }
   }
@@ -127,8 +137,14 @@ class _AppListScreenState extends State<AppListScreen>
       final prefs =
           await NativeService.getSharedPreferences('admin_lock_prefs');
       final until = (prefs?['lock_until_ms'] as num?)?.toInt() ?? 0;
+      final lockActive = until > DateTime.now().millisecondsSinceEpoch;
       if (!mounted) return;
-      setState(() => _adminLockUntilMs = until);
+      setState(() {
+        _adminLockUntilMs = until;
+        if (lockActive) {
+          _adminLockExpiryNotified = false;
+        }
+      });
       await _clearAdminLockIfExpired();
     } catch (_) {}
   }
@@ -150,7 +166,12 @@ class _AppListScreenState extends State<AppListScreen>
       'key': 'lock_until_ms',
       'value': null,
     });
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    setState(() {});
+    if (!_adminLockExpiryNotified) {
+      _adminLockExpiryNotified = true;
+      context.showSnack('El modo admin temporal venció. Ya puedes hacer cambios.');
+    }
   }
 
   Future<void> _updatePrefetchCount() async {
@@ -213,6 +234,9 @@ class _AppListScreenState extends State<AppListScreen>
         setState(() {
           _permissionsOk = nowOk;
           _adminEnabled = admin;
+          if (!admin) {
+            _accessVerified = true;
+          }
           _lastPermissionsOk = nowOk;
         });
         if (prevOk != null && prevOk != nowOk) {
@@ -544,6 +568,25 @@ class _AppListScreenState extends State<AppListScreen>
       return false;
     }
     if (!_adminEnabled) return true;
+    if (!_accessVerified) {
+      await _ensureAppAccess();
+    }
+    return _accessVerified;
+  }
+
+  Future<bool> _requireCriticalAdmin(String reason) async {
+    await _loadAdminLockPrefs();
+    if (_adminLockActive) {
+      if (mounted) {
+        context.showSnack(
+          'Modo admin temporal activo · '
+          '${AppUtils.formatDurationMillis(_adminLockRemainingMs)}',
+          isError: true,
+        );
+      }
+      return false;
+    }
+    if (!_adminEnabled) return true;
     if (!mounted) return false;
     final result = await Navigator.push<bool>(
       context,
@@ -553,10 +596,13 @@ class _AppListScreenState extends State<AppListScreen>
   }
 
   void _openAddFlow() async {
+    final allowed =
+        await _requireAdmin('Ingresa tu PIN para agregar una aplicación');
+    if (!allowed || !mounted) return;
+
     final existing =
         _restrictions.map((r) => r['packageName'] as String).toSet();
 
-    if (!mounted) return;
     final app = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(
@@ -1399,7 +1445,7 @@ class _AppListScreenState extends State<AppListScreen>
                           _settingsItem(
                             icon: Icons.shield_rounded,
                             title: 'Permisos',
-                            subtitle: 'Gestionar permisos del sistema',
+                            subtitle: 'Accesos requeridos del sistema',
                             onTap: () {
                               Navigator.pop(context);
                               Navigator.push(
@@ -1407,6 +1453,25 @@ class _AppListScreenState extends State<AppListScreen>
                                 MaterialPageRoute(
                                     builder: (_) => const PermissionsScreen()),
                               ).then((_) => _checkPermissions());
+                            },
+                          ),
+                          _settingsItem(
+                            icon: Icons.lock_clock_rounded,
+                            title: 'Admin y seguridad',
+                            subtitle: 'PIN, bloqueo temporal y protección',
+                            onTap: () async {
+                              final navigator = Navigator.of(context);
+                              navigator.pop();
+                              final allowed = await _requireCriticalAdmin(
+                                'Ingresa tu PIN para abrir Admin y seguridad',
+                              );
+                              if (!allowed) return;
+                              if (!mounted) return;
+                              navigator.push(
+                                MaterialPageRoute(
+                                  builder: (_) => const AdminSecurityScreen(),
+                                ),
+                              ).then((_) => _loadAdminLockPrefs());
                             },
                           ),
                           _settingsItem(
@@ -1427,10 +1492,15 @@ class _AppListScreenState extends State<AppListScreen>
                             icon: Icons.file_download_rounded,
                             title: 'Export / Import',
                             subtitle: 'Backup y restauración',
-                            onTap: () {
-                              Navigator.pop(context);
-                              Navigator.push(
-                                context,
+                            onTap: () async {
+                              final navigator = Navigator.of(context);
+                              navigator.pop();
+                              final allowed = await _requireCriticalAdmin(
+                                'Ingresa tu PIN para Export / Import',
+                              );
+                              if (!allowed) return;
+                              if (!mounted) return;
+                              navigator.push(
                                 MaterialPageRoute(
                                     builder: (_) => const ExportImportScreen()),
                               ).then((_) => _loadRestrictions());

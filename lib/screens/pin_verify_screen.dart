@@ -15,7 +15,7 @@ class PinVerifyScreen extends StatefulWidget {
 
 class _PinVerifyScreenState extends State<PinVerifyScreen>
     with SingleTickerProviderStateMixin {
-  static const _pinLength = 6;
+  static const _pinLength = 4;
 
   final List<int?> _pin = List.filled(_pinLength, null);
   bool _verifying = false;
@@ -172,13 +172,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen>
           padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: IconButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                ),
-              ),
+              const SizedBox(height: AppSpacing.lg),
               const Spacer(),
               Icon(
                 isLocked ? Icons.lock_clock_rounded : Icons.shield_rounded,

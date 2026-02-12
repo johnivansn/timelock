@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
-import 'package:timelock/screens/pin_setup_screen.dart';
-import 'package:timelock/screens/pin_verify_screen.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
-import 'package:timelock/utils/app_utils.dart';
 
 class PermissionsScreen extends StatefulWidget {
   const PermissionsScreen({super.key});
@@ -18,11 +14,7 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   bool _accessibility = false;
   bool _overlay = false;
   bool _overlayBlocked = false;
-  bool _adminEnabled = false;
   bool _loading = true;
-  bool _deviceAdmin = false;
-  int _adminLockUntilMs = 0;
-  Timer? _adminLockTimer;
 
   @override
   void initState() {
@@ -30,18 +22,10 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     _refresh();
   }
 
-  @override
-  void dispose() {
-    _adminLockTimer?.cancel();
-    super.dispose();
-  }
-
   Future<void> _refresh() async {
     try {
       final prefs =
           await NativeService.getSharedPreferences('permission_prefs');
-      final lockPrefs =
-          await NativeService.getSharedPreferences('admin_lock_prefs');
       final u = await NativeService.checkUsagePermission();
       final a = await NativeService.checkAccessibilityPermission();
       final o = await NativeService.checkOverlayPermission();
@@ -50,33 +34,18 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
       if (o && prefOverlayBlocked) {
         await _setOverlayBlocked(false);
       }
-      final admin = await NativeService.isAdminEnabled();
-      final deviceAdmin = await NativeService.isDeviceAdminEnabled();
-      final lockUntil = (lockPrefs?['lock_until_ms'] as num?)?.toInt() ?? 0;
       if (mounted) {
         setState(() {
           _usage = u;
           _accessibility = a;
           _overlay = o;
           _overlayBlocked = effectiveOverlayBlocked;
-          _adminEnabled = admin;
-          _deviceAdmin = deviceAdmin;
-          _adminLockUntilMs = lockUntil;
           _loading = false;
         });
-        _startAdminLockCountdown();
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
-  }
-
-  Future<void> _requestDeviceAdmin() async {
-    try {
-      await NativeService.enableDeviceAdmin();
-      await Future.delayed(const Duration(seconds: 2));
-      await _refresh();
-    } catch (_) {}
   }
 
   Future<void> _requestUsage() async {
@@ -108,8 +77,46 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   }
 
   Future<void> _configureAll() async {
-    if (!_usage) await _requestUsage();
-    if (!_accessibility) await _requestAccessibility();
+    if (!_usage) {
+      await _requestUsage();
+      if (!_usage) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se activó Estadísticas de Uso. Actívalo para continuar.',
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+    }
+    if (!_accessibility) {
+      await _requestAccessibility();
+      if (!_accessibility) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se activó Accesibilidad. Actívalo para continuar.',
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Permisos críticos activados correctamente.'),
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   Future<void> _setOverlayBlocked(bool value) async {
@@ -135,61 +142,6 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
   }
 
   bool get _allOk => _usage && _accessibility;
-  bool get _adminLockActive =>
-      _adminLockUntilMs > DateTime.now().millisecondsSinceEpoch;
-  int get _adminLockRemainingMs {
-    final remaining = _adminLockUntilMs - DateTime.now().millisecondsSinceEpoch;
-    return remaining > 0 ? remaining : 0;
-  }
-
-  Future<void> _setAdminLockUntil(int untilMs) async {
-    _adminLockUntilMs = untilMs;
-    await NativeService.saveSharedPreference({
-      'prefsName': 'admin_lock_prefs',
-      'key': 'lock_until_ms',
-      'value': untilMs > 0 ? untilMs : null,
-    });
-  }
-
-  Future<void> _startAdminLock(Duration duration) async {
-    final until =
-        DateTime.now().millisecondsSinceEpoch + duration.inMilliseconds;
-    if (mounted) {
-      setState(() => _adminLockUntilMs = until);
-    } else {
-      _adminLockUntilMs = until;
-    }
-    await _setAdminLockUntil(until);
-    _startAdminLockCountdown();
-  }
-
-  Future<void> _clearAdminLockIfExpired() async {
-    if (_adminLockUntilMs <= 0) return;
-    if (_adminLockActive) return;
-    if (mounted) {
-      setState(() => _adminLockUntilMs = 0);
-    } else {
-      _adminLockUntilMs = 0;
-    }
-    await _setAdminLockUntil(0);
-  }
-
-  void _startAdminLockCountdown() {
-    _adminLockTimer?.cancel();
-    if (!_adminLockActive) {
-      _clearAdminLockIfExpired();
-      return;
-    }
-    _adminLockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      if (!_adminLockActive) {
-        _adminLockTimer?.cancel();
-        _clearAdminLockIfExpired();
-      } else {
-        setState(() {});
-      }
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -272,73 +224,11 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
                       child: FilledButton.icon(
                         onPressed: _configureAll,
                         icon: const Icon(Icons.settings_rounded, size: 18),
-                        label: const Text('Configurar Todo'),
+                        label: const Text('Configurar permisos críticos'),
                       ),
                     ),
                   ),
                 ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
-                      AppSpacing.lg, AppSpacing.lg, AppSpacing.xs),
-                  child: Text(
-                    'MODO ADMINISTRADOR',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textTertiary,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                  child: Column(
-                    children: [
-                      _adminCard(),
-                      const SizedBox(height: AppSpacing.sm),
-                      _adminLockCard(),
-                    ],
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
-                      AppSpacing.lg, AppSpacing.lg, AppSpacing.xs),
-                  child: Text(
-                    'PROTECCIÓN ADICIONAL',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textTertiary,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-                  child: Column(
-                    children: [
-                      _permissionCard(
-                        icon: Icons.security_rounded,
-                        title: 'Protección básica (Device Admin)',
-                        description:
-                            'Disuade desinstalación, pero puede desactivarse en Ajustes',
-                        granted: _deviceAdmin,
-                        critical: false,
-                        onRequest: _requestDeviceAdmin,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
               const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.xxl)),
             ],
           ],
@@ -356,49 +246,21 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
           border: Border.all(color: AppColors.success, width: 1),
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isCompact = constraints.maxWidth < 320;
-            if (isCompact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.check_circle_rounded,
-                          color: AppColors.success, size: 20),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          '¡Todo configurado correctamente!',
-                          style: TextStyle(
-                              color: AppColors.success,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            }
-            return Row(
-              children: [
-                Icon(Icons.check_circle_rounded,
-                    color: AppColors.success, size: 20),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Text(
-                    '¡Todo configurado correctamente!',
-                    style: TextStyle(
-                        color: AppColors.success,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600),
-                  ),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                'Permisos críticos activos',
+                style: TextStyle(
+                  color: AppColors.success,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -409,44 +271,17 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
         border: Border.all(color: AppColors.warning, width: 1),
         borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isCompact = constraints.maxWidth < 320;
-          if (isCompact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.warning_amber_rounded,
-                        color: AppColors.warning, size: 20),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        'La app requiere estos permisos para funcionar',
-                        style:
-                            TextStyle(color: AppColors.warning, fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          }
-          return Row(
-            children: [
-              Icon(Icons.warning_amber_rounded,
-                  color: AppColors.warning, size: 20),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  'La app requiere estos permisos para funcionar',
-                  style: TextStyle(color: AppColors.warning, fontSize: 12),
-                ),
-              ),
-            ],
-          );
-        },
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 20),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+          child: Text(
+              'Sin estos permisos críticos, el bloqueo y el monitoreo no funcionarán correctamente.',
+              style: TextStyle(color: AppColors.warning, fontSize: 12),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -462,489 +297,83 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isCompact = constraints.maxWidth < 320;
-            if (isCompact) {
-              return Column(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: granted
+                    ? AppColors.success.withValues(alpha: 0.15)
+                    : AppColors.error.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: granted ? AppColors.success : AppColors.error,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: granted
-                              ? AppColors.success.withValues(alpha: 0.15)
-                              : AppColors.error.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        child: Icon(
-                          icon,
-                          size: 20,
-                          color: granted ? AppColors.success : AppColors.error,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: AppSpacing.sm,
-                          children: [
-                            Text(
-                              title,
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            if (critical)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: AppSpacing.sm, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColors.error.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  'REQUERIDO',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.error,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      if (granted)
-                        Icon(Icons.check_circle_rounded,
-                            color: AppColors.success, size: 20)
-                      else
-                        TextButton(
-                            onPressed: onRequest,
-                            child: const Text('Habilitar')),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    description,
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textTertiary,
-                        height: 1.4),
-                  ),
-                ],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: granted
-                        ? AppColors.success.withValues(alpha: 0.15)
-                        : AppColors.error.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: granted ? AppColors.success : AppColors.error,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: AppSpacing.sm,
-                        children: [
-                          Text(
-                            title,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          if (critical)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.sm, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.error.withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'REQUERIDO',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.error,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        description,
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textTertiary,
-                            height: 1.4),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                if (granted)
-                  Icon(Icons.check_circle_rounded,
-                      color: AppColors.success, size: 20)
-                else
-                  TextButton(
-                      onPressed: onRequest, child: const Text('Habilitar')),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _adminCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isCompact = constraints.maxWidth < 320;
-            if (isCompact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: _adminEnabled
-                              ? AppColors.success.withValues(alpha: 0.15)
-                              : AppColors.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        child: Icon(
-                          _adminEnabled
-                              ? Icons.lock_rounded
-                              : Icons.lock_open_rounded,
-                          size: 20,
-                          color: _adminEnabled
-                              ? AppColors.success
-                              : AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Protección con PIN',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              _adminEnabled
-                                  ? 'Se requiere PIN para modificar restricciones'
-                                  : 'Protege contra cambios accidentales',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.textTertiary,
-                                  height: 1.4),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: _adminEnabled
-                        ? _disableAdminButton()
-                        : _enableAdminButton(),
-                  ),
-                ],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: _adminEnabled
-                        ? AppColors.success.withValues(alpha: 0.15)
-                        : AppColors.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Icon(
-                    _adminEnabled
-                        ? Icons.lock_rounded
-                        : Icons.lock_open_rounded,
-                    size: 20,
-                    color:
-                        _adminEnabled ? AppColors.success : AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: AppSpacing.sm,
                     children: [
                       Text(
-                        'Protección con PIN',
+                        title,
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        _adminEnabled
-                            ? 'Se requiere PIN para modificar restricciones'
-                            : 'Protege contra cambios accidentales',
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: AppColors.textTertiary,
-                            height: 1.4),
-                      ),
+                      if (critical)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'REQUERIDO',
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.error,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                _adminEnabled ? _disableAdminButton() : _enableAdminButton(),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _enableAdminButton() {
-    return TextButton(
-      onPressed: () {
-        Navigator.push<bool>(
-          context,
-          MaterialPageRoute(builder: (_) => const PinSetupScreen()),
-        ).then((result) {
-          if (result == true) _refresh();
-        });
-      },
-      child: const Text('Activar'),
-    );
-  }
-
-  Widget _disableAdminButton() {
-    return TextButton(
-      onPressed: () {
-        Navigator.push<bool>(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const PinVerifyScreen(
-              reason: 'Ingresa tu PIN para desactivar el modo administrador',
-            ),
-          ),
-        ).then((result) async {
-          if (result == true) {
-            await NativeService.disableAdmin();
-            _refresh();
-          }
-        });
-      },
-      style: TextButton.styleFrom(foregroundColor: AppColors.error),
-      child: const Text('Desactivar'),
-    );
-  }
-
-  Widget _adminLockCard() {
-    final remainingText = _adminLockActive
-        ? 'Restante: ${AppUtils.formatDurationMillis(_adminLockRemainingMs)}'
-        : 'Activa un bloqueo temporal sin PIN';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isCompact = constraints.maxWidth < 320;
-            final header = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Bloqueo temporal sin PIN',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textTertiary,
+                      height: 1.4,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  _adminLockActive
-                      ? 'No se puede desactivar hasta que expire'
-                      : 'Bloquea cambios por un tiempo definido',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textTertiary,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            );
-            final badge = Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: _adminLockActive
-                    ? AppColors.warning.withValues(alpha: 0.15)
-                    : AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                _adminLockActive ? remainingText : 'Inactivo',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: _adminLockActive
-                      ? AppColors.warning
-                      : AppColors.textTertiary,
-                ),
-              ),
-            );
-            final actions = Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: [
-                _adminLockButton('1h', const Duration(hours: 1)),
-                _adminLockButton('3h', const Duration(hours: 3)),
-                _adminLockButton('6h', const Duration(hours: 6)),
-                _adminLockButton('1 día', const Duration(days: 1)),
-                _adminLockCustomButton(),
-              ],
-            );
-            if (isCompact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  header,
-                  const SizedBox(height: AppSpacing.sm),
-                  Align(alignment: Alignment.centerLeft, child: badge),
-                  const SizedBox(height: AppSpacing.sm),
-                  actions,
                 ],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: header),
-                const SizedBox(width: AppSpacing.sm),
-                badge,
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(child: actions),
-              ],
-            );
-          },
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            if (granted)
+              Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20)
+            else
+              TextButton(onPressed: onRequest, child: const Text('Habilitar')),
+          ],
         ),
       ),
     );
-  }
-
-  Widget _adminLockButton(String label, Duration duration) {
-    return SizedBox(
-      height: 34,
-      child: FilledButton(
-        onPressed: _adminLockActive ? null : () => _startAdminLock(duration),
-        style: FilledButton.styleFrom(
-          backgroundColor:
-              _adminLockActive ? AppColors.surfaceVariant : AppColors.primary,
-          foregroundColor: _adminLockActive
-              ? AppColors.textTertiary
-              : AppColors.onColor(AppColors.primary),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-        ),
-        child: Text(label),
-      ),
-    );
-  }
-
-  Widget _adminLockCustomButton() {
-    return SizedBox(
-      height: 34,
-      child: OutlinedButton(
-        onPressed: _adminLockActive ? null : _pickAdminLockUntil,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textSecondary,
-          side: BorderSide(color: AppColors.surfaceVariant),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-        ),
-        child: const Text('Por fecha'),
-      ),
-    );
-  }
-
-  Future<void> _pickAdminLockUntil() async {
-    final now = DateTime.now();
-    final date = await showDatePicker(
-      context: context,
-      initialDate: now.add(const Duration(hours: 1)),
-      firstDate: now,
-      lastDate: now.add(const Duration(days: 365)),
-    );
-    if (date == null) return;
-    if (!mounted) return;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(now.add(const Duration(hours: 1))),
-    );
-    if (time == null) return;
-    final selected =
-        DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    if (selected.isBefore(now.add(const Duration(minutes: 1)))) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Selecciona una fecha/hora futura'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-      return;
-    }
-    await _startAdminLock(selected.difference(now));
   }
 }
