@@ -614,7 +614,7 @@ class _DateBlockEditDialogState extends State<DateBlockEditDialog> {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'sheet',
-      barrierColor: Colors.black54,
+      barrierColor: AppColors.background.withValues(alpha: 0.62),
       transitionDuration: Duration.zero,
       pageBuilder: (context, _, __) {
         return Align(

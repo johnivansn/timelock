@@ -110,6 +110,7 @@ class _NotificationSettingsScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -393,7 +394,7 @@ class _NotificationSettingsScreenState
                         '$styleLabel • $overlayLabel',
                         style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.textTertiary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -409,7 +410,7 @@ class _NotificationSettingsScreenState
               style: TextStyle(
                 fontSize: 11,
                 color:
-                    pillDisabled ? AppColors.warning : AppColors.textTertiary,
+                    pillDisabled ? AppColors.warning : AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -496,7 +497,7 @@ class _NotificationSettingsScreenState
                               : 'No disponible sin permiso "Mostrar sobre otras apps".',
                           style: TextStyle(
                             fontSize: 10,
-                            color: AppColors.textTertiary,
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -524,7 +525,7 @@ class _NotificationSettingsScreenState
                         fontWeight: FontWeight.w700,
                         color: _overlayForPillEnabled
                             ? AppColors.success
-                            : AppColors.textTertiary,
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ),
@@ -612,7 +613,7 @@ class _NotificationSettingsScreenState
                       subtitle,
                       style: TextStyle(
                         fontSize: 10,
-                        color: AppColors.textTertiary,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -659,7 +660,7 @@ class _NotificationSettingsScreenState
                           size: 20,
                           color: value
                               ? AppColors.success
-                              : AppColors.textTertiary,
+                              : AppColors.textSecondary,
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
@@ -684,7 +685,7 @@ class _NotificationSettingsScreenState
                     description,
                     style: TextStyle(
                       fontSize: 11,
-                      color: AppColors.textTertiary,
+                      color: AppColors.textSecondary,
                       height: 1.4,
                     ),
                   ),
@@ -706,7 +707,7 @@ class _NotificationSettingsScreenState
                   child: Icon(
                     icon,
                     size: 20,
-                    color: value ? AppColors.success : AppColors.textTertiary,
+                    color: value ? AppColors.success : AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -727,7 +728,7 @@ class _NotificationSettingsScreenState
                         description,
                         style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.textTertiary,
+                          color: AppColors.textSecondary,
                           height: 1.4,
                         ),
                       ),

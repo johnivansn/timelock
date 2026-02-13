@@ -25,8 +25,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon_dark.png
 
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: assets/icon.png
+  image_path: assets/icon_dark.png
+  min_sdk_android: 21

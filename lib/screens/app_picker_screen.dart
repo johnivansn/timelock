@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/widgets/app_picker_dialog.dart';
 
 class AppPickerScreen extends StatelessWidget {
@@ -9,6 +10,7 @@ class AppPickerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Selecciona una app'),
       ),

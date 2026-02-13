@@ -46,7 +46,8 @@ class _PermissionsScreenState extends State<PermissionsScreen>
     _refresh();
     _resumeRefreshTimer?.cancel();
     _resumeRefreshAttempts = 0;
-    _resumeRefreshTimer = Timer.periodic(const Duration(milliseconds: 400), (t) {
+    _resumeRefreshTimer =
+        Timer.periodic(const Duration(milliseconds: 400), (t) {
       _resumeRefreshAttempts++;
       _refresh();
       if (_resumeRefreshAttempts >= 4) {
@@ -208,6 +209,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -310,7 +312,8 @@ class _PermissionsScreenState extends State<PermissionsScreen>
         ),
         child: Row(
           children: [
-            Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20),
+            Icon(Icons.check_circle_rounded,
+                color: AppColors.success, size: 20),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
@@ -338,7 +341,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
           Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 20),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
-          child: Text(
+            child: Text(
               'Sin estos permisos críticos, el bloqueo y el monitoreo no funcionarán correctamente.',
               style: TextStyle(color: AppColors.warning, fontSize: 12),
             ),
@@ -421,7 +424,7 @@ class _PermissionsScreenState extends State<PermissionsScreen>
                     description,
                     style: TextStyle(
                       fontSize: 11,
-                      color: AppColors.textTertiary,
+                      color: AppColors.textSecondary,
                       height: 1.4,
                     ),
                   ),
@@ -430,7 +433,8 @@ class _PermissionsScreenState extends State<PermissionsScreen>
             ),
             const SizedBox(width: AppSpacing.sm),
             if (granted)
-              Icon(Icons.check_circle_rounded, color: AppColors.success, size: 20)
+              Icon(Icons.check_circle_rounded,
+                  color: AppColors.success, size: 20)
             else
               TextButton(onPressed: onRequest, child: const Text('Habilitar')),
           ],

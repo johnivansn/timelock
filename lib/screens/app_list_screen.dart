@@ -170,7 +170,8 @@ class _AppListScreenState extends State<AppListScreen>
     setState(() {});
     if (!_adminLockExpiryNotified) {
       _adminLockExpiryNotified = true;
-      context.showSnack('El modo admin temporal venció. Ya puedes hacer cambios.');
+      context
+          .showSnack('El modo admin temporal venció. Ya puedes hacer cambios.');
     }
   }
 
@@ -717,7 +718,7 @@ class _AppListScreenState extends State<AppListScreen>
       context: context,
       barrierDismissible: true,
       barrierLabel: 'sheet',
-      barrierColor: Colors.black54,
+      barrierColor: AppColors.background.withValues(alpha: 0.62),
       transitionDuration: Duration.zero,
       pageBuilder: (context, _, __) {
         return Align(
@@ -902,15 +903,28 @@ class _AppListScreenState extends State<AppListScreen>
                 child: Text(
                   'TimeLock',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 26,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.settings_outlined, size: 20),
-                onPressed: () => _showSettingsMenu(),
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.surfaceVariant.withValues(alpha: 0.45),
+                  ),
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.settings_outlined, size: 18),
+                  onPressed: () => _showSettingsMenu(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
               ),
             ],
           ),
@@ -933,17 +947,10 @@ class _AppListScreenState extends State<AppListScreen>
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.background,
-            AppColors.surface,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-          color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+          color: AppColors.surfaceVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -964,7 +971,7 @@ class _AppListScreenState extends State<AppListScreen>
                 date,
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.textTertiary,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ],
@@ -1059,7 +1066,7 @@ class _AppListScreenState extends State<AppListScreen>
             color: AppColors.surfaceVariant.withValues(alpha: 0.38),
             borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
-              color: AppColors.surfaceVariant.withValues(alpha: 0.72),
+              color: AppColors.surfaceVariant.withValues(alpha: 0.5),
             ),
           ),
           child: Column(
@@ -1131,7 +1138,7 @@ class _AppListScreenState extends State<AppListScreen>
       side: BorderSide(
         color: selected
             ? AppColors.primary.withValues(alpha: 0.45)
-            : AppColors.surfaceVariant.withValues(alpha: 0.7),
+            : AppColors.surfaceVariant.withValues(alpha: 0.45),
       ),
       visualDensity: VisualDensity.compact,
     );
@@ -1345,7 +1352,7 @@ class _AppListScreenState extends State<AppListScreen>
                                     _sortDescription(mode),
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: AppColors.textTertiary,
+                                      color: AppColors.textSecondary,
                                     ),
                                   ),
                                 ],
@@ -1376,7 +1383,7 @@ class _AppListScreenState extends State<AppListScreen>
       context: context,
       barrierLabel: 'settings',
       barrierDismissible: true,
-      barrierColor: AppColors.background.withValues(alpha: 0.55),
+      barrierColor: AppColors.background.withValues(alpha: 0.35),
       transitionDuration: AppMotion.duration(const Duration(milliseconds: 260)),
       pageBuilder: (context, _, __) {
         return Align(
@@ -1389,26 +1396,12 @@ class _AppListScreenState extends State<AppListScreen>
                 width: panelWidth,
                 height: double.infinity,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.surfaceVariant,
-                      AppColors.surface,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: AppColors.background,
                   borderRadius:
                       const BorderRadius.horizontal(left: Radius.circular(28)),
                   border: Border.all(
-                    color: AppColors.surfaceVariant.withValues(alpha: 0.7),
+                    color: AppColors.surfaceVariant.withValues(alpha: 0.45),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.background.withValues(alpha: 0.55),
-                      blurRadius: 28,
-                      offset: const Offset(-8, 0),
-                    ),
-                  ],
                 ),
                 child: Column(
                   children: [
@@ -1467,11 +1460,14 @@ class _AppListScreenState extends State<AppListScreen>
                               );
                               if (!allowed) return;
                               if (!mounted) return;
-                              navigator.push(
-                                MaterialPageRoute(
-                                  builder: (_) => const AdminSecurityScreen(),
-                                ),
-                              ).then((_) => _loadAdminLockPrefs());
+                              navigator
+                                  .push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const AdminSecurityScreen(),
+                                    ),
+                                  )
+                                  .then((_) => _loadAdminLockPrefs());
                             },
                           ),
                           _settingsItem(
@@ -1500,10 +1496,13 @@ class _AppListScreenState extends State<AppListScreen>
                               );
                               if (!allowed) return;
                               if (!mounted) return;
-                              navigator.push(
-                                MaterialPageRoute(
-                                    builder: (_) => const ExportImportScreen()),
-                              ).then((_) => _loadRestrictions());
+                              navigator
+                                  .push(
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            const ExportImportScreen()),
+                                  )
+                                  .then((_) => _loadRestrictions());
                             },
                           ),
                           _settingsItem(
@@ -1588,7 +1587,7 @@ class _AppListScreenState extends State<AppListScreen>
               color: AppColors.surface.withValues(alpha: 0.35),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: AppColors.surfaceVariant.withValues(alpha: 0.7),
+                color: AppColors.surfaceVariant.withValues(alpha: 0.45),
               ),
             ),
             child: Row(
@@ -1620,7 +1619,7 @@ class _AppListScreenState extends State<AppListScreen>
                         subtitle,
                         style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.textTertiary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -1717,7 +1716,7 @@ class _AppListScreenState extends State<AppListScreen>
               'Toca "Agregar" para comenzar a\nmonitorear el tiempo de tus apps',
               style: TextStyle(
                 fontSize: 12,
-                color: AppColors.textTertiary,
+                color: AppColors.textSecondary,
                 height: 1.5,
               ),
               textAlign: TextAlign.center,
@@ -1765,18 +1764,11 @@ class _AppListScreenState extends State<AppListScreen>
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            gradient: LinearGradient(
-              colors: [
-                AppColors.surface,
-                AppColors.surfaceVariant,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: AppColors.surface,
             border: Border.all(
               color: blocked
                   ? AppColors.error
-                  : AppColors.surfaceVariant.withValues(alpha: 0.8),
+                  : AppColors.surfaceVariant.withValues(alpha: 0.5),
               width: blocked ? 1.5 : 1,
             ),
           ),
@@ -1883,7 +1875,7 @@ class _AppListScreenState extends State<AppListScreen>
                   'Solo bloqueo por horario/fecha',
                   style: TextStyle(
                     fontSize: 11,
-                    color: AppColors.textTertiary,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -1970,7 +1962,7 @@ class _AppListScreenState extends State<AppListScreen>
           color: AppColors.surfaceVariant.withValues(alpha: 0.45),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+            color: AppColors.surfaceVariant.withValues(alpha: 0.5),
           ),
         ),
         child: Row(
@@ -1996,12 +1988,12 @@ class _AppListScreenState extends State<AppListScreen>
                     decoration: BoxDecoration(
                       color: hasActive
                           ? AppColors.success.withValues(alpha: 0.18)
-                          : AppColors.surfaceVariant.withValues(alpha: 0.7),
+                          : AppColors.surfaceVariant.withValues(alpha: 0.45),
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
                         color: hasActive
                             ? AppColors.success.withValues(alpha: 0.45)
-                            : AppColors.surfaceVariant.withValues(alpha: 0.9),
+                            : AppColors.surfaceVariant.withValues(alpha: 0.55),
                       ),
                     ),
                     child: Text(
@@ -2396,7 +2388,7 @@ class _AppListScreenState extends State<AppListScreen>
           ),
           TextSpan(
             text: remaining,
-            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+            style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
           ),
         ],
       ),

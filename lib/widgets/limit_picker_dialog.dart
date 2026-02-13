@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
@@ -10,6 +9,7 @@ import 'package:timelock/utils/date_utils.dart';
 import 'package:timelock/utils/schedule_utils.dart';
 import 'package:timelock/widgets/bottom_sheet_handle.dart';
 import 'package:timelock/widgets/date_block_edit_dialog.dart';
+import 'package:timelock/widgets/carousel_picker_dialog.dart';
 import 'package:timelock/widgets/schedule_edit_dialog.dart';
 
 class LimitPickerDialog extends StatefulWidget {
@@ -55,6 +55,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   late final TextEditingController _dailyMinutesController;
   late final TextEditingController _weeklyHourController;
   late final TextEditingController _weeklyMinuteController;
+  late final TextEditingController _weeklyResetDayController;
   late int _weeklyDaysInput;
   late int _weeklyHoursInput;
   late int _weeklyMinutesInput;
@@ -115,7 +116,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     if (active) {
       return _switchActiveAccent(tone);
     }
-    return _switchInactiveAccent(tone).withValues(alpha: 0.95);
+    return _switchInactiveAccent(tone).withValues(alpha: 0.55);
   }
 
   Color _switchTrackColor(Color tone, {required bool active}) {
@@ -149,131 +150,124 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     required int max,
     required ValueChanged<int> onChanged,
   }) async {
-    final safeCurrent = current.clamp(min, max);
-    const itemExtent = 36.0;
-    final rangeCount = (max - min + 1);
-    var selected = safeCurrent;
-    const virtualItems = 20000;
-    final middleBase = (virtualItems ~/ 2) - ((virtualItems ~/ 2) % rangeCount);
-    final controller = FixedExtentScrollController(
-      initialItem: middleBase + (safeCurrent - min),
-    );
-    await showDialog<void>(
+    final picked = await showCarouselPickerDialog(
       context: context,
-      builder: (dialogContext) {
-        return Dialog(
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
-          backgroundColor: Colors.transparent,
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                  color: AppColors.surfaceVariant.withValues(alpha: 0.8)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.md,
-                    AppSpacing.sm,
-                    AppSpacing.xs,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              title,
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Rango: $min a $max',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textTertiary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(dialogContext),
-                        icon: const Icon(Icons.close_rounded, size: 20),
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(
-                  height: 210,
-                  child: CupertinoPicker.builder(
-                    scrollController: controller,
-                    itemExtent: itemExtent,
-                    diameterRatio: 1.25,
-                    magnification: 1.08,
-                    useMagnifier: true,
-                    selectionOverlay: CupertinoPickerDefaultSelectionOverlay(
-                      background: _modeTone.withValues(alpha: 0.1),
-                    ),
-                    onSelectedItemChanged: (index) {
-                      selected = min + (index % rangeCount);
-                    },
-                    childCount: virtualItems,
-                    itemBuilder: (_, index) {
-                      final value = min + (index % rangeCount);
-                      return Center(
-                        child: Text(
-                          value.toString().padLeft(2, '0'),
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.sm,
-                    AppSpacing.lg,
-                    AppSpacing.md,
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 42,
-                    child: FilledButton(
-                      onPressed: () {
-                        onChanged(selected);
-                        Navigator.pop(dialogContext);
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: _mixedTone,
-                        foregroundColor: AppColors.onColor(_mixedTone),
-                      ),
-                      child: const Text('Aplicar'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      title: title,
+      columns: [
+        CarouselPickerColumn(
+          label: 'Valor',
+          min: min,
+          max: max,
+          initial: current,
+        ),
+      ],
+      surfaceColor: AppColors.surface,
+      borderColor: AppColors.surfaceVariant,
+      textPrimary: AppColors.textPrimary,
+      textSecondary: AppColors.textTertiary,
+      overlayColor: _modeTone.withValues(alpha: 0.1),
+      confirmLabel: 'Aplicar',
     );
-    controller.dispose();
+    if (picked == null || picked.isEmpty) return;
+    onChanged(picked.first);
+  }
+
+  Future<void> _pickHoursMinutesWheel({
+    required String title,
+    required int currentHours,
+    required int currentMinutes,
+    required void Function(int hours, int minutes) onApplied,
+  }) async {
+    final picked = await showCarouselPickerDialog(
+      context: context,
+      title: title,
+      columns: [
+        CarouselPickerColumn(
+          label: 'Horas',
+          min: 0,
+          max: 23,
+          initial: currentHours,
+        ),
+        CarouselPickerColumn(
+          label: 'Min',
+          min: 0,
+          max: 59,
+          initial: currentMinutes,
+        ),
+      ],
+      surfaceColor: AppColors.surface,
+      borderColor: AppColors.surfaceVariant,
+      textPrimary: AppColors.textPrimary,
+      textSecondary: AppColors.textTertiary,
+      overlayColor: _modeTone.withValues(alpha: 0.08),
+    );
+    if (picked == null || picked.length < 2) return;
+    onApplied(picked[0], picked[1]);
+  }
+
+  Future<void> _pickDaysHoursMinutesWheel({
+    required String title,
+    required int currentDays,
+    required int currentHours,
+    required int currentMinutes,
+    required void Function(int days, int hours, int minutes) onApplied,
+  }) async {
+    final picked = await showCarouselPickerDialog(
+      context: context,
+      title: title,
+      columns: [
+        CarouselPickerColumn(label: 'Días', min: 0, max: 7, initial: currentDays),
+        CarouselPickerColumn(label: 'Horas', min: 0, max: 23, initial: currentHours),
+        CarouselPickerColumn(label: 'Min', min: 0, max: 59, initial: currentMinutes),
+      ],
+      surfaceColor: AppColors.surface,
+      borderColor: AppColors.surfaceVariant,
+      textPrimary: AppColors.textPrimary,
+      textSecondary: AppColors.textTertiary,
+      overlayColor: _modeTone.withValues(alpha: 0.08),
+    );
+    if (picked == null || picked.length < 3) return;
+    onApplied(picked[0], picked[1], picked[2]);
+  }
+
+  Future<void> _pickWeeklyResetDayTimeWheel({
+    required int currentDay,
+    required int currentHour,
+    required int currentMinute,
+    required void Function(int day, int hour, int minute) onApplied,
+  }) async {
+    const dayLabels = <int, String>{
+      1: 'Domingo',
+      2: 'Lunes',
+      3: 'Martes',
+      4: 'Miércoles',
+      5: 'Jueves',
+      6: 'Viernes',
+      7: 'Sábado',
+    };
+
+    final picked = await showCarouselPickerDialog(
+      context: context,
+      title: 'Reinicio semanal',
+      columns: [
+        CarouselPickerColumn(
+          label: 'Día',
+          min: 1,
+          max: 7,
+          initial: currentDay,
+          displayBuilder: (value) => dayLabels[value] ?? 'Día',
+        ),
+        CarouselPickerColumn(label: 'Hora', min: 0, max: 23, initial: currentHour),
+        CarouselPickerColumn(label: 'Min', min: 0, max: 59, initial: currentMinute),
+      ],
+      surfaceColor: AppColors.surface,
+      borderColor: AppColors.surfaceVariant,
+      textPrimary: AppColors.textPrimary,
+      textSecondary: AppColors.textTertiary,
+      overlayColor: _modeTone.withValues(alpha: 0.08),
+    );
+    if (picked == null || picked.length < 3) return;
+    onApplied(picked[0], picked[1], picked[2]);
   }
 
   Widget _wheelField({
@@ -296,7 +290,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             color: AppColors.background,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+              color: AppColors.surfaceVariant.withValues(alpha: 0.6),
             ),
           ),
           child: Text(
@@ -348,6 +342,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         text: _weeklyResetHour.toString().padLeft(2, '0'));
     _weeklyMinuteController = TextEditingController(
         text: _weeklyResetMinute.toString().padLeft(2, '0'));
+    _weeklyResetDayController =
+        TextEditingController(text: _weeklyResetDay.toString());
     _weeklyDaysInput = (_weeklyMinutes ~/ 1440).clamp(0, 7);
     _weeklyHoursInput = ((_weeklyMinutes % 1440) ~/ 60).clamp(0, 23);
     _weeklyMinutesInput = (_weeklyMinutes % 60).clamp(0, 59);
@@ -408,6 +404,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     _dailyMinutesController.dispose();
     _weeklyHourController.dispose();
     _weeklyMinuteController.dispose();
+    _weeklyResetDayController.dispose();
     _weeklyDaysController.dispose();
     _weeklyHoursController.dispose();
     _weeklyMinutesInputController.dispose();
@@ -780,19 +777,6 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     final showSave =
         isCreate || _dirty || _schedulesChanged || _dateBlocksChanged;
     final canSave = _isLimitValid();
-    final modeTone = _modeTone;
-    final surfaceTone = Color.lerp(
-          Color.alphaBlend(modeTone.withValues(alpha: 0.05), AppColors.surface),
-          AppColors.background,
-          0.16,
-        ) ??
-        AppColors.surface;
-    final stickyTone = Color.lerp(
-          Color.alphaBlend(modeTone.withValues(alpha: 0.07), AppColors.surface),
-          AppColors.background,
-          0.12,
-        ) ??
-        AppColors.surface;
     final borderRadius = widget.fullScreen
         ? BorderRadius.circular(0)
         : const BorderRadius.vertical(top: Radius.circular(AppRadius.xl));
@@ -816,7 +800,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 duration: AppMotion.duration(const Duration(milliseconds: 220)),
                 curve: Curves.easeOutCubic,
                 decoration: BoxDecoration(
-                  color: surfaceTone,
+                  color: AppColors.background,
                   borderRadius: borderRadius,
                 ),
                 child: Column(
@@ -937,10 +921,10 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                       padding: const EdgeInsets.fromLTRB(AppSpacing.lg,
                           AppSpacing.sm, AppSpacing.lg, AppSpacing.md),
                       decoration: BoxDecoration(
-                        color: stickyTone,
+                        color: AppColors.background,
                         border: Border(
                           top: BorderSide(
-                            color: modeTone.withValues(alpha: 0.4),
+                            color: AppColors.surfaceVariant,
                           ),
                         ),
                       ),
@@ -1099,35 +1083,21 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.surfaceVariant.withValues(alpha: 0.78),
-            AppColors.surface.withValues(alpha: 0.96),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-          color: AppColors.surfaceVariant.withValues(alpha: 0.95),
+          color: AppColors.surfaceVariant.withValues(alpha: 0.55),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.background.withValues(alpha: 0.25),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: AppColors.surfaceVariant.withValues(alpha: 0.92),
+              color: AppColors.surfaceVariant.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: AppColors.surfaceVariant.withValues(alpha: 0.98),
+                color: AppColors.surfaceVariant.withValues(alpha: 0.6),
               ),
             ),
             child: _buildAppIcon(),
@@ -1365,16 +1335,16 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     required VoidCallback onTap,
   }) {
     final controlTone = Color.alphaBlend(
-      _modeTone.withValues(alpha: 0.42),
+      _modeTone.withValues(alpha: 0.26),
       AppColors.surfaceVariant,
     );
     final controlToneStrong = Color.alphaBlend(
-      _modeTone.withValues(alpha: 0.58),
+      _modeTone.withValues(alpha: 0.36),
       AppColors.surfaceVariant,
     );
     final bg = selected
         ? controlTone
-        : AppColors.surfaceVariant.withValues(alpha: 0.7);
+        : AppColors.surfaceVariant.withValues(alpha: 0.45);
     final fg = selected
         ? AppColors.onColor(controlToneStrong)
         : AppColors.textSecondary;
@@ -1387,18 +1357,9 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: selected
-              ? controlToneStrong.withValues(alpha: 0.95)
-              : AppColors.surfaceVariant.withValues(alpha: 0.7),
+              ? controlToneStrong.withValues(alpha: 0.6)
+              : AppColors.surfaceVariant.withValues(alpha: 0.45),
         ),
-        boxShadow: selected
-            ? [
-                BoxShadow(
-                  color: controlToneStrong.withValues(alpha: 0.28),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
       ),
       child: InkWell(
         onTap: onTap,
@@ -1497,6 +1458,31 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             hoursController: _weeklyHoursController,
             minutesController: _weeklyMinutesInputController,
             unitsLabel: 'd / h / m',
+            onTapDurationCombined: () async {
+              final currentD = int.tryParse(_weeklyDaysController.text) ?? 0;
+              final currentH = int.tryParse(_weeklyHoursController.text) ?? 0;
+              final currentM =
+                  int.tryParse(_weeklyMinutesInputController.text) ?? 0;
+              await _pickDaysHoursMinutesWheel(
+                title: 'Seleccionar duración semanal',
+                currentDays: currentD,
+                currentHours: currentH,
+                currentMinutes: currentM,
+                onApplied: (d, h, m) {
+                  final minutes = (d.clamp(0, 7) * 1440) +
+                      (h.clamp(0, 23) * 60) +
+                      m.clamp(0, 59);
+                  setState(() {
+                    _weeklyDaysController.text = d.toString();
+                    _weeklyHoursController.text = h.toString();
+                    _weeklyMinutesInputController.text = m.toString();
+                    _weeklyMinutes = minutes;
+                    _recomputeDirty();
+                  });
+                  onMinutesChanged(minutes);
+                },
+              );
+            },
             onChanged: () {
               final d = int.tryParse(_weeklyDaysController.text) ?? 0;
               final h = int.tryParse(_weeklyHoursController.text) ?? 0;
@@ -1515,75 +1501,78 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
           const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<int>(
-                  initialValue: _weeklyResetDay,
-                  items: const [
-                    DropdownMenuItem(value: 1, child: Text('Domingo')),
-                    DropdownMenuItem(value: 2, child: Text('Lunes')),
-                    DropdownMenuItem(value: 3, child: Text('Martes')),
-                    DropdownMenuItem(value: 4, child: Text('Miércoles')),
-                    DropdownMenuItem(value: 5, child: Text('Jueves')),
-                    DropdownMenuItem(value: 6, child: Text('Viernes')),
-                    DropdownMenuItem(value: 7, child: Text('Sábado')),
-                  ],
-                  onChanged: (v) {
-                    if (v != null) onResetChanged(v);
-                  },
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              _wheelField(
-                value: _weeklyHourController.text,
-                hint: 'HH',
-                onTap: () => _pickNumberWheel(
-                  title: 'Hora de reinicio semanal',
-                  current: _weeklyResetHour,
-                  min: 0,
-                  max: 23,
-                  onChanged: (value) {
-                    setState(() {
-                      _weeklyResetHour = value;
-                      _weeklyHourController.text =
-                          value.toString().padLeft(2, '0');
-                      _recomputeDirty();
-                    });
-                    onResetChanged(_weeklyResetDay);
-                  },
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                ':',
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
-              const SizedBox(width: 6),
-              _wheelField(
-                value: _weeklyMinuteController.text,
-                hint: 'MM',
-                onTap: () => _pickNumberWheel(
-                  title: 'Minuto de reinicio semanal',
-                  current: _weeklyResetMinute,
-                  min: 0,
-                  max: 59,
-                  onChanged: (value) {
-                    setState(() {
-                      _weeklyResetMinute = value;
-                      _weeklyMinuteController.text =
-                          value.toString().padLeft(2, '0');
-                      _recomputeDirty();
-                    });
-                    onResetChanged(_weeklyResetDay);
-                  },
-                ),
-              ),
-            ],
+          _durationRowCard(
+            badge: 'Reset',
+            daysController: _weeklyResetDayController,
+            hoursController: _weeklyHourController,
+            minutesController: _weeklyMinuteController,
+            unitsLabel: 'día / h / m',
+            dayAsWeekday: true,
+            onTapDurationCombined: () async {
+              await _pickWeeklyResetDayTimeWheel(
+                currentDay: _weeklyResetDay,
+                currentHour: _weeklyResetHour,
+                currentMinute: _weeklyResetMinute,
+                onApplied: (d, h, m) {
+                  setState(() {
+                    _weeklyResetDay = d;
+                    _weeklyResetHour = h;
+                    _weeklyResetMinute = m;
+                    _weeklyResetDayController.text = d.toString();
+                    _weeklyHourController.text = h.toString().padLeft(2, '0');
+                    _weeklyMinuteController.text = m.toString().padLeft(2, '0');
+                    _recomputeDirty();
+                  });
+                  onResetChanged(d);
+                },
+              );
+            },
+            onChanged: () {
+              final d = int.tryParse(_weeklyResetDayController.text) ?? 1;
+              final h = int.tryParse(_weeklyHourController.text) ?? 0;
+              final m = int.tryParse(_weeklyMinuteController.text) ?? 0;
+              setState(() {
+                _weeklyResetDay = d.clamp(1, 7);
+                _weeklyResetHour = h.clamp(0, 23);
+                _weeklyResetMinute = m.clamp(0, 59);
+                _weeklyResetDayController.text = _weeklyResetDay.toString();
+                _weeklyHourController.text =
+                    _weeklyResetHour.toString().padLeft(2, '0');
+                _weeklyMinuteController.text =
+                    _weeklyResetMinute.toString().padLeft(2, '0');
+                _recomputeDirty();
+              });
+              onResetChanged(_weeklyResetDay);
+            },
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            _weeklyResetLabel(),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
       ),
     );
+  }
+
+  String _weeklyResetLabel() {
+    const dayLabels = <int, String>{
+      1: 'Domingo',
+      2: 'Lunes',
+      3: 'Martes',
+      4: 'Miércoles',
+      5: 'Jueves',
+      6: 'Viernes',
+      7: 'Sábado',
+    };
+    final day = dayLabels[_weeklyResetDay] ?? 'Día';
+    final hh = _weeklyResetHour.toString().padLeft(2, '0');
+    final mm = _weeklyResetMinute.toString().padLeft(2, '0');
+    return 'Reinicia: $day $hh:$mm';
   }
 
   Widget _dailyModeSection() {
@@ -1651,7 +1640,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         color: AppColors.surfaceVariant.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
-          color: AppColors.surfaceVariant.withValues(alpha: 0.9),
+          color: AppColors.surfaceVariant.withValues(alpha: 0.65),
         ),
       ),
       child: Column(
@@ -1717,6 +1706,24 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             hoursController: _dayHourControllers[day]!,
             minutesController: _dayMinuteControllers[day]!,
             unitsLabel: 'h / m',
+            onTapDurationCombined: () async {
+              final currentH =
+                  int.tryParse(_dayHourControllers[day]?.text ?? '') ?? 0;
+              final currentM =
+                  int.tryParse(_dayMinuteControllers[day]?.text ?? '') ?? 0;
+              await _pickHoursMinutesWheel(
+                title: 'Duración para ${dayLabels[day] ?? 'día'}',
+                currentHours: currentH,
+                currentMinutes: currentM,
+                onApplied: (h, m) {
+                  setState(() {
+                    _dayHourControllers[day]?.text = h.toString();
+                    _dayMinuteControllers[day]?.text = m.toString();
+                    _syncPerDayMinutes(day);
+                  });
+                },
+              );
+            },
             onChanged: () => _syncPerDayMinutes(day),
           ),
         );
@@ -1793,7 +1800,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             child: Column(
               children: [
                 Icon(Icons.calendar_today_rounded,
-                    size: 28, color: modeTone.withValues(alpha: 0.8)),
+                    size: 28, color: modeTone.withValues(alpha: 0.6)),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   'Sin horarios configurados',
@@ -1890,7 +1897,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             child: Column(
               children: [
                 Icon(Icons.event_busy_rounded,
-                    size: 28, color: modeTone.withValues(alpha: 0.8)),
+                    size: 28, color: modeTone.withValues(alpha: 0.6)),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   'Sin fechas configuradas',
@@ -1965,11 +1972,11 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         : AppColors.surfaceVariant.withValues(alpha: 0.45);
     final borderColor = enabled
         ? tone.withValues(alpha: 0.35)
-        : AppColors.surfaceVariant.withValues(alpha: 0.7);
+        : AppColors.surfaceVariant.withValues(alpha: 0.55);
     final textColor = enabled ? AppColors.textPrimary : AppColors.textTertiary;
     final subTextColor = enabled
         ? AppColors.textTertiary
-        : AppColors.textTertiary.withValues(alpha: 0.7);
+        : AppColors.textTertiary.withValues(alpha: 0.55);
     final iconColor = enabled ? tone : AppColors.textTertiary;
 
     return Card(
@@ -2061,11 +2068,11 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
         : AppColors.surfaceVariant.withValues(alpha: 0.45);
     final borderColor = enabled
         ? tone.withValues(alpha: 0.35)
-        : AppColors.surfaceVariant.withValues(alpha: 0.7);
+        : AppColors.surfaceVariant.withValues(alpha: 0.55);
     final textColor = enabled ? AppColors.textPrimary : AppColors.textTertiary;
     final subTextColor = enabled
         ? AppColors.textTertiary
-        : AppColors.textTertiary.withValues(alpha: 0.7);
+        : AppColors.textTertiary.withValues(alpha: 0.55);
     final iconColor = enabled ? tone : AppColors.textTertiary;
 
     return Card(
@@ -2273,6 +2280,26 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
           hoursController: _dailyHoursController,
           minutesController: _dailyMinutesInputController,
           unitsLabel: 'h / m',
+          onTapDurationCombined: () async {
+            final currentH = int.tryParse(_dailyHoursController.text) ?? 0;
+            final currentM = int.tryParse(_dailyMinutesInputController.text) ?? 0;
+            await _pickHoursMinutesWheel(
+              title: 'Seleccionar duración diaria',
+              currentHours: currentH,
+              currentMinutes: currentM,
+              onApplied: (h, m) {
+                final minutes = (h.clamp(0, 23) * 60) + m.clamp(0, 59);
+                setState(() {
+                  _dailyHoursController.text = h.toString();
+                  _dailyMinutesInputController.text = m.toString();
+                  _dailyMinutes = minutes;
+                  _dailyMinutesController.text =
+                      minutes > 0 ? minutes.toString() : '';
+                  _recomputeDirty();
+                });
+              },
+            );
+          },
           onChanged: () {
             final h = int.tryParse(_dailyHoursController.text) ?? 0;
             final m = int.tryParse(_dailyMinutesInputController.text) ?? 0;
@@ -2300,6 +2327,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     required TextEditingController hoursController,
     required TextEditingController minutesController,
     required String unitsLabel,
+    bool dayAsWeekday = false,
+    Future<void> Function()? onTapDurationCombined,
     required VoidCallback onChanged,
   }) {
     final modeTone = _modeTone;
@@ -2340,6 +2369,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                 hoursController: hoursController,
                 minutesController: minutesController,
                 unitsLabel: unitsLabel,
+                dayAsWeekday: dayAsWeekday,
+                onTapDurationCombined: onTapDurationCombined,
                 onChanged: onChanged,
               ),
             ),
@@ -2354,6 +2385,8 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     required TextEditingController hoursController,
     required TextEditingController minutesController,
     required String unitsLabel,
+    bool dayAsWeekday = false,
+    Future<void> Function()? onTapDurationCombined,
     required VoidCallback onChanged,
   }) {
     Widget buildBox(
@@ -2365,21 +2398,38 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
           : hint == 'H'
               ? 'Horas'
               : 'Minutos';
+      var valueText = controller.text;
+      if (hint == 'D' && dayAsWeekday) {
+        const shortDay = <int, String>{
+          1: 'Dom',
+          2: 'Lun',
+          3: 'Mar',
+          4: 'Mié',
+          5: 'Jue',
+          6: 'Vie',
+          7: 'Sáb',
+        };
+        final day = int.tryParse(controller.text);
+        valueText = shortDay[day] ?? valueText;
+      }
       return _wheelField(
-        value: controller.text,
+        value: valueText,
         hint: hint,
-        onTap: () => _pickNumberWheel(
-          title: '$fieldLabel del límite',
-          current: int.tryParse(controller.text) ?? 0,
-          min: 0,
-          max: max,
-          onChanged: (value) {
-            setState(() {
-              controller.text = value.toString();
-            });
-            onChanged();
-          },
-        ),
+        onTap: (onTapDurationCombined != null &&
+                (hint == 'D' || hint == 'H' || hint == 'M'))
+            ? () async => onTapDurationCombined()
+            : () => _pickNumberWheel(
+                  title: '$fieldLabel del límite',
+                  current: int.tryParse(controller.text) ?? 0,
+                  min: 0,
+                  max: max,
+                  onChanged: (value) {
+                    setState(() {
+                      controller.text = value.toString();
+                    });
+                    onChanged();
+                  },
+                ),
       );
     }
 
@@ -2564,7 +2614,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
   Widget _editorSectionSwitcher() {
     final isLimit = _editorSection == 'limit';
     final sectionTone = isLimit ? _limitTone : _directTone;
-    final sectionToneStrong = sectionTone.withValues(alpha: 0.75);
+    final sectionToneStrong = sectionTone.withValues(alpha: 0.55);
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -2610,7 +2660,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     final isLimit = _editorSection == 'limit';
     final activeColor = isLimit ? _limitTone : _directTone;
     final activeForeground = AppColors.onColor(activeColor);
-    final inactiveColor = AppColors.textSecondary.withValues(alpha: 0.72);
+    final inactiveColor = AppColors.textSecondary.withValues(alpha: 0.55);
     return LayoutBuilder(
       builder: (context, constraints) {
         final tabWidth = (constraints.maxWidth - 8) / 2;
@@ -2622,7 +2672,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             color: activeColor.withValues(alpha: 0.07),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: activeColor.withValues(alpha: 0.35),
+              color: activeColor.withValues(alpha: 0.25),
             ),
           ),
           child: Stack(
@@ -2636,18 +2686,11 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
                   width: tabWidth,
                   margin: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: activeColor.withValues(alpha: 0.78),
+                    color: activeColor.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: activeColor.withValues(alpha: 0.95),
+                      color: activeColor.withValues(alpha: 0.6),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: activeColor.withValues(alpha: 0.38),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
                   ),
                 ),
               ),
@@ -2798,7 +2841,7 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: AppColors.surfaceVariant.withValues(alpha: 0.8),
+              color: AppColors.surfaceVariant.withValues(alpha: 0.6),
             ),
           ),
           child: Row(
@@ -3051,3 +3094,4 @@ class _LimitPickerDialogState extends State<LimitPickerDialog> {
     if (mounted) Navigator.pop(context, result);
   }
 }
+

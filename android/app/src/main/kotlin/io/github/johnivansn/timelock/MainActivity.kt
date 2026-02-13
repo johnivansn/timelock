@@ -313,6 +313,12 @@ class MainActivity : FlutterActivity() {
         "getAppVersion" -> {
           result.success(getAppVersion())
         }
+        "getRuntimePackageName" -> {
+          result.success(packageName)
+        }
+        "getSelfAppIcon" -> {
+          getSelfAppIcon(result)
+        }
         "getReleases" -> {
           scope.launch {
             try {
@@ -1185,11 +1191,29 @@ class MainActivity : FlutterActivity() {
                   appCacheManager.cacheIconBytes(packageName, iconBytes)
                   Handler(Looper.getMainLooper()).post { result.success(iconBytes) }
                 } catch (e: Exception) {
-                  Handler(Looper.getMainLooper()).post { result.success(null) }
+                  if (packageName == this.packageName) {
+                    getSelfAppIcon(result)
+                  } else {
+                    Handler(Looper.getMainLooper()).post { result.success(null) }
+                  }
                 }
               }
               .start()
     }
+
+  private fun getSelfAppIcon(result: MethodChannel.Result) {
+    Thread {
+      try {
+        val drawable = applicationInfo.loadIcon(packageManager)
+        val bitmap = AppUtils.drawableToBitmap(drawable, maxSize = 96)
+        val stream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 90, stream)
+        Handler(Looper.getMainLooper()).post { result.success(stream.toByteArray()) }
+      } catch (e: Exception) {
+        Handler(Looper.getMainLooper()).post { result.success(null) }
+      }
+    }.start()
+  }
 
   private fun requestUsageStatsPermission() {
     startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))

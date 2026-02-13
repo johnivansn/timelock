@@ -2,29 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:timelock/theme/app_palette.dart';
 
 class AppTheme {
-  static ThemeData get darkTheme => _buildTheme(AppPalette.classic);
+  static ThemeData get darkTheme =>
+      _buildTheme(AppPalette.dark, Brightness.dark);
+  static ThemeData get lightTheme =>
+      _buildTheme(AppPalette.light, Brightness.light);
 
-  static ThemeData get darkHighContrast => _buildTheme(AppPalette.highContrast);
-
-  static ThemeData get darkCalm => _buildTheme(AppPalette.calm);
-
-  static ThemeData get darkForest => _buildTheme(AppPalette.forest);
-
-  static ThemeData get darkSunset => _buildTheme(AppPalette.sunset);
-
-  static ThemeData get darkMono => _buildTheme(AppPalette.mono);
-
-  static ThemeData _buildTheme(AppPalette palette) {
+  static ThemeData _buildTheme(AppPalette palette, Brightness brightness) {
     final onPrimary = _onColor(palette.primary);
+    final baseText = ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+    ).textTheme;
     final colorScheme = ColorScheme.fromSeed(
       seedColor: palette.primary,
-      brightness: Brightness.dark,
+      brightness: brightness,
       // ignore: deprecated_member_use
       background: palette.background,
       surface: palette.surface,
       // ignore: deprecated_member_use
       surfaceVariant: palette.surfaceVariant,
-    ).copyWith(onPrimary: onPrimary);
+    ).copyWith(
+      onPrimary: onPrimary,
+      onSurface: palette.textPrimary,
+      onSurfaceVariant: palette.textSecondary,
+    );
 
     return ThemeData(
       useMaterial3: true,
@@ -41,14 +42,14 @@ class AppTheme {
         backgroundColor: palette.background,
         elevation: 0,
         centerTitle: false,
-        titleTextStyle: const TextStyle(
+        titleTextStyle: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: palette.textPrimary,
           letterSpacing: -0.5,
         ),
-        iconTheme: const IconThemeData(
-          color: Colors.white70,
+        iconTheme: IconThemeData(
+          color: palette.textSecondary,
           size: 20,
         ),
       ),
@@ -117,16 +118,28 @@ class AppTheme {
         ),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        hintStyle: const TextStyle(color: Colors.white38),
+        hintStyle: TextStyle(color: palette.textTertiary),
       ),
       dividerTheme: DividerThemeData(
         color: palette.surfaceVariant,
         thickness: 1,
         space: 1,
       ),
-      iconTheme: const IconThemeData(
-        color: Colors.white70,
+      iconTheme: IconThemeData(
+        color: palette.textSecondary,
         size: 20,
+      ),
+      textTheme: baseText.copyWith(
+        bodyLarge: baseText.bodyLarge?.copyWith(color: palette.textPrimary),
+        bodyMedium: baseText.bodyMedium?.copyWith(color: palette.textPrimary),
+        bodySmall: baseText.bodySmall?.copyWith(color: palette.textTertiary),
+        titleLarge: baseText.titleLarge?.copyWith(color: palette.textPrimary),
+        titleMedium: baseText.titleMedium?.copyWith(color: palette.textPrimary),
+        titleSmall: baseText.titleSmall?.copyWith(color: palette.textSecondary),
+        labelLarge: baseText.labelLarge?.copyWith(color: palette.textPrimary),
+        labelMedium:
+            baseText.labelMedium?.copyWith(color: palette.textSecondary),
+        labelSmall: baseText.labelSmall?.copyWith(color: palette.textTertiary),
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: palette.primary,
@@ -137,7 +150,9 @@ class AppTheme {
           if (states.contains(WidgetState.selected)) {
             return palette.success;
           }
-          return Colors.white38;
+          return Color.lerp(
+                  palette.textTertiary, palette.surfaceVariant, 0.4) ??
+              palette.textTertiary;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
@@ -148,7 +163,7 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: palette.surface,
-        contentTextStyle: const TextStyle(color: Colors.white),
+        contentTextStyle: TextStyle(color: palette.textPrimary),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
@@ -203,7 +218,7 @@ class _NoTransitionsBuilder extends PageTransitionsBuilder {
 }
 
 class AppColors {
-  static AppPalette _palette = AppPalette.classic;
+  static AppPalette _palette = AppPalette.dark;
 
   static void apply(AppPalette palette) {
     _palette = palette;

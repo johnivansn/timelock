@@ -570,7 +570,7 @@ class _UpdateScreenState extends State<UpdateScreen> {
                         'Las versiones anteriores se descargan como archivo de instalación.',
                         style: TextStyle(
                           fontSize: 10,
-                          color: AppColors.textTertiary,
+                          color: AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -656,7 +656,7 @@ class _UpdateScreenState extends State<UpdateScreen> {
                       _latestContextLabel(latest),
                       style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.textTertiary,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -726,7 +726,7 @@ class _UpdateScreenState extends State<UpdateScreen> {
                       data.description,
                       style: TextStyle(
                         fontSize: 10,
-                        color: AppColors.textTertiary,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ),
@@ -796,7 +796,7 @@ class _UpdateScreenState extends State<UpdateScreen> {
               _updatesError ?? 'Error al consultar actualizaciones',
               style: TextStyle(
                 fontSize: 11,
-                color: AppColors.textTertiary,
+                color: AppColors.textSecondary,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -821,7 +821,7 @@ class _UpdateScreenState extends State<UpdateScreen> {
             _showPrerelease
                 ? 'No se encontraron versiones para instalar.'
                 : 'No se encontraron versiones estables para instalar.',
-            style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
         ),
       );
@@ -907,7 +907,7 @@ class _UpdateScreenState extends State<UpdateScreen> {
             _showPrerelease
                 ? 'No hay versiones anteriores disponibles.'
                 : 'No hay versiones estables anteriores disponibles.',
-            style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
         ),
       );

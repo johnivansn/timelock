@@ -34,10 +34,12 @@ class TimeLockApp extends StatelessWidget {
             ? AppTheme.withReducedAnimations(settings.theme)
             : settings.theme;
         return MaterialApp(
+          key: ValueKey(
+              '${settings.themeChoice}-${settings.reduceAnimations}-${theme.brightness.name}'),
           title: 'TimeLock',
           debugShowCheckedModeBanner: false,
           theme: theme,
-          themeMode: ThemeMode.dark,
+          themeMode: ThemeMode.light,
           locale: const Locale('es', 'ES'),
           supportedLocales: const [
             Locale('es', 'ES'),

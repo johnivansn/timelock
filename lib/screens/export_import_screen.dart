@@ -79,6 +79,7 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -250,12 +251,12 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                           child: FilledButton.icon(
                             onPressed: _exporting ? null : _export,
                             icon: _exporting
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: Colors.white,
+                                      color: AppColors.onColor(AppColors.primary),
                                     ),
                                   )
                                 : const Icon(Icons.share_rounded, size: 18),
@@ -379,12 +380,12 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                           child: FilledButton.icon(
                             onPressed: _importing ? null : _pasteAndImport,
                             icon: _importing
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: Colors.white,
+                                      color: AppColors.onColor(AppColors.success),
                                     ),
                                   )
                                 : const Icon(Icons.paste_rounded, size: 18),

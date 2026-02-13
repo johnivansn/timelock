@@ -72,11 +72,7 @@ class _SplashScreenState extends State<SplashScreen> {
           width: double.infinity,
           height: double.infinity,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.surface, AppColors.surfaceVariant],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: AppColors.background,
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -85,11 +81,24 @@ class _SplashScreenState extends State<SplashScreen> {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.surfaceVariant.withValues(alpha: 0.55),
+                  ),
                 ),
-                child: Icon(Icons.shield_rounded,
-                    size: 36, color: AppColors.primary),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: Image.asset(
+                    'assets/icon_dark.png',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.shield_rounded,
+                      size: 36,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               Text(

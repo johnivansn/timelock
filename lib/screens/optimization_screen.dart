@@ -141,6 +141,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -236,7 +237,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                                     : 'Actualización cada 30 segundos',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: AppColors.textTertiary,
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -367,7 +368,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
                                 statusText,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: AppColors.textTertiary,
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -659,7 +660,7 @@ class _OptimizationScreenState extends State<OptimizationScreen> {
           _batteryAutoEnabled
               ? 'Se activará cuando la batería esté ≤ $_batteryAutoThreshold%'
               : 'Activa el ahorro automático para usar este umbral',
-          style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
+          style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
         ),
       ],
     );

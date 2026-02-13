@@ -11,6 +11,18 @@ class NativeService {
 
   static const _channel = MethodChannel('app.restriction/config');
 
+  static Future<String?> getRuntimePackageName() async {
+    return await _channel.invokeMethod<String>('getRuntimePackageName');
+  }
+
+  static Future<Uint8List?> getSelfAppIcon() async {
+    try {
+      return await _channel.invokeMethod<Uint8List>('getSelfAppIcon');
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<bool> checkUsagePermission() async {
     return await _channel.invokeMethod<bool>('checkUsagePermission') ?? false;
   }

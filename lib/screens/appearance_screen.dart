@@ -15,7 +15,6 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   bool _loading = true;
   String _themeChoice = 'auto';
   bool _reduceAnimations = false;
-  bool _batterySaverEnabled = false;
 
   @override
   void initState() {
@@ -26,12 +25,14 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   Future<void> _load() async {
     try {
       final uiPrefs = await NativeService.getSharedPreferences('ui_prefs');
-      final batterySaver = await NativeService.isBatterySaverEnabled();
       if (mounted) {
         setState(() {
-          _themeChoice = uiPrefs?['theme_choice']?.toString() ?? 'auto';
+          final raw = uiPrefs?['theme_choice']?.toString();
+          _themeChoice =
+              (raw == 'light' || raw == 'dark' || raw == 'auto')
+                  ? raw!
+                  : 'dark';
           _reduceAnimations = uiPrefs?['reduce_animations'] == true;
-          _batterySaverEnabled = batterySaver;
           _loading = false;
         });
       }
@@ -41,14 +42,13 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
   }
 
   String _autoHint() {
-    return _batterySaverEnabled
-        ? 'Automático (Calmo por ahorro)'
-        : 'Automático (Clásico)';
+    return 'Automático (según sistema)';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -117,19 +117,9 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                               DropdownMenuItem(
                                   value: 'auto', child: Text('Automático')),
                               DropdownMenuItem(
-                                  value: 'classic',
-                                  child: Text('Clásico oscuro')),
+                                  value: 'light', child: Text('Claro')),
                               DropdownMenuItem(
-                                  value: 'high_contrast',
-                                  child: Text('Alto contraste')),
-                              DropdownMenuItem(
-                                  value: 'calm', child: Text('Calmo')),
-                              DropdownMenuItem(
-                                  value: 'forest', child: Text('Bosque')),
-                              DropdownMenuItem(
-                                  value: 'sunset', child: Text('Atardecer')),
-                              DropdownMenuItem(
-                                  value: 'mono', child: Text('Monocromo')),
+                                  value: 'dark', child: Text('Oscuro')),
                             ],
                             onChanged: (value) async {
                               if (value == null) return;

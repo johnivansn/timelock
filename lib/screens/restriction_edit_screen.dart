@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/widgets/limit_picker_dialog.dart';
 
 class RestrictionEditScreen extends StatelessWidget {
@@ -22,6 +23,7 @@ class RestrictionEditScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: LimitPickerDialog(
         appName: appName,
         initial: initial,

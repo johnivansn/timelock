@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:timelock/screens/pin_setup_screen.dart';
 import 'package:timelock/screens/pin_verify_screen.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
 import 'package:timelock/utils/app_utils.dart';
+import 'package:timelock/widgets/carousel_picker_dialog.dart';
 
 class AdminSecurityScreen extends StatefulWidget {
   const AdminSecurityScreen({super.key});
@@ -202,137 +202,36 @@ class _AdminSecurityScreenState extends State<AdminSecurityScreen> {
   }
 
   Future<void> _pickAdminLockDurationCarousel() async {
-    var hours = _selectedHours;
-    var minutes = _selectedMinutes;
-    await showDialog<void>(
+    final picked = await showCarouselPickerDialog(
       context: context,
-      builder: (dialogContext) {
-        return Dialog(
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          backgroundColor: Colors.transparent,
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppRadius.xl),
-              border: Border.all(color: AppColors.surfaceVariant),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.md,
-                AppSpacing.lg,
-                AppSpacing.lg,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Elegir duración',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  SizedBox(
-                    height: 180,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _durationWheel(
-                            initial: hours,
-                            max: 23,
-                            label: 'Horas',
-                            onChanged: (v) => hours = v,
-                          ),
-                        ),
-                        Expanded(
-                          child: _durationWheel(
-                            initial: minutes,
-                            max: 59,
-                            label: 'Min',
-                            onChanged: (v) => minutes = v,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 40,
-                    child: FilledButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedHours = hours;
-                          _selectedMinutes = minutes;
-                          _hasSelectedDuration = true;
-                        });
-                        Navigator.pop(dialogContext);
-                        _applySelectedAdminLockDuration();
-                      },
-                      child: const Text('Aplicar tiempo'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _durationWheel({
-    required int initial,
-    required int max,
-    required String label,
-    required ValueChanged<int> onChanged,
-  }) {
-    final rangeCount = max + 1;
-    const virtualItems = 10000;
-    final middleBase = (virtualItems ~/ 2) - ((virtualItems ~/ 2) % rangeCount);
-    final controller = FixedExtentScrollController(
-      initialItem: middleBase + initial,
-    );
-    return Column(
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: AppColors.textTertiary,
-          ),
+      title: 'Elegir duración',
+      columns: [
+        CarouselPickerColumn(
+          label: 'Horas',
+          min: 0,
+          max: 23,
+          initial: _selectedHours,
         ),
-        const SizedBox(height: AppSpacing.xs),
-        Expanded(
-          child: CupertinoPicker.builder(
-            itemExtent: 34,
-            scrollController: controller,
-            selectionOverlay: CupertinoPickerDefaultSelectionOverlay(
-              background: AppColors.primary.withValues(alpha: 0.08),
-            ),
-            onSelectedItemChanged: (index) => onChanged(index % rangeCount),
-            childCount: virtualItems,
-            itemBuilder: (_, index) {
-              final value = index % rangeCount;
-              return Center(
-                child: Text(
-                  value.toString().padLeft(2, '0'),
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              );
-            },
-          ),
+        CarouselPickerColumn(
+          label: 'Min',
+          min: 0,
+          max: 59,
+          initial: _selectedMinutes,
         ),
       ],
+      surfaceColor: AppColors.surface,
+      borderColor: AppColors.surfaceVariant,
+      textPrimary: AppColors.textPrimary,
+      textSecondary: AppColors.textTertiary,
+      overlayColor: AppColors.primary.withValues(alpha: 0.08),
     );
+    if (picked == null || picked.length < 2) return;
+    setState(() {
+      _selectedHours = picked[0];
+      _selectedMinutes = picked[1];
+      _hasSelectedDuration = true;
+    });
+    _applySelectedAdminLockDuration();
   }
 
   void _applySelectedAdminLockDuration() {
@@ -352,6 +251,7 @@ class _AdminSecurityScreenState extends State<AdminSecurityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [

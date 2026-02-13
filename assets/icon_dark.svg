@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full base to avoid "small" look in launcher -->
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="#0C182E"/>
+
+  <!-- Keep circular brand language inside -->
+  <circle cx="256" cy="256" r="220" fill="#16294A"/>
+
+  <!-- Single accent ring -->
+  <circle
+    cx="256"
+    cy="256"
+    r="216"
+    fill="none"
+    stroke="#89A5FB"
+    stroke-width="18"
+    opacity="0.42"/>
+
+  <!-- Main T -->
+  <rect x="100" y="150" width="312" height="62" rx="8" fill="#E1F1F6"/>
+  <rect x="225" y="150" width="62" height="230" rx="8" fill="#E1F1F6"/>
+</svg>

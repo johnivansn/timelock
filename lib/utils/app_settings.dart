@@ -43,7 +43,7 @@ class AppSettings {
 
   static Future<void> load() async {
     final prefs = await NativeService.getSharedPreferences(_prefsName);
-    final choice = prefs?[_themeKey]?.toString() ?? 'auto';
+    final choice = _normalizeThemeChoice(prefs?[_themeKey]?.toString());
     final reduce = prefs?[_reduceKey] == true;
     final theme = await _resolveTheme(choice);
     notifier.value = AppUiSettings(
@@ -58,7 +58,7 @@ class AppSettings {
     bool? reduceAnimations,
   }) async {
     final current = notifier.value;
-    final newChoice = themeChoice ?? current.themeChoice;
+    final newChoice = _normalizeThemeChoice(themeChoice ?? current.themeChoice);
     final newReduce = reduceAnimations ?? current.reduceAnimations;
     await NativeService.saveSharedPreference({
       'prefsName': _prefsName,
@@ -80,30 +80,30 @@ class AppSettings {
 
   static Future<ThemeData> _resolveTheme(String choice) async {
     switch (choice) {
-      case 'high_contrast':
-        AppColors.apply(AppPalette.highContrast);
-        return AppTheme.darkHighContrast;
-      case 'calm':
-        AppColors.apply(AppPalette.calm);
-        return AppTheme.darkCalm;
-      case 'forest':
-        AppColors.apply(AppPalette.forest);
-        return AppTheme.darkForest;
-      case 'sunset':
-        AppColors.apply(AppPalette.sunset);
-        return AppTheme.darkSunset;
-      case 'mono':
-        AppColors.apply(AppPalette.mono);
-        return AppTheme.darkMono;
-      case 'classic':
-        AppColors.apply(AppPalette.classic);
+      case 'dark':
+        AppColors.apply(AppPalette.dark);
         return AppTheme.darkTheme;
+      case 'light':
+        AppColors.apply(AppPalette.light);
+        return AppTheme.lightTheme;
       case 'auto':
       default:
-        final powerSave = await NativeService.isBatterySaverEnabled();
-        final palette = powerSave ? AppPalette.calm : AppPalette.classic;
-        AppColors.apply(palette);
-        return powerSave ? AppTheme.darkCalm : AppTheme.darkTheme;
+        final brightness =
+            WidgetsBinding.instance.platformDispatcher.platformBrightness;
+        final dark = brightness == Brightness.dark;
+        AppColors.apply(dark ? AppPalette.dark : AppPalette.light);
+        return dark ? AppTheme.darkTheme : AppTheme.lightTheme;
+    }
+  }
+
+  static String _normalizeThemeChoice(String? raw) {
+    switch (raw) {
+      case 'light':
+      case 'dark':
+      case 'auto':
+        return raw!;
+      default:
+        return 'dark';
     }
   }
 }

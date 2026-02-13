@@ -281,7 +281,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'sheet',
-      barrierColor: Colors.black54,
+      barrierColor: AppColors.background.withValues(alpha: 0.62),
       transitionDuration: Duration.zero,
       pageBuilder: (context, _, __) {
         return Align(
@@ -859,7 +859,9 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: selected ? Colors.white : AppColors.textPrimary,
+            color: selected
+                ? AppColors.onColor(AppColors.primary)
+                : AppColors.textPrimary,
           ),
         ),
       ),
