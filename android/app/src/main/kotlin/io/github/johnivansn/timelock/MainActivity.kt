@@ -131,6 +131,10 @@ class MainActivity : FlutterActivity() {
           refreshWidgetsNow()
           result.success(null)
         }
+        "notifyOverlayThemeChanged" -> {
+          notifyOverlayThemeChanged()
+          result.success(null)
+        }
         "addRestriction" -> {
           val args = call.arguments as Map<*, *>
           scope.launch {
@@ -1263,6 +1267,11 @@ class MainActivity : FlutterActivity() {
 
   private fun refreshWidgetsNow() {
     AppDirectBlockWidget.updateWidget(this)
+  }
+
+  private fun notifyOverlayThemeChanged() {
+    val intent = Intent(AppBlockAccessibilityService.ACTION_OVERLAY_THEME_CHANGED)
+    sendBroadcast(intent)
   }
 
   private fun getInstalledApps(): List<Map<String, Any>> {

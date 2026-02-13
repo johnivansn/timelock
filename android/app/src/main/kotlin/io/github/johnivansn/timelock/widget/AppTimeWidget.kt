@@ -7,6 +7,7 @@ import android.widget.RemoteViews
 import io.github.johnivansn.timelock.R
 import io.github.johnivansn.timelock.database.AppDatabase
 import io.github.johnivansn.timelock.utils.AppUtils
+import io.github.johnivansn.timelock.utils.AppComponentTheme
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.CoroutineScope
@@ -39,10 +40,16 @@ class AppTimeWidget : AppWidgetProvider() {
       val today = dateFormat.format(Date())
 
       val views = RemoteViews(context.packageName, R.layout.widget_small)
+      val palette = AppComponentTheme.widgetPalette(context)
+      views.setInt(R.id.widget_container, "setBackgroundResource", palette.backgroundRes)
+      views.setTextColor(R.id.widget_title, palette.title)
+      views.setTextColor(R.id.widget_content, palette.text)
+      views.setInt(R.id.widget_icon, "setColorFilter", palette.accent)
 
       if (restrictions.isEmpty()) {
         views.setTextViewText(R.id.widget_title, "Sin restricciones")
         views.setTextViewText(R.id.widget_content, "Toca para configurar")
+        views.setTextColor(R.id.widget_content, palette.tertiary)
       } else {
         var totalUsed = 0
         var totalQuota = 0

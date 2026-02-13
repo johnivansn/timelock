@@ -41,6 +41,12 @@
 
     <receiver android:name=".receivers.DailyResetReceiver" android:enabled="true" android:exported="false" />
 
+    <receiver android:name=".receivers.SystemThemeReceiver" android:enabled="true" android:exported="false">
+      <intent-filter>
+        <action android:name="android.intent.action.CONFIGURATION_CHANGED" />
+      </intent-filter>
+    </receiver>
+
     <receiver android:name=".admin.DeviceAdminManager" android:permission="android.permission.BIND_DEVICE_ADMIN" android:exported="true">
       <meta-data android:name="android.app.device_admin" android:resource="@xml/device_admin" />
       <intent-filter>

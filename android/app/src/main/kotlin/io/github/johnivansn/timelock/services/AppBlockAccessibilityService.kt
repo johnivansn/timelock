@@ -15,6 +15,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.widget.ImageView
 import android.widget.TextView
 import io.github.johnivansn.timelock.utils.AppUtils
+import io.github.johnivansn.timelock.utils.AppComponentTheme
 import io.github.johnivansn.timelock.R
 import io.github.johnivansn.timelock.blocking.BlockingEngine
 import io.github.johnivansn.timelock.notifications.PillNotificationHelper
@@ -38,6 +39,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
   private var lastEventTime = 0L
   private var overlayState = OverlayState.HIDDEN
   private var blockReceiver: android.content.BroadcastReceiver? = null
+  private var themeReceiver: android.content.BroadcastReceiver? = null
   private var countdownRunnable: Runnable? = null
   private var countdownSeconds = 5
   private var overlayShownTime = 0L
@@ -63,6 +65,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
   companion object {
     private const val TAG = "AccessibilityService"
+    const val ACTION_OVERLAY_THEME_CHANGED = "io.github.johnivansn.timelock.OVERLAY_THEME_CHANGED"
     private const val BLOCK_COOLDOWN_MS = 2000L
     private const val EVENT_COOLDOWN_MS = 500L
     private val IGNORED_PACKAGES =
@@ -81,6 +84,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
     blockingEngine = BlockingEngine(this)
     windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
     setupBlockReceiver()
+    setupThemeReceiver()
     Log.i(TAG, "✅ Service connected")
   }
 
@@ -287,6 +291,27 @@ class AppBlockAccessibilityService : AccessibilityService() {
     forceHomeScreen()
   }
 
+  private fun setupThemeReceiver() {
+    themeReceiver =
+            object : android.content.BroadcastReceiver() {
+              override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                if (intent?.action == ACTION_OVERLAY_THEME_CHANGED ||
+                                intent?.action == Intent.ACTION_CONFIGURATION_CHANGED) {
+                  handler.post {
+                    applyOverlayTheme()
+                  }
+                }
+              }
+            }
+    val filter = android.content.IntentFilter(ACTION_OVERLAY_THEME_CHANGED)
+    filter.addAction(Intent.ACTION_CONFIGURATION_CHANGED)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      registerReceiver(themeReceiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+    } else {
+      registerReceiver(themeReceiver, filter)
+    }
+  }
+
   private fun notifyBlockedFallback(packageName: String, reason: BlockingEngine.BlockReason) {
     try {
       val pm = packageManager
@@ -355,19 +380,19 @@ class AppBlockAccessibilityService : AccessibilityService() {
 
       when (reason) {
         BlockingEngine.BlockReason.TimeQuota -> {
-          titleText?.text = "🚫 Bloqueada"
+          titleText?.text = "Bloqueada"
           reasonText?.text = "Límite de tiempo alcanzado"
           messageText?.text = "La aplicación se cerrará automáticamente"
           footerText?.text = detailInfo?.expirySummary ?: "Intenta de nuevo mañana o ajusta tu límite de tiempo"
         }
         BlockingEngine.BlockReason.ScheduleBlocked -> {
-          titleText?.text = "⏰ Fuera de horario"
+          titleText?.text = "Fuera de horario"
           reasonText?.text = detailInfo?.scheduleRangeSummary ?: "Bloqueo por horario activo"
           messageText?.text = "Esta app no está permitida en este horario"
           footerText?.text = "Intenta de nuevo dentro de tu horario permitido"
         }
         BlockingEngine.BlockReason.DateBlocked -> {
-          titleText?.text = "📅 Bloqueada"
+          titleText?.text = "Bloqueada por fecha"
           reasonText?.text = detailInfo?.dateLabelSummary ?: "Bloqueo por fechas activo"
           messageText?.text = "Esta app no está permitida durante este período"
           footerText?.text =
@@ -379,7 +404,7 @@ class AppBlockAccessibilityService : AccessibilityService() {
                   }
         }
         BlockingEngine.BlockReason.Combined -> {
-          titleText?.text = "⛔ Bloqueada"
+          titleText?.text = "Bloqueada"
           val activeReasons = mutableListOf<String>()
           if (detailInfo?.quotaBlocked == true) activeReasons.add("límite")
           if (detailInfo?.scheduleBlocked == true) activeReasons.add("horario")
@@ -409,6 +434,8 @@ class AppBlockAccessibilityService : AccessibilityService() {
       } else {
         dateRangeText?.visibility = View.GONE
       }
+
+      applyOverlayTheme()
 
       val params =
               WindowManager.LayoutParams().apply {
@@ -517,6 +544,27 @@ class AppBlockAccessibilityService : AccessibilityService() {
       AppUtils.formatDurationMillis(countdownSeconds * 1000L)
   }
 
+  private fun applyOverlayTheme() {
+    val view = overlayView ?: return
+    val palette = AppComponentTheme.overlayPalette(this)
+    view.findViewById<View>(R.id.block_overlay_root)?.setBackgroundColor(palette.rootBackground)
+    view.findViewById<View>(R.id.block_overlay_scrim)?.setBackgroundColor(palette.scrim)
+    view.findViewById<TextView>(R.id.block_app_name)?.setTextColor(palette.appName)
+    view.findViewById<TextView>(R.id.block_title)?.setTextColor(palette.title)
+    view.findViewById<TextView>(R.id.block_reason)?.setTextColor(palette.reason)
+    view.findViewById<TextView>(R.id.block_message)?.setTextColor(palette.message)
+    view.findViewById<TextView>(R.id.block_footer_text)?.setTextColor(palette.footer)
+    view.findViewById<TextView>(R.id.block_date_range)?.setTextColor(palette.extra)
+    view.findViewById<View>(R.id.block_content_card)?.setBackgroundColor(palette.contentCard)
+    view.findViewById<View>(R.id.block_reason_chip)?.setBackgroundColor(palette.reasonChip)
+    view.findViewById<View>(R.id.block_countdown_box)?.setBackgroundColor(palette.countdownBox)
+    view.findViewById<TextView>(R.id.block_countdown_label)?.setTextColor(palette.countdownTitle)
+    view.findViewById<TextView>(R.id.block_countdown_unit)?.setTextColor(palette.countdownTitle)
+    view.findViewById<TextView>(R.id.countdown_text)?.setTextColor(palette.countdownValue)
+    view.findViewById<View>(R.id.block_separator)?.setBackgroundColor(palette.separator)
+    view.findViewById<ImageView>(R.id.block_lock_badge)?.setColorFilter(palette.badgeTint)
+  }
+
   private fun cleanupOverlay() {
     Log.i(TAG, "🧹 === CLEANUP COMPLETO ===")
 
@@ -594,6 +642,9 @@ class AppBlockAccessibilityService : AccessibilityService() {
       if (blockReceiver != null) {
         unregisterReceiver(blockReceiver)
         Log.d(TAG, "📡 Receiver desregistrado")
+      }
+      if (themeReceiver != null) {
+        unregisterReceiver(themeReceiver)
       }
     } catch (e: Exception) {
       Log.e(TAG, "❌ Error desregistrando receiver", e)

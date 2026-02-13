@@ -8,6 +8,7 @@ import android.widget.RemoteViewsService
 import io.github.johnivansn.timelock.R
 import io.github.johnivansn.timelock.database.AppDatabase
 import io.github.johnivansn.timelock.database.getDailyQuotaForDay
+import io.github.johnivansn.timelock.utils.AppComponentTheme
 import io.github.johnivansn.timelock.utils.AppUtils
 import java.util.Calendar
 import java.util.Date
@@ -26,11 +27,13 @@ private class AppTimeWidgetMediumFactory(
   private val dateFormat = AppUtils.newDateFormat()
   private val items = mutableListOf<Entry>()
   private val iconCache = mutableMapOf<String, Bitmap?>()
+  private var palette = AppComponentTheme.widgetPalette(context)
 
   override fun onCreate() {}
 
   override fun onDataSetChanged() {
     items.clear()
+    palette = AppComponentTheme.widgetPalette(context)
     runBlocking {
       val today = dateFormat.format(Date())
       val dayOfWeek = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
@@ -70,7 +73,14 @@ private class AppTimeWidgetMediumFactory(
                 val remaining = (quotaMinutes - usedMinutes).coerceAtLeast(0)
                 val expiresAt = restriction.expiresAt ?: 0L
                 val expired = expiresAt > 0 && System.currentTimeMillis() > expiresAt
-                Entry(restriction.appName, restriction.packageName, usedMinutes, quotaMinutes, remaining, expired)
+                Entry(
+                        restriction.appName,
+                        restriction.packageName,
+                        usedMinutes,
+                        quotaMinutes,
+                        remaining,
+                        expired
+                )
               }
 
       items.addAll(
@@ -106,8 +116,11 @@ private class AppTimeWidgetMediumFactory(
   override fun getViewAt(position: Int): RemoteViews {
     val item = items[position]
     val views = RemoteViews(context.packageName, R.layout.widget_medium_item)
+    views.setInt(R.id.app_item_card, "setBackgroundColor", palette.progressTrack)
 
     views.setTextViewText(R.id.app_name, item.appName)
+    views.setTextColor(R.id.app_name, palette.title)
+
     val timeText =
             if (item.expired) {
               "Vencida"
@@ -115,6 +128,7 @@ private class AppTimeWidgetMediumFactory(
               AppUtils.formatRemainingLabel(item.remaining)
             }
     views.setTextViewText(R.id.app_time, timeText)
+    views.setTextColor(R.id.app_time, palette.text)
 
     val bitmap = iconCache[item.packageName]
     if (bitmap != null) {
@@ -123,15 +137,17 @@ private class AppTimeWidgetMediumFactory(
 
     if (item.expired || item.quota <= 0) {
       views.setViewVisibility(R.id.app_progress, android.view.View.GONE)
+      views.setTextColor(R.id.app_time, if (item.expired) palette.error else palette.tertiary)
     } else {
       val progress =
               if (item.quota > 0) ((item.used.toFloat() / item.quota.toFloat()) * 100)
                       .toInt()
                       .coerceIn(0, 100)
               else 0
+      val progressColor = colorForProgress(item.used.toFloat() / item.quota.toFloat())
       views.setProgressBar(R.id.app_progress, 100, progress, false)
       views.setViewVisibility(R.id.app_progress, android.view.View.VISIBLE)
-      views.setTextColor(R.id.app_time, colorForProgress(item.used.toFloat() / item.quota.toFloat()))
+      views.setTextColor(R.id.app_time, progressColor)
     }
 
     return views
@@ -151,9 +167,9 @@ private class AppTimeWidgetMediumFactory(
   private fun colorForProgress(progress: Float): Int {
     val clamped = progress.coerceIn(0f, 1f)
     return when {
-      clamped >= 0.9f -> 0xFFE74C3C.toInt()
-      clamped >= 0.75f -> 0xFFF39C12.toInt()
-      else -> 0xFF27AE60.toInt()
+      clamped >= 0.9f -> palette.error
+      clamped >= 0.75f -> palette.warning
+      else -> palette.success
     }
   }
 
@@ -166,4 +182,3 @@ private class AppTimeWidgetMediumFactory(
           val expired: Boolean
   )
 }
-

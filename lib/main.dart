@@ -22,8 +22,30 @@ Future<void> main() async {
   runApp(const TimeLockApp());
 }
 
-class TimeLockApp extends StatelessWidget {
+class TimeLockApp extends StatefulWidget {
   const TimeLockApp({super.key});
+
+  @override
+  State<TimeLockApp> createState() => _TimeLockAppState();
+}
+
+class _TimeLockAppState extends State<TimeLockApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    AppSettings.refreshFromSystemIfNeeded();
+  }
 
   @override
   Widget build(BuildContext context) {

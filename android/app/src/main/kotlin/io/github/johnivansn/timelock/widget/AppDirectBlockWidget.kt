@@ -7,6 +7,7 @@ import android.widget.RemoteViews
 import io.github.johnivansn.timelock.R
 import io.github.johnivansn.timelock.database.AppDatabase
 import io.github.johnivansn.timelock.monitoring.ScheduleMonitor
+import io.github.johnivansn.timelock.utils.AppComponentTheme
 import io.github.johnivansn.timelock.utils.AppUtils
 import java.util.Calendar
 import kotlinx.coroutines.CoroutineScope
@@ -44,6 +45,9 @@ class AppDirectBlockWidget : AppWidgetProvider() {
 
       val combined = (schedulePackages + datePackages).toList()
       val views = RemoteViews(context.packageName, R.layout.widget_direct)
+      val palette = AppComponentTheme.widgetPalette(context)
+      views.setInt(R.id.widget_container, "setBackgroundResource", palette.backgroundRes)
+      views.setTextColor(R.id.widget_title, palette.title)
 
       if (combined.isEmpty()) {
         views.setTextViewText(R.id.widget_title, "Sin bloqueos directos")
@@ -80,6 +84,7 @@ class AppDirectBlockWidget : AppWidgetProvider() {
             val item = list[i]
             val appName = resolveAppName(context, item.packageName)
             views.setTextViewText(nameId, appName)
+            views.setInt(containerId, "setBackgroundColor", palette.progressTrack)
             val typeLabel =
                     when {
                       item.isExpired -> "${item.type} • Vencida"
@@ -90,11 +95,12 @@ class AppDirectBlockWidget : AppWidgetProvider() {
             views.setTextColor(
                     typeId,
                     when {
-                      item.isExpired -> 0xFFE74C3C.toInt()
-                      item.activeNow -> 0xFFF39C12.toInt()
-                      else -> 0xFFCCCCCC.toInt()
+                      item.isExpired -> palette.error
+                      item.activeNow -> palette.warning
+                      else -> palette.tertiary
                     }
             )
+            views.setTextColor(nameId, palette.text)
             setAppIcon(context, views, iconId, item.packageName)
             views.setViewVisibility(containerId, android.view.View.VISIBLE)
           } else {

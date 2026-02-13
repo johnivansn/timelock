@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.RemoteViews
 import io.github.johnivansn.timelock.R
+import io.github.johnivansn.timelock.utils.AppComponentTheme
 
 class AppTimeWidgetMedium : AppWidgetProvider() {
   override fun onUpdate(
@@ -34,7 +35,14 @@ class AppTimeWidgetMedium : AppWidgetProvider() {
           appWidgetId: Int
   ) {
     val views = RemoteViews(context.packageName, R.layout.widget_medium)
+    val palette = AppComponentTheme.widgetPalette(context)
+    views.setInt(R.id.widget_container, "setBackgroundResource", palette.backgroundRes)
     views.setTextViewText(R.id.widget_title, "Tiempo disponible")
+    views.setTextViewText(R.id.widget_subtitle, "Monitoreo activo")
+    views.setTextColor(R.id.widget_title, palette.title)
+    views.setTextColor(R.id.widget_subtitle, palette.tertiary)
+    views.setTextColor(R.id.widget_empty, palette.tertiary)
+    views.setInt(R.id.widget_header_icon, "setColorFilter", palette.accent)
     val svcIntent = Intent(context, AppTimeWidgetMediumService::class.java).apply {
       putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, appWidgetId)
       data = Uri.parse(toUri(Intent.URI_INTENT_SCHEME))

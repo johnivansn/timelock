@@ -272,6 +272,10 @@ class NativeService {
     await _channel.invokeMethod('refreshWidgetsNow');
   }
 
+  static Future<void> notifyOverlayThemeChanged() async {
+    await _channel.invokeMethod('notifyOverlayThemeChanged');
+  }
+
   static Future<bool> isDeviceAdminEnabled() async {
     return await _channel.invokeMethod<bool>('isDeviceAdminEnabled') ?? false;
   }
