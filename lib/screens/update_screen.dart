@@ -383,85 +383,101 @@ class _UpdateScreenState extends State<UpdateScreen> {
 
   void _showReleaseNotes(ReleaseInfo release) {
     final notes = release.body.trim();
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) {
-        return SafeArea(
-          child: DraggableScrollableSheet(
-            expand: false,
-            initialChildSize: 0.75,
-            minChildSize: 0.45,
-            maxChildSize: 0.95,
-            builder: (context, scrollController) {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
+    final child = SafeArea(
+      child: DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        minChildSize: 0.45,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.lg,
+              AppSpacing.md,
+              AppSpacing.lg,
+              AppSpacing.lg,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.textTertiary.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: AppSpacing.sm),
+                Row(
                   children: [
-                    Center(
-                      child: Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: AppColors.textTertiary.withValues(alpha: 0.35),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Notas de ${release.displayName}',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
                     Expanded(
-                      child: SingleChildScrollView(
-                        controller: scrollController,
-                        child: MarkdownBody(
-                          data: notes.isNotEmpty
-                              ? notes
-                              : 'Esta versión no incluye notas publicadas.',
-                          selectable: true,
-                          styleSheet: MarkdownStyleSheet.fromTheme(
-                            Theme.of(context),
-                          ).copyWith(
-                            p: TextStyle(
-                              fontSize: 12,
-                              height: 1.4,
-                              color: AppColors.textSecondary,
-                            ),
-                            listBullet: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
+                      child: Text(
+                        'Notas de ${release.displayName}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
                     ),
                   ],
                 ),
-              );
-            },
-          ),
+                const SizedBox(height: AppSpacing.xs),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scrollController,
+                    child: MarkdownBody(
+                      data: notes.isNotEmpty
+                          ? notes
+                          : 'Esta versión no incluye notas publicadas.',
+                      selectable: true,
+                      styleSheet: MarkdownStyleSheet.fromTheme(
+                        Theme.of(context),
+                      ).copyWith(
+                        p: TextStyle(
+                          fontSize: 12,
+                          height: 1.4,
+                          color: AppColors.textSecondary,
+                        ),
+                        listBullet: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+    final reduce = MediaQuery.of(context).disableAnimations;
+    if (!reduce) {
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) => child,
+      );
+      return;
+    }
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'release_notes',
+      barrierColor: AppColors.background.withValues(alpha: 0.62),
+      transitionDuration: Duration.zero,
+      pageBuilder: (context, _, __) {
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: child,
         );
       },
     );

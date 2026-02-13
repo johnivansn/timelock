@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
+import 'package:timelock/utils/app_motion.dart';
 import 'package:timelock/utils/schedule_utils.dart';
 
 class ScheduleEditDialog extends StatefulWidget {
@@ -831,7 +832,7 @@ class _ScheduleEditDialogState extends State<ScheduleEditDialog> {
         });
       },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: AppMotion.duration(const Duration(milliseconds: 150)),
         width: 36,
         height: 36,
         alignment: Alignment.center,

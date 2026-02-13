@@ -114,6 +114,7 @@ class PillNotificationHelper(private val context: Context) {
   private fun show(appName: String, packageName: String, message: String) {
     val style = prefs.notificationStyle.trim().lowercase()
     val canOverlay = canShowOverlay()
+    val reduceAnimations = isReduceAnimationsEnabled()
     if (style != "pill" || !prefs.overlayEnabled || !canOverlay) {
       if (style == "pill" && !canOverlay) {
         prefs.notificationStyle = "normal"
@@ -165,14 +166,19 @@ class PillNotificationHelper(private val context: Context) {
         windowManager.addView(view, params)
         currentView = view
 
-        view.alpha = 0f
-        view.translationY = -dpToPx(50).toFloat()
-        view.animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setDuration(ANIMATION_DURATION_MS)
-                .setInterpolator(AccelerateDecelerateInterpolator())
-                .start()
+        if (reduceAnimations) {
+          view.alpha = 1f
+          view.translationY = 0f
+        } else {
+          view.alpha = 0f
+          view.translationY = -dpToPx(50).toFloat()
+          view.animate()
+                  .alpha(1f)
+                  .translationY(0f)
+                  .setDuration(ANIMATION_DURATION_MS)
+                  .setInterpolator(AccelerateDecelerateInterpolator())
+                  .start()
+        }
 
         handler.postDelayed(dismissRunnable, DISPLAY_DURATION_MS)
 
@@ -263,6 +269,15 @@ class PillNotificationHelper(private val context: Context) {
   private fun dismiss() {
     currentView?.let { view ->
       handler.removeCallbacks(dismissRunnable)
+      if (isReduceAnimationsEnabled()) {
+        try {
+          windowManager.removeView(view)
+        } catch (e: Exception) {
+          Log.e(TAG, "Error removing view", e)
+        }
+        currentView = null
+        return
+      }
 
       view.animate()
               .alpha(0f)
@@ -279,6 +294,11 @@ class PillNotificationHelper(private val context: Context) {
               }
               .start()
     }
+  }
+
+  private fun isReduceAnimationsEnabled(): Boolean {
+    val uiPrefs = context.getSharedPreferences("ui_prefs", Context.MODE_PRIVATE)
+    return uiPrefs.getBoolean("reduce_animations", false)
   }
 
   private fun dpToPx(dp: Int): Int {

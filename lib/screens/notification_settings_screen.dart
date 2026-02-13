@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:timelock/services/native_service.dart';
 import 'package:timelock/theme/app_theme.dart';
+import 'package:timelock/utils/app_motion.dart';
 
 class NotificationSettingsScreen extends StatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -562,7 +563,7 @@ class _NotificationSettingsScreenState
         borderRadius: BorderRadius.circular(AppRadius.md),
         onTap: enabled ? onTap : null,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: AppMotion.duration(const Duration(milliseconds: 180)),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.sm,
             vertical: AppSpacing.sm,
