@@ -37,6 +37,7 @@ class _AppListScreenState extends State<AppListScreen>
   bool _adminLockExpiryNotified = false;
   bool _accessVerified = false;
   Timer? _refreshTimer;
+  Timer? _adminLockTimer;
   final Set<String> _scheduleDirty = {};
   final Set<String> _dateBlockDirty = {};
   final Set<String> _iconLoading = {};
@@ -63,6 +64,7 @@ class _AppListScreenState extends State<AppListScreen>
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _adminLockTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -145,6 +147,7 @@ class _AppListScreenState extends State<AppListScreen>
           _adminLockExpiryNotified = false;
         }
       });
+      _startAdminLockCountdown();
       await _clearAdminLockIfExpired();
     } catch (_) {}
   }
@@ -160,6 +163,7 @@ class _AppListScreenState extends State<AppListScreen>
   Future<void> _clearAdminLockIfExpired() async {
     if (_adminLockUntilMs <= 0) return;
     if (_adminLockActive) return;
+    _adminLockTimer?.cancel();
     _adminLockUntilMs = 0;
     await NativeService.saveSharedPreference({
       'prefsName': 'admin_lock_prefs',
@@ -173,6 +177,20 @@ class _AppListScreenState extends State<AppListScreen>
       context
           .showSnack('El modo admin temporal venció. Ya puedes hacer cambios.');
     }
+  }
+
+  void _startAdminLockCountdown() {
+    _adminLockTimer?.cancel();
+    if (!_adminLockActive) return;
+    _adminLockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (!_adminLockActive) {
+        _adminLockTimer?.cancel();
+        _clearAdminLockIfExpired();
+      } else {
+        setState(() {});
+      }
+    });
   }
 
   Future<void> _updatePrefetchCount() async {
@@ -853,7 +871,7 @@ class _AppListScreenState extends State<AppListScreen>
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, AppSpacing.lg, AppSpacing.md, 0),
+                    AppSpacing.md, AppSpacing.xs, AppSpacing.md, 0),
                 child: _buildSectionHeader(),
               ),
             ),
@@ -928,10 +946,63 @@ class _AppListScreenState extends State<AppListScreen>
               ),
             ],
           ),
+          if (_adminLockActive) ...[
+            const SizedBox(height: AppSpacing.sm),
+            _adminLockTopBadge(),
+          ],
           const SizedBox(height: AppSpacing.sm),
           Container(
             height: 1,
             color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _adminLockTopBadge() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.lock_clock_rounded, size: 18, color: AppColors.warning),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              'Admin temporal activo',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.warning,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: 2,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              AppUtils.formatDurationMillis(_adminLockRemainingMs),
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppColors.warning,
+              ),
+            ),
           ),
         ],
       ),
@@ -945,7 +1016,12 @@ class _AppListScreenState extends State<AppListScreen>
     final date = _formatShortDate();
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.md,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -957,26 +1033,51 @@ class _AppListScreenState extends State<AppListScreen>
         children: [
           Row(
             children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AppColors.info.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.insights_rounded,
+                  size: 18,
+                  color: AppColors.info,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   'Estado del día',
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                   ),
                 ),
               ),
-              Text(
-                date,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  date,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               _statItem(
@@ -1009,7 +1110,7 @@ class _AppListScreenState extends State<AppListScreen>
           Text(
             value,
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.w700,
               color: color,
             ),
