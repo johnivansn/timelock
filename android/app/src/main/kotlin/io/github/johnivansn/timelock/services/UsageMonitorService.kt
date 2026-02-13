@@ -19,7 +19,7 @@ import io.github.johnivansn.timelock.monitoring.UsageStatsMonitor
 import io.github.johnivansn.timelock.optimization.BatteryModeManager
 import io.github.johnivansn.timelock.optimization.DataCleanupManager
 import io.github.johnivansn.timelock.receivers.DailyResetReceiver
-import io.github.johnivansn.timelock.widget.AppDirectBlockWidget
+import io.github.johnivansn.timelock.widget.AppDirectListWidget
 import java.util.Calendar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -214,7 +214,7 @@ class UsageMonitorService : Service() {
       return
     }
     lastWidgetRefreshMs = now
-    AppDirectBlockWidget.updateWidget(this)
+    AppDirectListWidget.updateWidget(this)
   }
 
   companion object {

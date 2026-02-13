@@ -55,15 +55,20 @@
     </receiver>
 
     <receiver
-        android:name=".widget.AppDirectBlockWidget"
+        android:name=".widget.AppDirectListWidget"
         android:exported="true"
-        android:label="@string/widget_direct_label"
+        android:label="@string/widget_list_label"
         android:icon="@mipmap/ic_launcher">
       <intent-filter>
         <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
       </intent-filter>
-      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_direct_info" />
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_list_info" />
     </receiver>
+
+    <service
+        android:name=".widget.AppDirectListWidgetService"
+        android:exported="false"
+        android:permission="android.permission.BIND_REMOTEVIEWS" />
 
     <provider
         android:name="androidx.core.content.FileProvider"

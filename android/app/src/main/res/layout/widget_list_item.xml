@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/item_container"
+  android:layout_width="match_parent"
+  android:layout_height="wrap_content"
+  android:background="@drawable/widget_item_card"
+  android:gravity="center_vertical"
+  android:orientation="horizontal"
+  android:padding="8dp">
+
+  <ImageView
+    android:id="@+id/item_icon"
+    android:layout_width="18dp"
+    android:layout_height="18dp"
+    android:layout_marginEnd="6dp"
+    android:contentDescription="@string/app_name" />
+
+  <LinearLayout
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:orientation="vertical">
+
+    <TextView
+      android:id="@+id/item_name"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:ellipsize="end"
+      android:singleLine="true"
+      android:text="App"
+      android:textColor="#FFFFFF"
+      android:textSize="12sp"
+      android:textStyle="bold" />
+
+    <TextView
+      android:id="@+id/item_detail"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:ellipsize="end"
+      android:maxLines="2"
+      android:text="Horario • Hasta 12/02 18:00"
+      android:textColor="#CCCCCC"
+      android:textSize="10sp" />
+  </LinearLayout>
+</LinearLayout>

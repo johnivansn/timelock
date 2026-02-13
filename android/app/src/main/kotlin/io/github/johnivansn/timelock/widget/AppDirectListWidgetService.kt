@@ -1,9 +1,9 @@
 package io.github.johnivansn.timelock.widget
 
-import android.appwidget.AppWidgetManager
-import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.content.Intent
 import android.widget.RemoteViews
+import android.widget.RemoteViewsService
 import io.github.johnivansn.timelock.R
 import io.github.johnivansn.timelock.database.AppDatabase
 import io.github.johnivansn.timelock.monitoring.ScheduleMonitor
@@ -12,31 +12,24 @@ import io.github.johnivansn.timelock.utils.AppUtils
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
-class AppDirectBlockWidget : AppWidgetProvider() {
-  private val scope = CoroutineScope(Dispatchers.IO + Job())
-  private val scheduleMonitor = ScheduleMonitor()
-
-  override fun onUpdate(
-          context: Context,
-          appWidgetManager: AppWidgetManager,
-          appWidgetIds: IntArray
-  ) {
-    for (appWidgetId in appWidgetIds) {
-      updateAppWidget(context, appWidgetManager, appWidgetId)
-    }
+class AppDirectListWidgetService : RemoteViewsService() {
+  override fun onGetViewFactory(intent: Intent): RemoteViewsFactory {
+    return DirectListFactory(applicationContext)
   }
+}
 
-  private fun updateAppWidget(
-          context: Context,
-          appWidgetManager: AppWidgetManager,
-          appWidgetId: Int
-  ) {
-    scope.launch {
+private class DirectListFactory(private val context: Context) :
+  RemoteViewsService.RemoteViewsFactory {
+  private val scheduleMonitor = ScheduleMonitor()
+  private var items: List<DirectItem> = emptyList()
+
+  override fun onCreate() {}
+
+  override fun onDataSetChanged() {
+    runBlocking(Dispatchers.IO) {
       val database = AppDatabase.getDatabase(context)
       val schedulePackages =
               database.appScheduleDao().getAllEnabled().map { it.packageName }.toSet()
@@ -48,82 +41,86 @@ class AppDirectBlockWidget : AppWidgetProvider() {
       val dateTimeFormat = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
 
       val combined = (schedulePackages + datePackages).toList()
-      val views = RemoteViews(context.packageName, R.layout.widget_direct)
       val palette = AppComponentTheme.widgetPalette(context)
-      views.setInt(R.id.widget_container, "setBackgroundResource", palette.backgroundRes)
-      views.setTextColor(R.id.widget_title, palette.title)
 
-      if (combined.isEmpty()) {
-        views.setTextViewText(R.id.widget_title, "Sin bloqueos directos")
-        views.setViewVisibility(R.id.block_list_container, android.view.View.GONE)
-      } else {
-        views.setTextViewText(R.id.widget_title, "Bloqueos directos")
-        views.setViewVisibility(R.id.block_list_container, android.view.View.VISIBLE)
-
-        val list = combined.take(3).map { pkg ->
-          val schedules = database.appScheduleDao().getByPackage(pkg).filter { it.isEnabled }
-          val dateBlocks = database.dateBlockDao().getEnabledByPackage(pkg)
-          val hasSchedule = schedules.isNotEmpty()
-          val hasDate = dateBlocks.isNotEmpty()
-          val restriction = restrictionsByPackage[pkg]
-          val expiresAt = restriction?.expiresAt ?: 0L
-          val isExpired = expiresAt > 0L && now > expiresAt
-          val activeNow =
-                  !isExpired && (scheduleMonitor.isCurrentlyBlocked(schedules) || isDateBlockedNow(dateBlocks))
-          val dateEndMillis = nearestDateBlockEndMillis(dateBlocks, now)
-          val scheduleEndMillis = nearestScheduleWindowEndMillis(schedules, now)
-          val ruleEndMillis = pickNearestEndMillis(dateEndMillis, scheduleEndMillis)
-          val effectiveEndMillis =
-                  if (expiresAt > 0L && ruleEndMillis != null) minOf(expiresAt, ruleEndMillis)
-                  else if (expiresAt > 0L) expiresAt
-                  else ruleEndMillis
-          val type =
-                  when {
-                    hasSchedule && hasDate -> "Mixto"
-                    hasSchedule -> "Horario"
-                    else -> "Fecha"
-                  }
-          val typeLabel =
-                  buildTypeLabel(
-                          type = type,
-                          isExpired = isExpired,
-                          activeNow = activeNow,
-                          endMillis = effectiveEndMillis,
-                          formatter = dateTimeFormat
-                  )
-          val typeColor = resolveStatusColor(palette, isExpired, effectiveEndMillis, now)
-          DirectItem(pkg, typeLabel, isExpired, activeNow, typeColor)
-        }
-
-        for (i in 0 until 3) {
-          val containerId = getContainerId(i)
-          val nameId = getNameId(i)
-          val typeId = getTypeId(i)
-          val iconId = getIconId(i)
-          if (i < list.size) {
-            val item = list[i]
-            val appName = resolveAppName(context, item.packageName)
-            views.setTextViewText(nameId, appName)
-            views.setInt(containerId, "setBackgroundColor", palette.progressTrack)
-            views.setTextViewText(typeId, item.type)
-            views.setTextColor(typeId, item.statusColor)
-            views.setTextColor(nameId, palette.text)
-            setAppIcon(context, views, iconId, item.packageName)
-            views.setViewVisibility(containerId, android.view.View.VISIBLE)
-          } else {
-            views.setViewVisibility(containerId, android.view.View.GONE)
-          }
-        }
-      }
-
-      views.setOnClickPendingIntent(
-              R.id.widget_container,
-              WidgetUtils.buildLaunchPendingIntent(context)
-      )
-
-      appWidgetManager.updateAppWidget(appWidgetId, views)
+      items =
+              combined.map { pkg ->
+                        val schedules =
+                                database.appScheduleDao().getByPackage(pkg).filter { it.isEnabled }
+                        val dateBlocks = database.dateBlockDao().getEnabledByPackage(pkg)
+                        val hasSchedule = schedules.isNotEmpty()
+                        val hasDate = dateBlocks.isNotEmpty()
+                        val restriction = restrictionsByPackage[pkg]
+                        val expiresAt = restriction?.expiresAt ?: 0L
+                        val isExpired = expiresAt > 0L && now > expiresAt
+                        val activeNow =
+                                !isExpired && (scheduleMonitor.isCurrentlyBlocked(schedules) ||
+                                        isDateBlockedNow(dateBlocks, now))
+                        val dateEndMillis = nearestDateBlockEndMillis(dateBlocks, now)
+                        val scheduleEndMillis = nearestScheduleWindowEndMillis(schedules, now)
+                        val ruleEndMillis = pickNearestEndMillis(dateEndMillis, scheduleEndMillis)
+                        val effectiveEndMillis =
+                                if (expiresAt > 0L && ruleEndMillis != null) minOf(expiresAt, ruleEndMillis)
+                                else if (expiresAt > 0L) expiresAt
+                                else ruleEndMillis
+                        val type =
+                                when {
+                                  hasSchedule && hasDate -> "Mixto"
+                                  hasSchedule -> "Horario"
+                                  else -> "Fecha"
+                                }
+                        val typeLabel =
+                                buildTypeLabel(
+                                        type = type,
+                                        isExpired = isExpired,
+                                        activeNow = activeNow,
+                                        endMillis = effectiveEndMillis,
+                                        formatter = dateTimeFormat
+                                )
+                        val typeColor =
+                                resolveStatusColor(palette, isExpired, effectiveEndMillis, now)
+                        DirectItem(pkg, typeLabel, typeColor)
+                      }
+                      .sortedBy { it.type }
     }
   }
+
+  override fun getViewAt(position: Int): RemoteViews {
+    val item = items[position]
+    val views = RemoteViews(context.packageName, R.layout.widget_list_item)
+    val palette = AppComponentTheme.widgetPalette(context)
+    val appName = resolveAppName(context, item.packageName)
+
+    views.setTextViewText(R.id.item_name, appName)
+    views.setTextViewText(R.id.item_detail, item.type)
+    views.setTextColor(R.id.item_name, palette.text)
+    views.setTextColor(R.id.item_detail, item.statusColor)
+    views.setInt(R.id.item_container, "setBackgroundColor", palette.progressTrack)
+    setAppIcon(context, views, R.id.item_icon, item.packageName)
+
+    views.setOnClickFillInIntent(R.id.item_container, Intent())
+    return views
+  }
+
+  override fun getLoadingView(): RemoteViews? = null
+
+  override fun getViewTypeCount(): Int = 1
+
+  override fun getItemId(position: Int): Long = position.toLong()
+
+  override fun hasStableIds(): Boolean = true
+
+  override fun getCount(): Int = items.size
+
+  override fun onDestroy() {
+    items = emptyList()
+  }
+
+  data class DirectItem(
+          val packageName: String,
+          val type: String,
+          val statusColor: Int
+  )
 
   private fun resolveAppName(context: Context, packageName: String): String {
     return try {
@@ -150,50 +147,6 @@ class AppDirectBlockWidget : AppWidgetProvider() {
     } catch (_: Exception) {}
   }
 
-  private fun getContainerId(index: Int): Int {
-    return when (index) {
-      0 -> R.id.block1_container
-      1 -> R.id.block2_container
-      2 -> R.id.block3_container
-      else -> R.id.block1_container
-    }
-  }
-
-  private fun getNameId(index: Int): Int {
-    return when (index) {
-      0 -> R.id.block1_name
-      1 -> R.id.block2_name
-      2 -> R.id.block3_name
-      else -> R.id.block1_name
-    }
-  }
-
-  private fun getTypeId(index: Int): Int {
-    return when (index) {
-      0 -> R.id.block1_type
-      1 -> R.id.block2_type
-      2 -> R.id.block3_type
-      else -> R.id.block1_type
-    }
-  }
-
-  private fun getIconId(index: Int): Int {
-    return when (index) {
-      0 -> R.id.block1_icon
-      1 -> R.id.block2_icon
-      2 -> R.id.block3_icon
-      else -> R.id.block1_icon
-    }
-  }
-
-  data class DirectItem(
-          val packageName: String,
-          val type: String,
-          val isExpired: Boolean,
-          val activeNow: Boolean,
-          val statusColor: Int
-  )
-
   private fun buildTypeLabel(
           type: String,
           isExpired: Boolean,
@@ -204,7 +157,7 @@ class AppDirectBlockWidget : AppWidgetProvider() {
     if (isExpired) return "$type • Vencida"
     if (endMillis == null) return if (activeNow) "$type • Activa ahora" else type
     val formatted = formatter.format(java.util.Date(endMillis))
-    return if (activeNow) "$type • Hasta $formatted" else "$type • Próx. hasta $formatted"
+    return if (activeNow) "$type • Hasta $formatted" else "$type • Vigente hasta $formatted"
   }
 
   private fun resolveStatusColor(
@@ -292,9 +245,11 @@ class AppDirectBlockWidget : AppWidgetProvider() {
     return bestEnd
   }
 
-  private fun isDateBlockedNow(blocks: List<io.github.johnivansn.timelock.database.DateBlock>): Boolean {
+  private fun isDateBlockedNow(
+          blocks: List<io.github.johnivansn.timelock.database.DateBlock>,
+          now: Long
+  ): Boolean {
     if (blocks.isEmpty()) return false
-    val now = System.currentTimeMillis()
     val dateFormat = AppUtils.newDateFormat()
     return blocks.any { block ->
       val startMillis = toDateTimeMillis(dateFormat, block.startDate, block.startHour, block.startMinute)
@@ -319,11 +274,4 @@ class AppDirectBlockWidget : AppWidgetProvider() {
     }
     return cal.timeInMillis
   }
-
-  companion object {
-    fun updateWidget(context: Context) {
-      WidgetUtils.updateWidget(context, AppDirectBlockWidget::class.java)
-    }
-  }
 }
-
