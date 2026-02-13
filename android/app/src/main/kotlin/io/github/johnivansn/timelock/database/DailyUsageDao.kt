@@ -22,5 +22,16 @@ interface DailyUsageDao {
 
   @Query("SELECT * FROM daily_usage WHERE packageName = :packageName AND date >= :fromDate")
   suspend fun getUsageSince(packageName: String, fromDate: String): List<DailyUsage>
+
+  @Query(
+          "UPDATE daily_usage SET isBlocked = :blocked, lastUpdated = :updatedAt " +
+                  "WHERE packageName = :packageName AND date = :date"
+  )
+  suspend fun setBlockedForPackageDate(
+          packageName: String,
+          date: String,
+          blocked: Boolean,
+          updatedAt: Long
+  )
 }
 

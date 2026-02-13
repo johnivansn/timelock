@@ -940,6 +940,12 @@ class MainActivity : FlutterActivity() {
     var skipped = 0
     var schedulesImported = 0
     var schedulesSkipped = 0
+    var expiredAdjusted = 0
+    var usageMarked = 0
+    val today = AppUtils.newDateFormat().format(java.util.Date())
+    val now = System.currentTimeMillis()
+    val importPrefs = getSharedPreferences("import_prefs", Context.MODE_PRIVATE)
+    importPrefs.edit().putLong("suppress_overlay_until", now + 30_000L).apply()
 
     for (item in restrictions) {
       val pkg = item["packageName"] as? String ?: continue
@@ -949,25 +955,61 @@ class MainActivity : FlutterActivity() {
         continue
       }
 
+        val rawExpiresAt = (item["expiresAt"] as? Number)?.toLong()
+        val expiredOnImport = rawExpiresAt != null && rawExpiresAt > 0 && rawExpiresAt <= now
+        if (expiredOnImport) {
+          expiredAdjusted++
+        }
+        val limitType = item["limitType"] as? String ?: "daily"
+        val weeklyResetDay = (item["weeklyResetDay"] as? Number)?.toInt() ?: 2
+        val weeklyResetHour = (item["weeklyResetHour"] as? Number)?.toInt() ?: 0
+        val weeklyResetMinute = (item["weeklyResetMinute"] as? Number)?.toInt() ?: 0
         val restriction =
                 AppRestriction(
                         id = java.util.UUID.randomUUID().toString(),
                         packageName = pkg,
                         appName = item["appName"] as? String ?: pkg,
                         dailyQuotaMinutes = (item["dailyQuotaMinutes"] as? Number)?.toInt() ?: 60,
-                        isEnabled = item["isEnabled"] as? Boolean ?: true,
-                        limitType = item["limitType"] as? String ?: "daily",
+                        isEnabled = if (expiredOnImport) false else (item["isEnabled"] as? Boolean ?: true),
+                        limitType = limitType,
                         dailyMode = item["dailyMode"] as? String ?: "same",
                         dailyQuotas = item["dailyQuotas"] as? String ?: "",
                         weeklyQuotaMinutes =
                                 (item["weeklyQuotaMinutes"] as? Number)?.toInt() ?: 0,
-                        weeklyResetDay = (item["weeklyResetDay"] as? Number)?.toInt() ?: 2,
-                        weeklyResetHour = (item["weeklyResetHour"] as? Number)?.toInt() ?: 0,
-                        weeklyResetMinute = (item["weeklyResetMinute"] as? Number)?.toInt() ?: 0,
-                        expiresAt = (item["expiresAt"] as? Number)?.toLong(),
+                        weeklyResetDay = weeklyResetDay,
+                        weeklyResetHour = weeklyResetHour,
+                        weeklyResetMinute = weeklyResetMinute,
+                        expiresAt = if (expiredOnImport) null else rawExpiresAt,
                         createdAt = System.currentTimeMillis()
                 )
       database.appRestrictionDao().insert(restriction)
+      val usage = database.dailyUsageDao().getUsage(pkg, today)
+      if (usage != null) {
+        val quotaMinutes =
+                if (limitType == "weekly") {
+                  (item["weeklyQuotaMinutes"] as? Number)?.toInt() ?: 0
+                } else {
+                  val dayOfWeek = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
+                  restriction.getDailyQuotaForDay(dayOfWeek)
+                }
+        val usedMinutes =
+                if (limitType == "weekly") {
+                  val weekStart =
+                          AppUtils.getWeekStartDate(
+                                  weeklyResetDay,
+                                  weeklyResetHour,
+                                  weeklyResetMinute,
+                                  AppUtils.newDateFormat()
+                          )
+                  database.dailyUsageDao().getUsageSince(pkg, weekStart).sumOf { it.usedMinutes }
+                } else {
+                  usage.usedMinutes
+                }
+        if (quotaMinutes > 0 && usedMinutes >= quotaMinutes) {
+          database.dailyUsageDao().setBlockedForPackageDate(pkg, today, true, now)
+          usageMarked++
+        }
+      }
       imported++
     }
 
@@ -1092,6 +1134,8 @@ class MainActivity : FlutterActivity() {
             "success" to true,
             "imported" to imported,
             "skipped" to skipped,
+            "expiredAdjusted" to expiredAdjusted,
+            "usageMarked" to usageMarked,
             "schedulesImported" to schedulesImported,
             "schedulesSkipped" to schedulesSkipped,
             "dateBlocksImported" to dateBlocksImported,

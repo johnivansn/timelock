@@ -250,6 +250,10 @@ class AppBlockAccessibilityService : AccessibilityService() {
           reason: BlockingEngine.BlockReason,
           detailInfo: BlockDetailInfo? = null
   ) {
+    if (reason == BlockingEngine.BlockReason.TimeQuota && isImportOverlaySuppressed()) {
+      Log.i(TAG, "🔇 Overlay suprimido por importación (cuota): $packageName")
+      return
+    }
     val now = System.currentTimeMillis()
 
     val overlayEnabled = isBlockingOverlayEnabled()
@@ -625,6 +629,12 @@ class AppBlockAccessibilityService : AccessibilityService() {
   private fun isBlockingOverlayEnabled(): Boolean {
     val prefs = getSharedPreferences("notification_prefs", MODE_PRIVATE)
     return prefs.getBoolean("notify_overlay_enabled", true)
+  }
+
+  private fun isImportOverlaySuppressed(): Boolean {
+    val prefs = getSharedPreferences("import_prefs", MODE_PRIVATE)
+    val until = prefs.getLong("suppress_overlay_until", 0L)
+    return System.currentTimeMillis() < until
   }
 
   override fun onInterrupt() {

@@ -58,11 +58,21 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
       if (success) {
         final imported = res['imported'] as int? ?? 0;
         final skipped = res['skipped'] as int? ?? 0;
+        final expiredAdjusted = res['expiredAdjusted'] as int? ?? 0;
+        final usageMarked = res['usageMarked'] as int? ?? 0;
         if (skipped > 0) {
           context.showSnack('Importadas: $imported | Ya existían: $skipped');
         } else {
           context.showSnack(
               'Importadas $imported restricción${imported == 1 ? '' : 'es'}');
+        }
+        if (expiredAdjusted > 0) {
+          context.showSnack(
+              'Se desactivaron $expiredAdjusted restricciones ya vencidas');
+        }
+        if (usageMarked > 0) {
+          context.showSnack(
+              'Se bloquearon $usageMarked restricciones por uso previo');
         }
       } else {
         context.showSnack(res['error'] as String? ?? 'Error desconocido',
@@ -256,7 +266,8 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                     height: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: AppColors.onColor(AppColors.primary),
+                                      color:
+                                          AppColors.onColor(AppColors.primary),
                                     ),
                                   )
                                 : const Icon(Icons.share_rounded, size: 18),
@@ -385,7 +396,8 @@ class _ExportImportScreenState extends State<ExportImportScreen> {
                                     height: 20,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: AppColors.onColor(AppColors.success),
+                                      color:
+                                          AppColors.onColor(AppColors.success),
                                     ),
                                   )
                                 : const Icon(Icons.paste_rounded, size: 18),
