@@ -11,11 +11,11 @@
     android:id="@+id/widget_title"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
     android:text="Bloqueos directos"
     android:textColor="#FFFFFF"
     android:textSize="14sp"
-    android:textStyle="bold"
-    android:layout_marginBottom="8dp"/>
+    android:textStyle="bold" />
 
   <LinearLayout
     android:id="@+id/block_list_container"
@@ -27,10 +27,10 @@
       android:id="@+id/block1_container"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:orientation="horizontal"
-      android:gravity="center_vertical"
       android:layout_marginBottom="6dp"
       android:background="@drawable/widget_item_card"
+      android:gravity="center_vertical"
+      android:orientation="horizontal"
       android:padding="8dp">
 
       <ImageView
@@ -38,37 +38,45 @@
         android:layout_width="18dp"
         android:layout_height="18dp"
         android:layout_marginEnd="6dp"
-        android:contentDescription="@string/app_name"/>
+        android:contentDescription="@string/app_name" />
 
-      <TextView
-        android:id="@+id/block1_name"
+      <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="App"
-        android:textColor="#FFFFFF"
-        android:textSize="12sp"
-        android:textStyle="bold"
-        android:singleLine="true"
-        android:ellipsize="end"/>
+        android:orientation="vertical">
 
-      <TextView
-        android:id="@+id/block1_type"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Horario"
-        android:textColor="#CCCCCC"
-        android:textSize="10sp"/>
+        <TextView
+          android:id="@+id/block1_name"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:ellipsize="end"
+          android:singleLine="true"
+          android:text="App"
+          android:textColor="#FFFFFF"
+          android:textSize="12sp"
+          android:textStyle="bold" />
+
+        <TextView
+          android:id="@+id/block1_type"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:ellipsize="end"
+          android:maxLines="2"
+          android:text="Horario"
+          android:textColor="#CCCCCC"
+          android:textSize="10sp" />
+      </LinearLayout>
     </LinearLayout>
 
     <LinearLayout
       android:id="@+id/block2_container"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:orientation="horizontal"
-      android:gravity="center_vertical"
       android:layout_marginBottom="6dp"
       android:background="@drawable/widget_item_card"
+      android:gravity="center_vertical"
+      android:orientation="horizontal"
       android:padding="8dp">
 
       <ImageView
@@ -76,36 +84,44 @@
         android:layout_width="18dp"
         android:layout_height="18dp"
         android:layout_marginEnd="6dp"
-        android:contentDescription="@string/app_name"/>
+        android:contentDescription="@string/app_name" />
 
-      <TextView
-        android:id="@+id/block2_name"
+      <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="App"
-        android:textColor="#FFFFFF"
-        android:textSize="12sp"
-        android:textStyle="bold"
-        android:singleLine="true"
-        android:ellipsize="end"/>
+        android:orientation="vertical">
 
-      <TextView
-        android:id="@+id/block2_type"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Fecha"
-        android:textColor="#CCCCCC"
-        android:textSize="10sp"/>
+        <TextView
+          android:id="@+id/block2_name"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:ellipsize="end"
+          android:singleLine="true"
+          android:text="App"
+          android:textColor="#FFFFFF"
+          android:textSize="12sp"
+          android:textStyle="bold" />
+
+        <TextView
+          android:id="@+id/block2_type"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:ellipsize="end"
+          android:maxLines="2"
+          android:text="Fecha"
+          android:textColor="#CCCCCC"
+          android:textSize="10sp" />
+      </LinearLayout>
     </LinearLayout>
 
     <LinearLayout
       android:id="@+id/block3_container"
       android:layout_width="match_parent"
       android:layout_height="wrap_content"
-      android:orientation="horizontal"
-      android:gravity="center_vertical"
       android:background="@drawable/widget_item_card"
+      android:gravity="center_vertical"
+      android:orientation="horizontal"
       android:padding="8dp">
 
       <ImageView
@@ -113,29 +129,35 @@
         android:layout_width="18dp"
         android:layout_height="18dp"
         android:layout_marginEnd="6dp"
-        android:contentDescription="@string/app_name"/>
+        android:contentDescription="@string/app_name" />
 
-      <TextView
-        android:id="@+id/block3_name"
+      <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:text="App"
-        android:textColor="#FFFFFF"
-        android:textSize="12sp"
-        android:textStyle="bold"
-        android:singleLine="true"
-        android:ellipsize="end"/>
+        android:orientation="vertical">
 
-      <TextView
-        android:id="@+id/block3_type"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Mixto"
-        android:textColor="#CCCCCC"
-        android:textSize="10sp"/>
+        <TextView
+          android:id="@+id/block3_name"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:ellipsize="end"
+          android:singleLine="true"
+          android:text="App"
+          android:textColor="#FFFFFF"
+          android:textSize="12sp"
+          android:textStyle="bold" />
+
+        <TextView
+          android:id="@+id/block3_type"
+          android:layout_width="match_parent"
+          android:layout_height="wrap_content"
+          android:ellipsize="end"
+          android:maxLines="2"
+          android:text="Mixto"
+          android:textColor="#CCCCCC"
+          android:textSize="10sp" />
+      </LinearLayout>
     </LinearLayout>
-
   </LinearLayout>
-
 </LinearLayout>

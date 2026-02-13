@@ -9,7 +9,9 @@ import io.github.johnivansn.timelock.database.AppDatabase
 import io.github.johnivansn.timelock.monitoring.ScheduleMonitor
 import io.github.johnivansn.timelock.utils.AppComponentTheme
 import io.github.johnivansn.timelock.utils.AppUtils
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -42,6 +44,8 @@ class AppDirectBlockWidget : AppWidgetProvider() {
               database.dateBlockDao().getAll().filter { it.isEnabled }.map { it.packageName }.toSet()
       val restrictionsByPackage =
               database.appRestrictionDao().getAll().associateBy { it.packageName }
+      val now = System.currentTimeMillis()
+      val dateTimeFormat = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
 
       val combined = (schedulePackages + datePackages).toList()
       val views = RemoteViews(context.packageName, R.layout.widget_direct)
@@ -63,16 +67,32 @@ class AppDirectBlockWidget : AppWidgetProvider() {
           val hasDate = dateBlocks.isNotEmpty()
           val restriction = restrictionsByPackage[pkg]
           val expiresAt = restriction?.expiresAt ?: 0L
-          val isExpired = expiresAt > 0L && System.currentTimeMillis() > expiresAt
+          val isExpired = expiresAt > 0L && now > expiresAt
           val activeNow =
                   !isExpired && (scheduleMonitor.isCurrentlyBlocked(schedules) || isDateBlockedNow(dateBlocks))
+          val dateEndMillis = nearestDateBlockEndMillis(dateBlocks, now)
+          val scheduleEndMillis = nearestScheduleWindowEndMillis(schedules, now)
+          val ruleEndMillis = pickNearestEndMillis(dateEndMillis, scheduleEndMillis)
+          val effectiveEndMillis =
+                  if (expiresAt > 0L && ruleEndMillis != null) minOf(expiresAt, ruleEndMillis)
+                  else if (expiresAt > 0L) expiresAt
+                  else ruleEndMillis
           val type =
                   when {
                     hasSchedule && hasDate -> "Mixto"
                     hasSchedule -> "Horario"
                     else -> "Fecha"
                   }
-          DirectItem(pkg, type, isExpired, activeNow)
+          val typeLabel =
+                  buildTypeLabel(
+                          type = type,
+                          isExpired = isExpired,
+                          activeNow = activeNow,
+                          endMillis = effectiveEndMillis,
+                          formatter = dateTimeFormat
+                  )
+          val typeColor = resolveStatusColor(palette, isExpired, effectiveEndMillis, now)
+          DirectItem(pkg, typeLabel, isExpired, activeNow, typeColor)
         }
 
         for (i in 0 until 3) {
@@ -85,21 +105,8 @@ class AppDirectBlockWidget : AppWidgetProvider() {
             val appName = resolveAppName(context, item.packageName)
             views.setTextViewText(nameId, appName)
             views.setInt(containerId, "setBackgroundColor", palette.progressTrack)
-            val typeLabel =
-                    when {
-                      item.isExpired -> "${item.type} • Vencida"
-                      item.activeNow -> "${item.type} • Activa ahora"
-                      else -> item.type
-                    }
-            views.setTextViewText(typeId, typeLabel)
-            views.setTextColor(
-                    typeId,
-                    when {
-                      item.isExpired -> palette.error
-                      item.activeNow -> palette.warning
-                      else -> palette.tertiary
-                    }
-            )
+            views.setTextViewText(typeId, item.type)
+            views.setTextColor(typeId, item.statusColor)
             views.setTextColor(nameId, palette.text)
             setAppIcon(context, views, iconId, item.packageName)
             views.setViewVisibility(containerId, android.view.View.VISIBLE)
@@ -183,8 +190,107 @@ class AppDirectBlockWidget : AppWidgetProvider() {
           val packageName: String,
           val type: String,
           val isExpired: Boolean,
-          val activeNow: Boolean
+          val activeNow: Boolean,
+          val statusColor: Int
   )
+
+  private fun buildTypeLabel(
+          type: String,
+          isExpired: Boolean,
+          activeNow: Boolean,
+          endMillis: Long?,
+          formatter: SimpleDateFormat
+  ): String {
+    if (isExpired) return "$type • Vencida"
+    if (endMillis == null) return if (activeNow) "$type • Activa ahora" else type
+    val formatted = formatter.format(java.util.Date(endMillis))
+    return if (activeNow) "$type • Hasta $formatted" else "$type • Próx. hasta $formatted"
+  }
+
+  private fun resolveStatusColor(
+          palette: io.github.johnivansn.timelock.utils.WidgetThemePalette,
+          isExpired: Boolean,
+          endMillis: Long?,
+          now: Long
+  ): Int {
+    if (isExpired) return palette.error
+    if (endMillis == null) return palette.tertiary
+    val remaining = endMillis - now
+    if (remaining <= 0L) return palette.error
+    if (remaining <= 60 * 60 * 1000L) return palette.error
+    if (remaining <= 6 * 60 * 60 * 1000L) return palette.warning
+    return palette.success
+  }
+
+  private fun pickNearestEndMillis(dateEnd: Long?, scheduleEnd: Long?): Long? {
+    return when {
+      dateEnd == null -> scheduleEnd
+      scheduleEnd == null -> dateEnd
+      else -> minOf(dateEnd, scheduleEnd)
+    }
+  }
+
+  private fun nearestDateBlockEndMillis(
+          blocks: List<io.github.johnivansn.timelock.database.DateBlock>,
+          now: Long
+  ): Long? {
+    if (blocks.isEmpty()) return null
+    val dateFormat = AppUtils.newDateFormat()
+    val candidates = blocks.mapNotNull { block ->
+      val end =
+              toDateTimeMillis(
+                      dateFormat,
+                      block.endDate,
+                      block.endHour,
+                      block.endMinute
+              )
+      if (end != null && end > now) end else null
+    }
+    return candidates.minOrNull()
+  }
+
+  private fun nearestScheduleWindowEndMillis(
+          schedules: List<io.github.johnivansn.timelock.database.AppSchedule>,
+          nowMillis: Long
+  ): Long? {
+    if (schedules.isEmpty()) return null
+    var bestEnd: Long? = null
+    for (schedule in schedules) {
+      if (!schedule.isEnabled) continue
+      for (offset in 0..7) {
+        val dayStart = Calendar.getInstance().apply {
+          timeInMillis = nowMillis
+          set(Calendar.SECOND, 0)
+          set(Calendar.MILLISECOND, 0)
+          set(Calendar.HOUR_OF_DAY, 0)
+          set(Calendar.MINUTE, 0)
+          add(Calendar.DAY_OF_MONTH, offset)
+        }
+        val dayOfWeek = dayStart.get(Calendar.DAY_OF_WEEK)
+        val dayBit = 1 shl (dayOfWeek - 1)
+        if ((schedule.daysOfWeek and dayBit) == 0) continue
+
+        val start = Calendar.getInstance().apply {
+          timeInMillis = dayStart.timeInMillis
+          set(Calendar.HOUR_OF_DAY, schedule.startHour)
+          set(Calendar.MINUTE, schedule.startMinute)
+        }
+        val end = Calendar.getInstance().apply {
+          timeInMillis = dayStart.timeInMillis
+          set(Calendar.HOUR_OF_DAY, schedule.endHour)
+          set(Calendar.MINUTE, schedule.endMinute)
+        }
+        if (end.timeInMillis <= start.timeInMillis) {
+          end.add(Calendar.DAY_OF_MONTH, 1)
+        }
+        if (end.timeInMillis <= nowMillis) continue
+        if (bestEnd == null || end.timeInMillis < bestEnd) {
+          bestEnd = end.timeInMillis
+        }
+      }
+    }
+    return bestEnd
+  }
 
   private fun isDateBlockedNow(blocks: List<io.github.johnivansn.timelock.database.DateBlock>): Boolean {
     if (blocks.isEmpty()) return false
