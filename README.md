@@ -47,15 +47,15 @@ A diferencia de otras apps de "digital wellbeing", TimeLock:
 - **Templates**: Guarda configuraciones para reutilizar
 
 ### 🔐 Seguridad
-- **Modo Administrador**: Protección con PIN de 4-6 dígitos (SHA-256)
+- **Modo Administrador**: Protección con PIN de 4 dígitos (SHA-256)
 - **Bloqueo temporal**: Activa modo admin por tiempo limitado sin PIN
 - **Anti-bypass**: 3 intentos fallidos → bloqueo de 5 minutos
 - **Sin recuperación**: Si olvidas tu PIN, debes reinstalar (decisión consciente)
 
 ### 🎨 Experiencia de Usuario
-- **Material Design 3**: UI moderna con variantes de tema oscuro
+- **Material Design 3**: UI moderna con tema claro/oscuro
 - **Notificaciones inteligentes**: Píldoras flotantes o notificaciones normales
-- **Widgets**: Vista rápida del estado sin abrir la app
+- **Widget**: Lista rápida de restricciones sin abrir la app
 - **Export/Import**: Backup completo de tu configuración en JSON
 
 ### ⚡ Optimización
@@ -77,7 +77,7 @@ A diferencia de otras apps de "digital wellbeing", TimeLock:
 | Permiso | Criticidad | Propósito |
 |---------|-----------|-----------|
 | Usage Stats | **CRÍTICO** | Tracking de uso de apps |
-| Accessibility Service | **CRÍTICO** | Mostrar overlay de bloqueo |
+| Accessibility Service | **CRÍTICO** | Bloquear apps y mostrar overlay si está disponible |
 | Display over other apps | RECOMENDADO | Notificaciones visuales (píldora) |
 | Device Admin | OPCIONAL | Protección contra desinstalación |
 
@@ -242,14 +242,14 @@ Sí. Export/Import en formato JSON incluye:
 
 ## 🗺️ Roadmap
 
-### ✅ Completado (v2.0)
+### ✅ Completado (v0.1.x)
 - Cuotas diarias y semanales
 - Bloqueos por horario
 - Bloqueos por fecha con hora
 - Vencimiento opcional de restricciones
 - Modo admin con PIN y bloqueo temporal
 - Material Design 3 con variantes de tema
-- Widgets (estado general y bloqueos directos)
+- Widget de lista (scrolleable)
 - Export/Import JSON
 - Optimización de batería
 - Updates desde GitHub Releases
@@ -264,7 +264,6 @@ Sí. Export/Import en formato JSON incluye:
 - Bloqueo por WiFi (demasiado complejo)
 - Gamificación (anti-filosofía del proyecto)
 - Estadísticas detalladas (minimalismo)
-- Tema claro (innecesario)
 
 ---
 

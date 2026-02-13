@@ -33,6 +33,7 @@ import io.github.johnivansn.timelock.database.BlockTemplate
 import io.github.johnivansn.timelock.database.AppRestriction
 import io.github.johnivansn.timelock.database.AppSchedule
 import io.github.johnivansn.timelock.database.DateBlock
+import io.github.johnivansn.timelock.database.getDailyQuotaForDay
 import io.github.johnivansn.timelock.optimization.AppCacheManager
 import io.github.johnivansn.timelock.optimization.BatteryModeManager
 import io.github.johnivansn.timelock.optimization.DataCleanupManager

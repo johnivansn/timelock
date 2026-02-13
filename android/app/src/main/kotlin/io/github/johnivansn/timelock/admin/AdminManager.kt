@@ -25,7 +25,7 @@ class AdminManager(context: Context) {
   }
 
   suspend fun setupPin(pin: String): Boolean {
-    if (pin.length < 4 || pin.length > 6) return false
+    if (pin.length != 4) return false
     if (!pin.all { it.isDigit() }) return false
 
     val settings =
