@@ -126,7 +126,7 @@ object AppComponentTheme {
   private fun resolveTheme(context: Context, key: String): ComponentTheme {
     val prefs = context.getSharedPreferences(UI_PREFS, Context.MODE_PRIVATE)
     val raw = prefs.getString(key, null)
-    val fallback = prefs.getString(THEME_CHOICE, "dark")
+    val fallback = prefs.getString(THEME_CHOICE, "auto")
     val choice = normalize(raw ?: fallback)
     return when (choice) {
       "light" -> ComponentTheme.LIGHT
@@ -142,7 +142,7 @@ object AppComponentTheme {
   private fun normalize(value: String?): String {
     return when (value) {
       "light", "dark", "auto" -> value
-      else -> "dark"
+      else -> "auto"
     }
   }
 }

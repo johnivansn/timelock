@@ -91,6 +91,8 @@ class AppSettings {
       overlayThemeChoice ?? current.overlayThemeChoice,
       fallback: newChoice,
     );
+    final widgetChoiceChanged = newWidgetChoice != current.widgetThemeChoice;
+    final overlayChoiceChanged = newOverlayChoice != current.overlayThemeChoice;
     final newReduce = reduceAnimations ?? current.reduceAnimations;
     await NativeService.saveSharedPreference({
       'prefsName': _prefsName,
@@ -120,6 +122,13 @@ class AppSettings {
       reduceAnimations: newReduce,
       theme: theme,
     );
+
+    if (widgetChoiceChanged) {
+      await NativeService.refreshWidgetsNow();
+    }
+    if (overlayChoiceChanged) {
+      await NativeService.notifyOverlayThemeChanged();
+    }
   }
 
   static Future<void> refreshFromSystemIfNeeded() async {

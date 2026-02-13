@@ -34,7 +34,7 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
           final overlayRaw = uiPrefs?['overlay_theme_choice']?.toString();
           _themeChoice = (raw == 'light' || raw == 'dark' || raw == 'auto')
               ? raw!
-              : 'dark';
+              : 'auto';
           _widgetThemeChoice = (widgetRaw == 'light' ||
                   widgetRaw == 'dark' ||
                   widgetRaw == 'auto')
@@ -112,12 +112,6 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                             onChanged: (value) async {
                               setState(() => _themeChoice = value);
                               await AppSettings.update(themeChoice: value);
-                              if (_widgetThemeChoice == 'auto') {
-                                await NativeService.refreshWidgetsNow();
-                              }
-                              if (_overlayThemeChoice == 'auto') {
-                                await NativeService.notifyOverlayThemeChanged();
-                              }
                               if (!mounted) return;
                               this.context.showSnack('Tema de app actualizado');
                             },
@@ -134,7 +128,6 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                               setState(() => _widgetThemeChoice = value);
                               await AppSettings.update(
                                   widgetThemeChoice: value);
-                              await NativeService.refreshWidgetsNow();
                               if (!mounted) return;
                               this
                                   .context
@@ -153,7 +146,6 @@ class _AppearanceScreenState extends State<AppearanceScreen> {
                               setState(() => _overlayThemeChoice = value);
                               await AppSettings.update(
                                   overlayThemeChoice: value);
-                              await NativeService.notifyOverlayThemeChanged();
                               if (!mounted) return;
                               this
                                   .context
